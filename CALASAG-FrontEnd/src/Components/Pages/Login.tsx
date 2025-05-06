@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import logo from "../Images/no-bg-logo.png";
 
 export const Login = () => {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -7,22 +8,16 @@ export const Login = () => {
     <div className="min-h-screen w-screen flex flex-col lg:flex-row overflow-hidden">
       {/* Left Side ng Page po Ito*/}
       <div className="w-full lg:w-1/2 bg-[#f8eed4] text-white flex flex-col items-center justify-center p-8">
-        <img src="/WALAPA" alt="CALASAG Logo" className="w-24 md:w-32 mb-4" />
-        <h1 className="text-7xl md:text-7xl font-bold tracking-wide text-[#005524]">
-          CALASAG
-        </h1>
-        <p className="text-sm md:text-lg text-[#be4c1d] mt-2 text-center">
-          Your Safety is Tailored with Bayanihan Touch
-        </p>
+        <img src={logo} alt="CALASAG Logo" className="w-900 md:w-900 mb-8" />
       </div>
 
       {/* Right Side ng page Po Ito */}
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#005524]">
-        <form className="bg-gray-900/80 backdrop-blur-md p-6 md:p-8 rounded-lg shadow-xl w-full max-w-sm border border-gray-700 text-white mx-4">
+        <form className="bg-[#f8eed4] backdrop-blur-md p-6 md:p-8 rounded-lg shadow-xl w-full max-w-sm border border-gray-800 text-[#f9a01b] mx-4">
           <h1 className="text-2xl md:text-3xl font-semibold text-center mb-2 tracking-widest uppercase">
             {isRegistering ? "Register" : "Login"}
           </h1>
-          <p className="text-xs text-gray-400 text-center mb-6">
+          <p className="text-xs text-[#bd4d22] text-center mb-6">
             {isRegistering
               ? "Create your CALASAG account"
               : "Secure Access to CALASAG"}
@@ -30,7 +25,7 @@ export const Login = () => {
 
           <div className="mb-4">
             <input
-              className="w-full bg-[gray-800] text-white px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
+              className="w-full bg-[#f8eed4] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-600"
               type="text"
               placeholder="Username"
               required
@@ -40,7 +35,7 @@ export const Login = () => {
           {isRegistering && (
             <div className="mb-4">
               <input
-                className="w-full bg-gray-800 text-white px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
+                className="w-full bg-[#f8eed4] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-500"
                 type="tel"
                 placeholder="Mobile Number"
                 required
@@ -51,7 +46,7 @@ export const Login = () => {
           {isRegistering && (
             <div className="mb-4">
               <input
-                className="w-full bg-gray-800 text-white px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
+                className="w-full bg-[#f8eed4] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-500"
                 type="email"
                 placeholder="Email"
                 required
@@ -61,7 +56,7 @@ export const Login = () => {
 
           <div className="mb-4">
             <input
-              className="w-full bg-gray-800 text-white px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
+              className="w-full bg-[#f8eed4e8] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-500"
               type="password"
               placeholder="Password"
               required
@@ -71,7 +66,7 @@ export const Login = () => {
           {isRegistering && (
             <div className="mb-4">
               <input
-                className="w-full bg-gray-800 text-white px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
+                className="w-full bg-[#f8eed48e] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-500"
                 type="password"
                 placeholder="Confirm Password"
                 required
@@ -82,7 +77,7 @@ export const Login = () => {
           {!isRegistering && (
             <div className="flex items-center justify-between mb-6 text-sm text-gray-400">
               <label className="flex items-center gap-2">
-                <input type="checkbox" className="accent-blue-500" />
+                <input type="checkbox" className="accent-[#005524]" />
                 Remember me
               </label>
             </div>
@@ -90,19 +85,19 @@ export const Login = () => {
 
           <button
             type="submit"
-            className="w-full bg-blue-600/80 hover:bg-blue-600 text-white font-medium py-2 rounded-lg transition duration-200"
+            className="w-full bg-[#005524] hover:bg-[#005523d3] text-white font-medium py-2 rounded-lg transition duration-200"
           >
             {isRegistering ? "Register" : "Login"}
           </button>
 
-          <p className="text-sm text-center mt-6 text-gray-400">
+          <p className="text-sm text-center mt-6 text-gray-800">
             {isRegistering
               ? "Already have an account?"
               : "Don't have an account?"}
             <button
               type="button"
               onClick={() => setIsRegistering(!isRegistering)}
-              className="text-blue-500 hover:text-blue-400 hover:underline ml-1"
+              className="text-[#005524] hover:text-[#005523c7] hover:underline ml-1"
             >
               {isRegistering ? "Login" : "Register"}
             </button>
@@ -112,3 +107,4 @@ export const Login = () => {
     </div>
   );
 };
+export default Login;

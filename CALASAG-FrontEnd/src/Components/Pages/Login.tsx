@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import logo from "../Images/no-bg-logo.png";
 
-export const Login = () => {
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [is2FAStep, setIs2FAStep] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
-  const formRef = useRef(null);
+export const Login: React.FC = () => {
+  const [isRegistering, setIsRegistering] = useState<boolean>(false);
+  const [is2FAStep, setIs2FAStep] = useState<boolean>(false);
+  const [cooldown, setCooldown] = useState<number>(0);
+  const formRef = useRef<HTMLFormElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    let timer;
+    let timer: NodeJS.Timeout;
     if (cooldown > 0) {
       timer = setInterval(() => {
         setCooldown((prev) => prev - 1);
@@ -17,7 +19,7 @@ export const Login = () => {
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIs2FAStep(true);
     setCooldown(30);
@@ -26,14 +28,10 @@ export const Login = () => {
     }
   };
 
-  const handle2FASubmit = (e) => {
+  const handle2FASubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    alert("2FA verified successfully!");
-    setIs2FAStep(false);
-    setCooldown(0);
-    if (formRef.current) {
-      formRef.current.reset();
-    }
+    // Instead of showing an alert, navigate to the Dashboard
+    navigate("/dashboard");
   };
 
   const handleResendCode = () => {

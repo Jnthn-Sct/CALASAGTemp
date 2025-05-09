@@ -127,7 +127,7 @@ const Dashboard: React.FC = () => {
     },
     {
       id: 2,
-      message: "Your connection Andy Girl is nearby",
+      message: "Your connection Vin Vernon Perez is nearby",
       time: "10 minutes ago",
       read: false
     }
@@ -447,7 +447,7 @@ const Dashboard: React.FC = () => {
 
         {/* Right Side - Connections */}
         <div className="w-1/4 p-4">
-          <div className="bg-[#be4c1d] rounded-lg shadow-md p-4">
+          <div className="bg-[#005524] rounded-lg shadow-md p-4">
             <h2 className="text-2xl font-bold text-white mb-4">Connections</h2>
             <div className="space-y-2">
               {connections.map((connection) => (

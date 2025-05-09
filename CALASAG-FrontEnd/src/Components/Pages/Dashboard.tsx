@@ -32,7 +32,7 @@ interface Notification {
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [activeUser, setActiveUser] = useState<string>("Justine Mae Dolor");
+  const [activeUser, setActiveUser] = useState<string>("Juan Dela Cruz");
   const [activeTab, setActiveTab] = useState<string>("home");
   const [showMessages, setShowMessages] = useState<boolean>(false);
   const [showReport, setShowReport] = useState<boolean>(false);
@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
     },
     {
       id: 3,
-      name: "Hyacinth Louisse Almiro",
+      name: "Justine Mae Dolor",
       avatar: "/avatars/jess.png",
       emergency: "Fire Alert",
       message: "Fire in the building!",
@@ -91,7 +91,7 @@ const Dashboard: React.FC = () => {
     },
     {
       id: 6,
-      name: "Andy Girl",
+      name: "Hyacinth Louisse Almiro",
       avatar: "/avatars/bo.png",
       emergency: "Looking for help",
       message: "I need car guy",
@@ -110,12 +110,12 @@ const Dashboard: React.FC = () => {
   const [connections, setConnections] = useState<Connection[]>([
     { id: 1, name: "Jonathan Ray Sicat", avatar: "/avatars/jess.png" },
     { id: 2, name: "Dawn Emmanuel Aguila", avatar: "/avatars/john.png" },
-    { id: 3, name: "Hyacinth Louisse Almiro", avatar: "/avatars/olli.png" },
-    { id: 4, name: "Justin Anthony Aleta", avatar: "/avatars/elli.png" },
+    { id: 3, name: "Justine Mae Dolor", avatar: "/avatars/olli.png" },
+    { id: 4, name: "Hyacinth Louisse Almiro", avatar: "/avatars/elli.png" },
     { id: 5, name: "Julius Caniete", avatar: "/avatars/bo.png" },
     { id: 6, name: "German Gerrich Cardona", avatar: "/avatars/nikita.png" },
-    { id: 7, name: "Jix Jimrei Ilao", avatar: "/avatars/nataniel.png" },
-    { id: 8, name: "Andy Girl", avatar: "/avatars/ayisha.png" },
+    { id: 7, name: "Justin Anthony Aleta", avatar: "/avatars/nataniel.png" },
+    { id: 8, name: "Jix Jimrei Ilao", avatar: "/avatars/ayisha.png" },
   ]);
 
   const [notifications, setNotifications] = useState<Notification[]>([
@@ -351,7 +351,7 @@ const Dashboard: React.FC = () => {
         {/* Left Side - Map & Device Info */}
         <div className="w-1/4 p-4 flex flex-col space-y-4">
           {/* Map Component */}
-          <div className="bg-[#be4c1d] rounded-lg shadow-md p-3 h-fit">
+          <div className="bg-[#005524] rounded-lg shadow-md p-3 h-fit">
             <div className="flex justify-between items-center mb-2">
               <h2 className="text-xl font-bold text-white">Your Location</h2>
               <button className="text-white">⋮</button>
@@ -371,7 +371,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Device Info */}
-          <div className="bg-[#be4c1d] rounded-lg shadow-md p-4">
+          <div className="bg-[#005524] rounded-lg shadow-md p-4">
             <h2 className="text-xl font-bold text-white mb-4">Your Device</h2>
             <div className="flex items-center space-x-4">
               <div className="bg-white/20 p-2 rounded-lg">
@@ -393,7 +393,7 @@ const Dashboard: React.FC = () => {
 
         <div className="w-2/4 p-4">
           {/* User Info Card */}
-          <div className="bg-[#be4c1d] border border-gray-300 rounded-lg p-4 mb-4 flex items-center justify-center">
+          <div className="bg-[#005524] border border-gray-300 rounded-lg p-4 mb-4 flex items-center justify-center">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-white text-xl">
                 👤

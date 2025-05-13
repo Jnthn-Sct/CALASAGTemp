@@ -54,8 +54,8 @@ const Dashboard: React.FC = () => {
       name: "Jonathan Ray Sicat",
       avatar: "/avatars/myah.png",
       emergency: "Needs Ambulance - Medical Emergency",
-      message: "I NEED HELP!!!",
-      location: { lat: 52.3733, lng: 4.8978 },
+      message: "I AM INVOLVED IN A MOTORCYCLE ACCIDENT!!!",
+      location: { lat: 13.767783, lng: 121.063503 },
     },
     {
       id: 2,
@@ -63,7 +63,7 @@ const Dashboard: React.FC = () => {
       avatar: "/avatars/olli.png",
       emergency: "Reporting Incident",
       message: "Car Crash at SLEX",
-      location: { lat: 52.3731, lng: 4.8972 },
+      location: { lat: 13.788724, lng: 121.060253 },
     },
     {
       id: 3,
@@ -71,7 +71,7 @@ const Dashboard: React.FC = () => {
       avatar: "/avatars/jess.png",
       emergency: "Fire Alert",
       message: "Fire in the building!",
-      location: { lat: 52.3735, lng: 4.8980 },
+      location: { lat: 13.7565, lng: 121.0583  },
     },
     {
       id: 4,
@@ -87,7 +87,7 @@ const Dashboard: React.FC = () => {
       avatar: "/avatars/elli.png",
       emergency: "Car Accident",
       message: "Need assistance at the intersection.",
-      location: { lat: 52.3740, lng: 4.9000 },
+      location: { lat: 13.788724, lng: 121.060253 },
     },
     {
       id: 6,
@@ -95,7 +95,7 @@ const Dashboard: React.FC = () => {
       avatar: "/avatars/bo.png",
       emergency: "Looking for help",
       message: "I need car guy",
-      location: { lat: 52.3742, lng: 4.9010 },
+      location: { lat: 13.788724, lng: 121.060253 },
     },
     {
       id: 7,
@@ -103,7 +103,7 @@ const Dashboard: React.FC = () => {
       avatar: "/avatars/nataniel.png",
       emergency: "Looking for Andy",
       message: "I need car girl",
-      location: { lat: 52.3745, lng: 4.9020 },
+      location: { lat: 13.767783, lng: 121.063503 },
     },
   ]);
 

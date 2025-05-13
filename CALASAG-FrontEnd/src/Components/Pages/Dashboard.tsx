@@ -406,7 +406,7 @@ const Dashboard: React.FC = () => {
 
           {/* Emergency Cards */}
           {emergencies.map((emergency) => (
-            <div key={emergency.id} className="bg-[#f8eed4] border border-gray-300 rounded-lg mb-4 overflow-hidden">
+            <div key={emergency.id} className="bg-[#f8eed4] border border-gray-800 rounded-lg mb-4 overflow-hidden">
               <div className="bg-[#f8eed4] p-4 flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-white">
                   👤
@@ -424,7 +424,7 @@ const Dashboard: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <div className="px-4 py-2 border-t border-gray-300">
+              <div className="px-4 py-2 border-t border-gray-800">
                 <h4 className="text-xl font-bold text-[#005524] mb-2">{emergency.message}</h4>
               </div>
               <div className="flex border-t border-gray-300">
@@ -615,13 +615,6 @@ const Dashboard: React.FC = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <h3 className="font-semibold text-gray-700">Notifications</h3>
-                  <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <span className="text-gray-600">Push Notifications</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#005524]"></div>
-                    </label>
-                  </div>
                   <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <span className="text-gray-600">Email Notifications</span>
                     <label className="relative inline-flex items-center cursor-pointer">

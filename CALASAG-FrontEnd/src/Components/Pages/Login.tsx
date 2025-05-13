@@ -52,19 +52,19 @@ export const Login: React.FC = () => {
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#005524]">
         <form
           ref={formRef}
-          className="bg-[#f8eed4] backdrop-blur-md p-6 md:p-8 rounded-lg shadow-xl w-full max-w-sm border border-gray-800 text-[#f9a01b] mx-4"
+          className="bg-[#f8eed4] backdrop-blur-md p-6 md:p-8 rounded-lg shadow-xl w-full max-w-sm border border-gray-800 text-[#005524] mx-4"
           onSubmit={is2FAStep ? handle2FASubmit : handleLoginSubmit}
         >
           <h1 className="text-2xl md:text-3xl font-semibold text-center mb-2 tracking-widest uppercase">
             {is2FAStep
-              ? "Two-Factor Authentication"
+              ? "One Time Password"
               : isRegistering
               ? "Register"
               : "Login"}
           </h1>
           <p className="text-xs text-[#bd4d22] text-center mb-6">
             {is2FAStep
-              ? "Enter the code sent to your email/phone"
+              ? "Enter the code sent to your mobile number"
               : isRegistering
               ? "Create your CALASAG account"
               : "Secure Access to CALASAG"}
@@ -138,7 +138,7 @@ export const Login: React.FC = () => {
                 <input
                   className="w-full bg-[#f8eed4] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-500"
                   type="text"
-                  placeholder="Enter 2FA Code"
+                  placeholder="Enter OTP Code"
                   required
                 />
               </div>
@@ -171,7 +171,7 @@ export const Login: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full bg-[#005524] hover:bg-[#005523d3] text-white font-medium py-2 rounded-lg transition duration-200"
+            className="w-full bg-[#f9a01b] hover:bg-[#F9C835] text-white font-medium py-2 rounded-lg transition duration-200"
           >
             {is2FAStep ? "Verify Code" : isRegistering ? "Register" : "Login"}
           </button>
@@ -189,7 +189,7 @@ export const Login: React.FC = () => {
                     formRef.current.reset();
                   }
                 }}
-                className="text-[#005524] hover:text-[#005523c7] hover:underline ml-1"
+                className="text-[#f9a01b] hover:text-[#F9C835] hover:underline ml-1"
               >
                 {isRegistering ? "Login" : "Register"}
               </button>

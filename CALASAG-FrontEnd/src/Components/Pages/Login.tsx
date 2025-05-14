@@ -2,10 +2,15 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../Images/no-bg-logo.png";
 
+type UserRole = 'super_admin' | 'admin' | 'user';
+
 export const Login: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
   const [is2FAStep, setIs2FAStep] = useState<boolean>(false);
   const [cooldown, setCooldown] = useState<number>(0);
+  const [username, setUsername] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [otpCode, setOtpCode] = useState<string>('');
   const formRef = useRef<HTMLFormElement>(null);
   const navigate = useNavigate();
 
@@ -21,6 +26,19 @@ export const Login: React.FC = () => {
 
   const handleLoginSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // For demo purposes, we'll simulate role verification
+    const verifyUserRole = (username: string, password: string): UserRole => {
+      // This is just a demo - in a real app, this would be handled by your backend
+      if (username === 'superadmin' && password === 'superpass') return 'super_admin';
+      if (username === 'admin' && password === 'adminpass') return 'admin';
+      return 'user';
+    };
+
+    const userRole = verifyUserRole(username, password);
+
+    // Store user role in localStorage or your preferred state management
+    localStorage.setItem('userRole', userRole);
+
     setIs2FAStep(true);
     setCooldown(30);
     if (formRef.current) {
@@ -30,8 +48,25 @@ export const Login: React.FC = () => {
 
   const handle2FASubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Instead of showing an alert, navigate to the Dashboard
-    navigate("/dashboard");
+
+    if (!otpCode.trim()) {
+      alert("Please enter the verification code");
+      return;
+    }
+
+    const userRole = localStorage.getItem('userRole') as UserRole;
+
+    // Navigate based on role
+    switch (userRole) {
+      case 'super_admin':
+        navigate('/super-admin-dashboard');
+        break;
+      case 'admin':
+        navigate('/admin-dashboard');
+        break;
+      default:
+        navigate('/dashboard');
+    }
   };
 
   const handleResendCode = () => {
@@ -59,15 +94,15 @@ export const Login: React.FC = () => {
             {is2FAStep
               ? "One Time Password"
               : isRegistering
-              ? "Register"
-              : "Login"}
+                ? "Register"
+                : "Login"}
           </h1>
           <p className="text-xs text-[#bd4d22] text-center mb-6">
             {is2FAStep
               ? "Enter the code sent to your mobile number"
               : isRegistering
-              ? "Create your CALASAG account"
-              : "Secure Access to CALASAG"}
+                ? "Create your CALASAG account"
+                : "Secure Access to CALASAG"}
           </p>
 
           {!is2FAStep ? (
@@ -78,6 +113,8 @@ export const Login: React.FC = () => {
                   type="text"
                   placeholder="Username"
                   required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                 />
               </div>
 
@@ -109,6 +146,8 @@ export const Login: React.FC = () => {
                   type="password"
                   placeholder="Password"
                   required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
 
@@ -139,6 +178,8 @@ export const Login: React.FC = () => {
                   className="w-full bg-[#f8eed4] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-500"
                   type="text"
                   placeholder="Enter OTP Code"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
                   required
                 />
               </div>
@@ -147,9 +188,8 @@ export const Login: React.FC = () => {
                   type="button"
                   onClick={handleResendCode}
                   disabled={cooldown > 0}
-                  className={`text-sm text-[#005524] hover:text-[#005523c7] hover:underline ${
-                    cooldown > 0 ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  className={`text-sm text-[#005524] hover:text-[#005523c7] hover:underline ${cooldown > 0 ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                 >
                   Resend Code {cooldown > 0 ? `(${cooldown}s)` : ""}
                 </button>

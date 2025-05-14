@@ -23,6 +23,12 @@ interface Connection {
   avatar: string;
 }
 
+interface Type {
+  id: number;
+  name: string;
+}
+
+
 interface Notification {
   id: number;
   message: string;
@@ -105,6 +111,7 @@ const Dashboard: React.FC = () => {
       message: "I need car girl",
       location: { lat: 13.767783, lng: 121.063503 },
     },
+
   ]);
 
   const [connections, setConnections] = useState<Connection[]>([
@@ -116,6 +123,16 @@ const Dashboard: React.FC = () => {
     { id: 6, name: "German Gerrich Cardona", avatar: "/avatars/nikita.png" },
     { id: 7, name: "Justin Anthony Aleta", avatar: "/avatars/nataniel.png" },
     { id: 8, name: "Jix Jimrei Ilao", avatar: "/avatars/ayisha.png" },
+  ]);
+  
+  const [type, setType] = useState<Type[]>([
+    { id: 1, name: "Medical Emergency" },
+    { id: 2, name: "Missing Person" },
+    { id: 3, name: "Fire" },
+    { id: 4, name: "Accident" },
+    { id: 5, name: "Theft" },
+    { id: 6, name: "General Assistance" },
+    { id: 7, name: "Other" },
   ]);
 
   const [notifications, setNotifications] = useState<Notification[]>([
@@ -387,9 +404,32 @@ const Dashboard: React.FC = () => {
                   <span className="text-white font-medium">Active</span>
                 </div>
               </div>
+                <button
+                  className="rounded-lg flex-1 bg-[#be4c1d] text-white py-2 px-4 flex items-center justify-center hover:bg-[#004015] transition-colors"
+                >
+                  Deactivate
+                </button>
+            </div>
+          </div>{/* Emergency Types */}
+          <div className="bg-[#005524] rounded-lg shadow-md p-4">
+            <h2 className="text-2xl font-bold text-white mb-4">Emergency Types</h2>
+            <div className="space-y-2">
+              {type.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center p-2 rounded-lg bg-white/10 hover:bg-white/20 cursor-pointer transition-colors duration-200"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
+                    SOS
+                  </div>
+                  <span className="text-white ml-3">{item.name || "Unknown Type"}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
+
+          
 
         <div className="w-2/4 p-4">
           {/* User Info Card */}

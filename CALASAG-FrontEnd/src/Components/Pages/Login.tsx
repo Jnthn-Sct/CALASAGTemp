@@ -39,8 +39,19 @@ export const Login: React.FC = () => {
     // Store user role in localStorage or your preferred state management
     localStorage.setItem('userRole', userRole);
 
-    setIs2FAStep(true);
-    setCooldown(30);
+    // Only require 2FA for regular users
+    if (userRole === 'user') {
+      setIs2FAStep(true);
+      setCooldown(30);
+    } else {
+      // Direct navigation for super_admin and admin
+      if (userRole === 'super_admin') {
+        navigate('/super-admin-dashboard');
+      } else if (userRole === 'admin') {
+        navigate('/admin-dashboard');
+      }
+    }
+
     if (formRef.current) {
       formRef.current.reset();
     }

@@ -146,7 +146,7 @@ const AdminDashboard: React.FC = () => {
                 return (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         {/* Total Users Card */}
-                        <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                        <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer"
                             onClick={() => setActiveTab("users")}>
                             <h3 className="text-lg font-semibold text-[#005524] mb-2">Total Users</h3>
                             <p className="text-3xl font-bold">{users.length}</p>
@@ -154,7 +154,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
 
                         {/* Active Users Card */}
-                        <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                        <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer"
                             onClick={() => setActiveTab("users")}>
                             <h3 className="text-lg font-semibold text-[#005524] mb-2">Active Users</h3>
                             <p className="text-3xl font-bold">{users.filter(u => u.status === 'active').length}</p>
@@ -162,7 +162,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
 
                         {/* Critical Incidents Card */}
-                        <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                        <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer"
                             onClick={() => setActiveTab("incidents")}>
                             <h3 className="text-lg font-semibold text-[#005524] mb-2">Critical Incidents</h3>
                             <p className="text-3xl font-bold">{incidents.filter(i => i.severity === 'critical').length}</p>
@@ -170,7 +170,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
 
                         {/* Active Alerts Card */}
-                        <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                        <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer"
                             onClick={() => setActiveTab("geofencing")}>
                             <h3 className="text-lg font-semibold text-[#005524] mb-2">Active Alerts</h3>
                             <p className="text-3xl font-bold">{geofenceAlerts.filter(g => g.status === 'active').length}</p>
@@ -178,7 +178,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
 
                         {/* Recent Activity Section */}
-                        <div className="col-span-full bg-white rounded-lg shadow-md p-6 mt-6">
+                        <div className="col-span-full bg-[#f8eed4] rounded-lg shadow-md p-6 mt-6">
                             <h2 className="text-xl font-semibold text-[#005524] mb-4">Recent Activity</h2>
                             <div className="space-y-4">
                                 {incidents.slice(0, 3).map((incident) => (
@@ -280,7 +280,7 @@ const AdminDashboard: React.FC = () => {
                 );
             case "incidents":
                 return (
-                    <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="bg-[#f8eed4] rounded-lg shadow-md p-6">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-semibold text-[#005524]">Incident Reports</h2>
                         </div>
@@ -295,7 +295,7 @@ const AdminDashboard: React.FC = () => {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-[#f8eed4] divide-y divide-gray-200">
                                     {incidents.map((incident) => (
                                         <tr key={incident.id}>
                                             <td className="px-6 py-4 whitespace-nowrap">{incident.title}</td>
@@ -330,7 +330,7 @@ const AdminDashboard: React.FC = () => {
                 );
             case "safety-tips":
                 return (
-                    <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="bg-[#f8eed4] rounded-lg shadow-md p-6">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-semibold text-[#005524]">Safety Tips</h2>
                             <button
@@ -351,7 +351,7 @@ const AdminDashboard: React.FC = () => {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-[#f8eed4] divide-y divide-gray-200">
                                     {safetyTips.map((tip) => (
                                         <tr key={tip.id}>
                                             <td className="px-6 py-4 whitespace-nowrap">{tip.title}</td>
@@ -408,7 +408,7 @@ const AdminDashboard: React.FC = () => {
                 );
             case "geofencing":
                 return (
-                    <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="bg-[#f8eed4] rounded-lg shadow-md p-6">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-semibold text-[#005524]">Geofence Alerts</h2>
                         </div>
@@ -424,7 +424,7 @@ const AdminDashboard: React.FC = () => {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-[#f8eed4] divide-y divide-gray-200">
                                     {geofenceAlerts.map((alert) => (
                                         <tr key={alert.id}>
                                             <td className="px-6 py-4 whitespace-nowrap">{alert.location}</td>
@@ -468,92 +468,70 @@ const AdminDashboard: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#f8eed4] flex">
+        <div className="min-h-screen bg-white flex">
             {/* Sidebar */}
-            <div className="bg-[#005524] text-white w-64 min-h-screen flex flex-col">
-                <div className="p-4 flex-1">
+            <div className="bg-[#005524] text-white w-72 min-h-screen flex flex-col shadow-lg">
+                <div className="p-6 flex flex-col items-center border-b border-[#333]">
                     {/* Admin Profile Section */}
-                    <div className="bg-[#004015] rounded-lg p-4 mb-6">
-                        <div className="flex items-center space-x-3">
-                            <div
-                                className="w-12 h-12 flex items-center justify-center text-white font-bold bg-[#f9a01b] text-xl"
-                                style={{ width: '48px', height: '48px', borderRadius: '50%' }}
-                            >
-                                {currentUser.name.charAt(0)}
-                            </div>
-                            <div>
-                                <h2 className="font-semibold text-lg">{currentUser.name}</h2>
-                                <p className="text-sm text-gray-300">{currentUser.email}</p>
-                                <p className="text-xs text-[#f9a01b]">{currentUser.role}</p>
-                            </div>
-                        </div>
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#005524] to-[#f8eed4] flex items-center justify-center text-[#232323] text-3xl font-bold mb-3 shadow-lg">
+                        {currentUser.name.charAt(0)}
                     </div>
-                    <nav className="space-y-2">
-                        <button
-                            onClick={() => setActiveTab("dashboard")}
-                            className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${activeTab === "dashboard" ? 'bg-[#f9a01b] text-white' : 'hover:bg-[#004015]'
-                                }`}
-                        >
-                            Dashboard
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("incidents")}
-                            className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${activeTab === "incidents" ? 'bg-[#f9a01b] text-white' : 'hover:bg-[#004015]'
-                                }`}
-                        >
-                            Incident Reports
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("safety-tips")}
-                            className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${activeTab === "safety-tips" ? 'bg-[#f9a01b] text-white' : 'hover:bg-[#004015]'
-                                }`}
-                        >
-                            Safety Tips
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("geofencing")}
-                            className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${activeTab === "geofencing" ? 'bg-[#f9a01b] text-white' : 'hover:bg-[#004015]'
-                                }`}
-                        >
-                            Geofence Alerts
-                        </button>
-                    </nav>
+                    <div className="text-center">
+                        <h2 className="font-semibold text-lg text-white">{currentUser.name}</h2>
+                        <p className="text-sm text-gray-400">{currentUser.email}</p>
+                        <p className="text-xs text-[#f9a01b] font-semibold">{currentUser.role}</p>
+                    </div>
                 </div>
-
+                <nav className="flex-1 flex flex-col gap-2 mt-8 px-4">
+                    <button
+                        onClick={() => setActiveTab("dashboard")}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "dashboard" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                    >
+                        <span className="material-icons"></span> Dashboard
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("incidents")}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "incidents" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                    >
+                        <span className="material-icons"></span> Incident Reports
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("safety-tips")}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "safety-tips" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                    >
+                        <span className="material-icons"></span> Safety Tips
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("geofencing")}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "geofencing" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                    >
+                        <span className="material-icons"></span> Geofence Alerts
+                    </button>
+                </nav>
                 {/* Bottom Buttons */}
-                <div className="p-4 border-t border-[#004015]">
+                <div className="p-6 border-t border-[#333] mt-auto">
                     <button
                         onClick={() => setShowProfileSettings(true)}
-                        className="w-full flex items-center space-x-2 px-4 py-2 text-white hover:bg-[#004015] rounded-lg transition-colors mb-2"
+                        className="w-full flex items-center gap-2 px-4 py-2 text-white hover:bg-[#f69f00] rounded-lg transition-colors mb-2"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                        </svg>
-                        <span>Profile Settings</span>
+                        <span className="material-icons"></span> Profile Settings
                     </button>
                     <button
                         onClick={() => setShowLogoutConfirm(true)}
-                        className="w-full flex items-center space-x-2 px-4 py-2 text-white hover:bg-[#004015] rounded-lg transition-colors"
+                        className="w-full flex items-center gap-2 px-4 py-2 text-white hover:bg-[#f69f00] rounded-lg transition-colors"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v3a1 1 0 102 0V9z" clipRule="evenodd" />
-                        </svg>
-                        <span>Logout</span>
+                        <span className="material-icons"></span> Logout
                     </button>
                 </div>
             </div>
-
             {/* Main Content */}
-            <div className="flex-1">
+            <div className="flex-1 flex flex-col">
                 {/* Top Navigation Bar */}
-                <div className="bg-[#005524] border-b border-gray-300 p-4 flex items-center justify-between shadow-sm">
-                    <div className="flex items-center">
-                        <h1 className="text-2xl font-bold text-[#f8eed4]">Admin Dashboard</h1>
-                    </div>
+                <div className="bg-[#005524] border-b border-[#333] p-6 flex items-center justify-between shadow-sm">
+                    <h1 className="text-2xl font-bold text-[#f9a01b] tracking-wide">Hi, Admin!</h1>
                 </div>
-
                 {/* Content Area */}
-                <div className="p-6">
+                <div className="flex-1 p-8">
                     {renderContent()}
                 </div>
             </div>

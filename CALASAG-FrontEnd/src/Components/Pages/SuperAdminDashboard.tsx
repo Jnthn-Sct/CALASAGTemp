@@ -117,28 +117,37 @@ const SuperAdminDashboard: React.FC = () => {
             case "dashboard":
                 return (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                        <div className="bg-white p-6 rounded-lg shadow-md">
-                            <h3 className="text-lg font-semibold text-[#005524] mb-2">Active Admins</h3>
-                            <p className="text-3xl font-bold">{systemStats.activeAdmins}</p>
+                        <div className="bg-[#f8eed4] p-6 rounded-2xl shadow-lg flex flex-col items-start gap-2 border-l-8 border-[#005524]">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="material-icons text-[#005524] text-3xl"></span>
+                                <h3 className="text-lg font-semibold text-[#005524]">Active Admins</h3>
+                            </div>
+                            <p className="text-4xl font-bold text-[#232323]">{systemStats.activeAdmins}</p>
                         </div>
-                        <div className="bg-white p-6 rounded-lg shadow-md">
-                            <h3 className="text-lg font-semibold text-[#005524] mb-2">Total Incidents</h3>
-                            <p className="text-3xl font-bold">{systemStats.totalIncidents}</p>
+                        <div className="bg-[#f8eed4] p-6 rounded-2xl shadow-lg flex flex-col items-start gap-2 border-l-8 border-[#f9a01b]">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="material-icons text-[#f9a01b] text-3xl"></span>
+                                <h3 className="text-lg font-semibold text-[#f9a01b]">Total Incidents</h3>
+                            </div>
+                            <p className="text-4xl font-bold text-[#232323]">{systemStats.totalIncidents}</p>
                         </div>
-                        <div className="bg-white p-6 rounded-lg shadow-md">
-                            <h3 className="text-lg font-semibold text-[#005524] mb-2">Response Time</h3>
-                            <p className="text-3xl font-bold">{systemStats.responseTime}ms</p>
+                        <div className="bg-[#f8eed4] p-6 rounded-2xl shadow-lg flex flex-col items-start gap-2 border-l-8 border-[#be4c1d]">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="material-icons text-[#be4c1d] text-3xl"></span>
+                                <h3 className="text-lg font-semibold text-[#be4c1d]">Response Time</h3>
+                            </div>
+                            <p className="text-4xl font-bold text-[#232323]">{systemStats.responseTime}ms</p>
                         </div>
                     </div>
                 );
             case "admin-management":
                 return (
-                    <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="bg-[#f8eed4] rounded-lg shadow-md p-6">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-semibold text-[#005524]">Admin Management</h2>
                             <button
                                 onClick={() => setShowAddAdmin(true)}
-                                className="bg-[#f9a01b] text-white px-4 py-2 rounded-lg hover:bg-[#F9C835] transition-colors"
+                                className="bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#F9C835] transition-colors"
                             >
                                 Add New Admin
                             </button>
@@ -155,7 +164,7 @@ const SuperAdminDashboard: React.FC = () => {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-[#f8eed4] divide-y divide-gray-200">
                                     {admins.map((admin) => (
                                         <tr key={admin.id}>
                                             <td className="px-6 py-4 whitespace-nowrap">{admin.name}</td>
@@ -204,7 +213,7 @@ const SuperAdminDashboard: React.FC = () => {
                 );
             case "feature-updates":
                 return (
-                    <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="bg-[#f8eed4] rounded-lg shadow-md p-6">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-semibold text-[#005524]">Feature Updates</h2>
                         </div>
@@ -219,7 +228,7 @@ const SuperAdminDashboard: React.FC = () => {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-[#f8eed4] divide-y divide-gray-200">
                                     {featureUpdates.map((update) => (
                                         <tr key={update.id}>
                                             <td className="px-6 py-4 whitespace-nowrap">{update.name}</td>
@@ -260,7 +269,7 @@ const SuperAdminDashboard: React.FC = () => {
                 );
             case "reports":
                 return (
-                    <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="bg-[#f8eed4] rounded-lg shadow-md p-6">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-semibold text-[#005524]">Reports Analysis</h2>
                         </div>
@@ -276,7 +285,7 @@ const SuperAdminDashboard: React.FC = () => {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-[#f8eed4] divide-y divide-gray-200">
                                     {reports.map((report) => (
                                         <tr key={report.id}>
                                             <td className="px-6 py-4 whitespace-nowrap">
@@ -326,93 +335,70 @@ const SuperAdminDashboard: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#f8eed4] flex">
+        <div className="min-h-screen bg-white flex">
             {/* Sidebar */}
-            <div className="bg-[#005524] text-white w-64 min-h-screen flex flex-col">
-                <div className="p-4 flex-1">
+            <div className="bg-[#005524] text-white w-72 min-h-screen flex flex-col shadow-lg">
+                <div className="p-6 flex flex-col items-center border-b border-[#333]">
                     {/* Admin Profile Section */}
-                    <div className="bg-[#004015] rounded-lg p-4 mb-6">
-                        <div className="flex items-center space-x-3">
-                            <div
-                                className="w-12 h-12 flex items-center justify-center text-white font-bold bg-[#f9a01b] text-xl"
-                                style={{ width: '48px', height: '48px', borderRadius: '50%' }}
-                            >
-                                {currentUser.name.charAt(0)}
-                            </div>
-                            <div>
-                                <h2 className="font-semibold text-lg">{currentUser.name}</h2>
-                                <p className="text-sm text-gray-300">{currentUser.email}</p>
-                                <p className="text-xs text-[#f9a01b]">{currentUser.role}</p>
-                            </div>
-                        </div>
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#005524] to-[#f8eed4] flex items-center justify-center text-[#232323] text-3xl font-bold mb-3 shadow-lg">
+                        {currentUser.name.charAt(0)}
                     </div>
-
-                    <nav className="space-y-2">
-                        <button
-                            onClick={() => setActiveTab("dashboard")}
-                            className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${activeTab === "dashboard" ? 'bg-[#f9a01b] text-white' : 'hover:bg-[#004015]'
-                                }`}
-                        >
-                            Dashboard
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("admin-management")}
-                            className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${activeTab === "admin-management" ? 'bg-[#f9a01b] text-white' : 'hover:bg-[#004015]'
-                                }`}
-                        >
-                            Admin Management
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("feature-updates")}
-                            className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${activeTab === "feature-updates" ? 'bg-[#f9a01b] text-white' : 'hover:bg-[#004015]'
-                                }`}
-                        >
-                            Feature Updates
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("reports")}
-                            className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${activeTab === "reports" ? 'bg-[#f9a01b] text-white' : 'hover:bg-[#004015]'
-                                }`}
-                        >
-                            Reports Analysis
-                        </button>
-                    </nav>
+                    <div className="text-center">
+                        <h2 className="font-semibold text-lg text-white">{currentUser.name}</h2>
+                        <p className="text-sm text-gray-400">{currentUser.email}</p>
+                        <p className="text-xs text-[#f9a01b] font-semibold">{currentUser.role}</p>
+                    </div>
                 </div>
-
+                <nav className="flex-1 flex flex-col gap-2 mt-8 px-4">
+                    <button
+                        onClick={() => setActiveTab("dashboard")}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "dashboard" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                    >
+                        <span className="material-icons"></span> Dashboard
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("admin-management")}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "admin-management" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                    >
+                        <span className="material-icons"></span> Admin Management
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("feature-updates")}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "feature-updates" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                    >
+                        <span className="material-icons"></span> Feature Updates
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("reports")}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "reports" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                    >
+                        <span className="material-icons"></span> Reports Analysis
+                    </button>
+                </nav>
                 {/* Bottom Buttons */}
-                <div className="p-4 border-t border-[#004015]">
+                <div className="p-6 border-t border-[#333] mt-auto">
                     <button
                         onClick={() => setShowProfileSettings(true)}
-                        className="w-full flex items-center space-x-2 px-4 py-2 text-white hover:bg-[#004015] rounded-lg transition-colors mb-2"
+                        className="w-full flex items-center gap-2 px-4 py-2 text-white hover:bg-[#f69f00] rounded-lg transition-colors mb-2"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                        </svg>
-                        <span>Profile Settings</span>
+                        <span className="material-icons"></span> Profile Settings
                     </button>
                     <button
                         onClick={() => setShowLogoutConfirm(true)}
-                        className="w-full flex items-center space-x-2 px-4 py-2 text-white hover:bg-[#004015] rounded-lg transition-colors"
+                        className="w-full flex items-center gap-2 px-4 py-2 text-white hover:bg-[#f69f00] rounded-lg transition-colors"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v3a1 1 0 102 0V9z" clipRule="evenodd" />
-                        </svg>
-                        <span>Logout</span>
+                        <span className="material-icons"></span> Logout
                     </button>
                 </div>
             </div>
-
             {/* Main Content */}
             <div className="flex-1 flex flex-col">
                 {/* Top Navigation Bar */}
-                <div className="bg-[#005524] border-b border-gray-300 p-4 flex items-center justify-between shadow-sm">
-                    <div className="flex items-center">
-                        <h1 className="text-2xl font-bold text-[#f8eed4]">Super Admin Dashboard</h1>
-                    </div>
+                <div className="bg-[#005524] border-b border-[#333] p-6 flex items-center justify-between shadow-sm">
+                    <h1 className="text-2xl font-bold text-[#f9a01b] tracking-wide">Hi, Super Admin!</h1>
                 </div>
-
                 {/* Content Area */}
-                <div className="flex-1 p-6">
+                <div className="flex-1 p-8">
                     {renderContent()}
                 </div>
             </div>

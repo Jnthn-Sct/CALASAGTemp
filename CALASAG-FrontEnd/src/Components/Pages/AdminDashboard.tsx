@@ -772,7 +772,7 @@ const AdminDashboard: React.FC = () => {
             {/* Logout Confirmation Modal */}
             {showLogoutConfirm && (
                 <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                    <div className="bg-[#f69f00] rounded-lg p-6 w-full max-w-md">
                         <h2 className="text-2xl font-bold text-[#005524] mb-4">Confirm Logout</h2>
                         <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
                         <div className="flex justify-end space-x-4">

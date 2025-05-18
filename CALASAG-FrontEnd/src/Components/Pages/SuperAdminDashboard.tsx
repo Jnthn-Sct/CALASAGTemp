@@ -11,8 +11,7 @@ interface Admin {
 }
 
 interface SystemStats {
-    memoryUsage: number;
-    activeUsers: number;
+    activeAdmins: number;
     totalIncidents: number;
     responseTime: number;
 }
@@ -51,8 +50,7 @@ const SuperAdminDashboard: React.FC = () => {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{"name": "Super Admin", "email": "superadmin@calasag.com", "role": "Super Administrator"}');
 
     const [systemStats] = useState<SystemStats>({
-        memoryUsage: 60,
-        activeUsers: 150,
+        activeAdmins: 3,
         totalIncidents: 25,
         responseTime: 120
     });
@@ -120,12 +118,8 @@ const SuperAdminDashboard: React.FC = () => {
                 return (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                         <div className="bg-white p-6 rounded-lg shadow-md">
-                            <h3 className="text-lg font-semibold text-[#005524] mb-2">Memory Usage</h3>
-                            <p className="text-3xl font-bold">{systemStats.memoryUsage}%</p>
-                        </div>
-                        <div className="bg-white p-6 rounded-lg shadow-md">
-                            <h3 className="text-lg font-semibold text-[#005524] mb-2">Active Users</h3>
-                            <p className="text-3xl font-bold">{systemStats.activeUsers}</p>
+                            <h3 className="text-lg font-semibold text-[#005524] mb-2">Active Admins</h3>
+                            <p className="text-3xl font-bold">{systemStats.activeAdmins}</p>
                         </div>
                         <div className="bg-white p-6 rounded-lg shadow-md">
                             <h3 className="text-lg font-semibold text-[#005524] mb-2">Total Incidents</h3>
@@ -413,12 +407,6 @@ const SuperAdminDashboard: React.FC = () => {
                 {/* Top Navigation Bar */}
                 <div className="bg-[#005524] border-b border-gray-300 p-4 flex items-center justify-between shadow-sm">
                     <div className="flex items-center">
-                        <button
-                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className="mr-4 text-[#005524] hover:text-[#004015]"
-                        >
-                            {isSidebarOpen ? '◀' : '▶'}
-                        </button>
                         <h1 className="text-2xl font-bold text-[#f8eed4]">Super Admin Dashboard</h1>
                     </div>
                 </div>
@@ -587,7 +575,7 @@ const SuperAdminDashboard: React.FC = () => {
             {/* Logout Confirmation Modal */}
             {showLogoutConfirm && (
                 <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                    <div className="bg-[#f69f00] rounded-lg p-6 w-full max-w-md">
                         <h2 className="text-2xl font-bold text-[#005524] mb-4">Confirm Logout</h2>
                         <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
                         <div className="flex justify-end space-x-4">

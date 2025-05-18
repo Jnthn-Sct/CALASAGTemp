@@ -77,7 +77,7 @@ const Dashboard: React.FC = () => {
       avatar: "/avatars/jess.png",
       emergency: "Fire Alert",
       message: "Fire in the building!",
-      location: { lat: 13.7565, lng: 121.0583  },
+      location: { lat: 13.7565, lng: 121.0583 },
     },
     {
       id: 4,
@@ -124,7 +124,7 @@ const Dashboard: React.FC = () => {
     { id: 7, name: "Justin Anthony Aleta", avatar: "/avatars/nataniel.png" },
     { id: 8, name: "Jix Jimrei Ilao", avatar: "/avatars/ayisha.png" },
   ]);
-  
+
   const [type, setType] = useState<Type[]>([
     { id: 1, name: "Medical Emergency" },
     { id: 2, name: "Missing Person" },
@@ -404,11 +404,11 @@ const Dashboard: React.FC = () => {
                   <span className="text-white font-medium">Active</span>
                 </div>
               </div>
-                <button
-                  className="rounded-lg flex-1 bg-[#be4c1d] text-white py-2 px-4 flex items-center justify-center hover:bg-[#004015] transition-colors"
-                >
-                  Deactivate
-                </button>
+              <button
+                className="rounded-lg flex-1 bg-[#be4c1d] text-white py-2 px-4 flex items-center justify-center hover:bg-[#004015] transition-colors"
+              >
+                Deactivate
+              </button>
             </div>
           </div>{/* Emergency Types */}
           <div className="bg-[#005524] rounded-lg shadow-md p-4">
@@ -429,7 +429,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-          
+
 
         <div className="w-2/4 p-4">
           {/* User Info Card */}
@@ -580,7 +580,7 @@ const Dashboard: React.FC = () => {
         {/* Logout Confirmation Modal */}
         {showLogoutConfirm && (
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
+            <div className="bg-[#f69f00] rounded-lg p-6 w-96 shadow-xl">
               <h2 className="text-2xl font-bold text-[#005524] mb-4">Confirm Logout</h2>
               <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
               <div className="flex space-x-4">

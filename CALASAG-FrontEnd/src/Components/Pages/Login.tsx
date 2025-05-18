@@ -10,9 +10,43 @@ export const Login: React.FC = () => {
   const [cooldown, setCooldown] = useState<number>(0);
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [mobileNumber, setMobileNumber] = useState<string>('');
   const [otpCode, setOtpCode] = useState<string>('');
   const formRef = useRef<HTMLFormElement>(null);
   const navigate = useNavigate();
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleRegisterSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!validateEmail(email)) {
+      alert("Please enter a valid email address");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+
+    // Here you would typically make an API call to register the user
+    alert("Registration successful! Please login.");
+    setIsRegistering(false);
+    // Clear all form fields
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setMobileNumber('');
+    if (formRef.current) {
+      formRef.current.reset();
+    }
+  };
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -26,25 +60,27 @@ export const Login: React.FC = () => {
 
   const handleLoginSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     // For demo purposes, we'll simulate role verification
     const verifyUserRole = (username: string, password: string): UserRole => {
-      // This is just a demo - in a real app, this would be handled by your backend
       if (username === 'superadmin' && password === 'superpass') return 'super_admin';
       if (username === 'admin' && password === 'adminpass') return 'admin';
+      if (validateEmail(username)) return 'user';
       return 'user';
     };
 
     const userRole = verifyUserRole(username, password);
 
-    // Store user role in localStorage or your preferred state management
     localStorage.setItem('userRole', userRole);
 
-    // Only require 2FA for regular users
     if (userRole === 'user') {
+      if (!validateEmail(username)) {
+        alert("Please enter a valid email address");
+        return;
+      }
       setIs2FAStep(true);
       setCooldown(30);
     } else {
-      // Direct navigation for super_admin and admin
       if (userRole === 'super_admin') {
         navigate('/super-admin-dashboard');
       } else if (userRole === 'admin') {
@@ -52,6 +88,8 @@ export const Login: React.FC = () => {
       }
     }
 
+    setUsername('');
+    setPassword('');
     if (formRef.current) {
       formRef.current.reset();
     }
@@ -78,6 +116,8 @@ export const Login: React.FC = () => {
       default:
         navigate('/dashboard');
     }
+
+    setOtpCode('');
   };
 
   const handleResendCode = () => {
@@ -99,7 +139,7 @@ export const Login: React.FC = () => {
         <form
           ref={formRef}
           className="bg-[#f8eed4] backdrop-blur-md p-6 md:p-8 rounded-lg shadow-xl w-full max-w-sm border border-gray-800 text-[#005524] mx-4"
-          onSubmit={is2FAStep ? handle2FASubmit : handleLoginSubmit}
+          onSubmit={is2FAStep ? handle2FASubmit : isRegistering ? handleRegisterSubmit : handleLoginSubmit}
         >
           <h1 className="text-2xl md:text-3xl font-semibold text-center mb-2 tracking-widest uppercase">
             {is2FAStep
@@ -118,37 +158,41 @@ export const Login: React.FC = () => {
 
           {!is2FAStep ? (
             <>
-              <div className="mb-4">
-                <input
-                  className="w-full bg-[#f8eed4] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-600"
-                  type="text"
-                  placeholder="Username"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                />
-              </div>
-
-              {isRegistering && (
+              {!isRegistering ? (
                 <div className="mb-4">
                   <input
-                    className="w-full bg-[#f8eed4] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-500"
-                    type="tel"
-                    placeholder="Mobile Number"
+                    className="w-full bg-[#f8eed4] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-600"
+                    type="text"
+                    placeholder="Email or Username"
                     required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                   />
                 </div>
-              )}
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <input
+                      className="w-full bg-[#f8eed4] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-500"
+                      type="email"
+                      placeholder="Email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
 
-              {isRegistering && (
-                <div className="mb-4">
-                  <input
-                    className="w-full bg-[#f8eed4] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-500"
-                    type="email"
-                    placeholder="Email"
-                    required
-                  />
-                </div>
+                  <div className="mb-4">
+                    <input
+                      className="w-full bg-[#f8eed4] text-gray-800 px-4 py-2 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[#005524] placeholder-gray-500"
+                      type="tel"
+                      placeholder="Mobile Number"
+                      required
+                      value={mobileNumber}
+                      onChange={(e) => setMobileNumber(e.target.value)}
+                    />
+                  </div>
+                </>
               )}
 
               <div className="mb-4">
@@ -169,6 +213,8 @@ export const Login: React.FC = () => {
                     type="password"
                     placeholder="Confirm Password"
                     required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                   />
                 </div>
               )}

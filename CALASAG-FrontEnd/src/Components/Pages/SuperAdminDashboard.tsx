@@ -45,6 +45,7 @@ const SuperAdminDashboard: React.FC = () => {
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
     const [showProfileSettings, setShowProfileSettings] = useState<boolean>(false);
+    const [selectedDashboardCard, setSelectedDashboardCard] = useState<null | 'admins' | 'incidents' | 'responseTime'>(null);
 
     // Get current user from localStorage
     const currentUser = JSON.parse(localStorage.getItem('user') || '{"name": "Super Admin", "email": "superadmin@calasag.com", "role": "Super Administrator"}');
@@ -116,29 +117,79 @@ const SuperAdminDashboard: React.FC = () => {
         switch (activeTab) {
             case "dashboard":
                 return (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                        <div className="bg-[#f8eed4] p-6 rounded-2xl shadow-lg flex flex-col items-start gap-2 border-l-8 border-[#005524]">
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="material-icons text-[#005524] text-3xl"></span>
-                                <h3 className="text-lg font-semibold text-[#005524]">Active Admins</h3>
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                            <div
+                                className="bg-[#f8eed4] p-6 rounded-2xl shadow-lg flex flex-col items-start gap-2 cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
+                                onClick={() => setActiveTab('admin-management')}
+                            >
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="material-icons text-[#005524] text-3xl"></span>
+                                    <h3 className="text-lg font-semibold text-[#005524]">Active Admins</h3>
+                                </div>
+                                <p className="text-4xl font-bold text-[#232323]">{admins.filter(a => a.status === 'active').length}</p>
                             </div>
-                            <p className="text-4xl font-bold text-[#232323]">{systemStats.activeAdmins}</p>
-                        </div>
-                        <div className="bg-[#f8eed4] p-6 rounded-2xl shadow-lg flex flex-col items-start gap-2 border-l-8 border-[#f9a01b]">
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="material-icons text-[#f9a01b] text-3xl"></span>
-                                <h3 className="text-lg font-semibold text-[#f9a01b]">Total Incidents</h3>
+                            <div
+                                className="bg-[#f8eed4] p-6 rounded-2xl shadow-lg flex flex-col items-start gap-2 cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
+                                onClick={() => setSelectedDashboardCard('incidents')}
+                            >
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="material-icons text-[#f9a01b] text-3xl"></span>
+                                    <h3 className="text-lg font-semibold text-[#f9a01b]">Total Incidents</h3>
+                                </div>
+                                <p className="text-4xl font-bold text-[#232323]">{systemStats.totalIncidents}</p>
                             </div>
-                            <p className="text-4xl font-bold text-[#232323]">{systemStats.totalIncidents}</p>
-                        </div>
-                        <div className="bg-[#f8eed4] p-6 rounded-2xl shadow-lg flex flex-col items-start gap-2 border-l-8 border-[#be4c1d]">
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="material-icons text-[#be4c1d] text-3xl"></span>
-                                <h3 className="text-lg font-semibold text-[#be4c1d]">Response Time</h3>
+                            <div
+                                className="bg-[#f8eed4] p-6 rounded-2xl shadow-lg flex flex-col items-start gap-2 cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
+                                onClick={() => setSelectedDashboardCard('responseTime')}
+                            >
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="material-icons text-[#be4c1d] text-3xl"></span>
+                                    <h3 className="text-lg font-semibold text-[#be4c1d]">Response Time</h3>
+                                </div>
+                                <p className="text-4xl font-bold text-[#232323]">{systemStats.responseTime}ms</p>
                             </div>
-                            <p className="text-4xl font-bold text-[#232323]">{systemStats.responseTime}ms</p>
                         </div>
-                    </div>
+                        {/* Dashboard Card Modal */}
+                        {selectedDashboardCard && selectedDashboardCard !== 'admins' && (
+                            <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+                                <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-2xl font-bold text-[#005524]">
+                                            {selectedDashboardCard === 'incidents' && 'Total Incidents'}
+                                            {selectedDashboardCard === 'responseTime' && 'Response Time'}
+                                        </h2>
+                                        <button
+                                            onClick={() => setSelectedDashboardCard(null)}
+                                            className="text-gray-500 hover:text-gray-700"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                    <div>
+                                        {selectedDashboardCard === 'incidents' && (
+                                            <ul className="space-y-2">
+                                                {reports.slice(0, 5).map(report => (
+                                                    <li key={report.id} className="flex items-center gap-2">
+                                                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">{report.type}</span>
+                                                        <span className="font-medium">{report.title}</span>
+                                                        <span className="text-xs text-gray-500 ml-2">{report.date}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                        {selectedDashboardCard === 'responseTime' && (
+                                            <div className="text-center">
+                                                <p className="text-4xl font-bold text-[#be4c1d] mb-2">{systemStats.responseTime}ms</p>
+                                                <p className="text-gray-700">Average response time for the last 24 hours.</p>
+                                                <div className="mt-4 text-sm text-gray-500">(You can add a chart or more analytics here.)</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </>
                 );
             case "admin-management":
                 return (
@@ -352,27 +403,27 @@ const SuperAdminDashboard: React.FC = () => {
                 <nav className="flex-1 flex flex-col gap-2 mt-8 px-4">
                     <button
                         onClick={() => setActiveTab("dashboard")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "dashboard" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "dashboard" ? 'bg-gradient-to-tr from-[#005524] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
                     >
-                        <span className="material-icons"></span> Dashboard
+                        <span className="text-xl">🏠</span> Dashboard
                     </button>
                     <button
                         onClick={() => setActiveTab("admin-management")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "admin-management" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "admin-management" ? 'bg-gradient-to-tr from-[#005524] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
                     >
-                        <span className="material-icons"></span> Admin Management
+                        <span className="text-xl">👥</span> Admin Management
                     </button>
                     <button
                         onClick={() => setActiveTab("feature-updates")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "feature-updates" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "feature-updates" ? 'bg-gradient-to-tr from-[#005524] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
                     >
-                        <span className="material-icons"></span> Feature Updates
+                        <span className="text-xl">🛠️</span> Feature Updates
                     </button>
                     <button
                         onClick={() => setActiveTab("reports")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "reports" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "reports" ? 'bg-gradient-to-tr from-[#005524] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
                     >
-                        <span className="material-icons"></span> Reports Analysis
+                        <span className="text-xl">📊</span> Reports Analysis
                     </button>
                 </nav>
                 {/* Bottom Buttons */}
@@ -381,13 +432,13 @@ const SuperAdminDashboard: React.FC = () => {
                         onClick={() => setShowProfileSettings(true)}
                         className="w-full flex items-center gap-2 px-4 py-2 text-white hover:bg-[#f69f00] rounded-lg transition-colors mb-2"
                     >
-                        <span className="material-icons"></span> Profile Settings
+                        <span className="text-xl">⚙️</span> Profile Settings
                     </button>
                     <button
                         onClick={() => setShowLogoutConfirm(true)}
                         className="w-full flex items-center gap-2 px-4 py-2 text-white hover:bg-[#f69f00] rounded-lg transition-colors"
                     >
-                        <span className="material-icons"></span> Logout
+                        <span className="text-xl">🚪</span> Logout
                     </button>
                 </div>
             </div>

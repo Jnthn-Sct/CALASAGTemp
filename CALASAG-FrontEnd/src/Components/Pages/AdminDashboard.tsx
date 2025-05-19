@@ -146,7 +146,7 @@ const AdminDashboard: React.FC = () => {
                 return (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         {/* Total Users Card */}
-                        <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                        <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
                             onClick={() => setActiveTab("users")}>
                             <h3 className="text-lg font-semibold text-[#005524] mb-2">Total Users</h3>
                             <p className="text-3xl font-bold">{users.length}</p>
@@ -154,7 +154,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
 
                         {/* Active Users Card */}
-                        <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                        <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
                             onClick={() => setActiveTab("users")}>
                             <h3 className="text-lg font-semibold text-[#005524] mb-2">Active Users</h3>
                             <p className="text-3xl font-bold">{users.filter(u => u.status === 'active').length}</p>
@@ -162,7 +162,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
 
                         {/* Critical Incidents Card */}
-                        <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                        <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
                             onClick={() => setActiveTab("incidents")}>
                             <h3 className="text-lg font-semibold text-[#005524] mb-2">Critical Incidents</h3>
                             <p className="text-3xl font-bold">{incidents.filter(i => i.severity === 'critical').length}</p>
@@ -170,7 +170,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
 
                         {/* Active Alerts Card */}
-                        <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                        <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
                             onClick={() => setActiveTab("geofencing")}>
                             <h3 className="text-lg font-semibold text-[#005524] mb-2">Active Alerts</h3>
                             <p className="text-3xl font-bold">{geofenceAlerts.filter(g => g.status === 'active').length}</p>
@@ -191,7 +191,7 @@ const AdminDashboard: React.FC = () => {
                                             <h3 className="font-medium">{incident.title}</h3>
                                             <p className="text-sm text-gray-500">{incident.location} • {incident.date}</p>
                                         </div>
-                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${incident.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${incident.severity === 'critical' ? 'text-red-800' :
                                             incident.severity === 'high' ? 'bg-orange-100 text-orange-800' :
                                                 'bg-yellow-100 text-yellow-800'
                                             }`}>
@@ -205,15 +205,9 @@ const AdminDashboard: React.FC = () => {
                 );
             case "users":
                 return (
-                    <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="bg-[#f8eed4] rounded-lg shadow-md p-6">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-semibold text-[#005524]">User Management</h2>
-                            <button
-                                onClick={() => setShowAddUserModal(true)}
-                                className="bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015]"
-                            >
-                                Add New User
-                            </button>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="min-w-full">
@@ -227,7 +221,7 @@ const AdminDashboard: React.FC = () => {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-[#f8eed4] divide-y divide-gray-200">
                                     {users.map((user) => (
                                         <tr key={user.id}>
                                             <td className="px-6 py-4 whitespace-nowrap">
@@ -244,7 +238,7 @@ const AdminDashboard: React.FC = () => {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${user.status === 'active' ? 'text-green-800' : 'text-red-800'
                                                     }`}>
                                                     {user.status}
                                                 </span>
@@ -266,7 +260,7 @@ const AdminDashboard: React.FC = () => {
                                                         setSelectedUser(user);
                                                         setShowUserDetails(true);
                                                     }}
-                                                    className="text-blue-600 hover:text-blue-900"
+                                                    className="text-[#f69f00] hover:text-[#be4c1d]"
                                                 >
                                                     View Details
                                                 </button>
@@ -300,7 +294,7 @@ const AdminDashboard: React.FC = () => {
                                         <tr key={incident.id}>
                                             <td className="px-6 py-4 whitespace-nowrap">{incident.title}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${incident.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${incident.severity === 'critical' ? '   text-red-800' :
                                                     incident.severity === 'high' ? 'bg-orange-100 text-orange-800' :
                                                         incident.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
                                                             'bg-green-100 text-green-800'
@@ -316,7 +310,7 @@ const AdminDashboard: React.FC = () => {
                                                         setSelectedIncident(incident);
                                                         setShowIncidentDetails(true);
                                                     }}
-                                                    className="text-blue-600 hover:text-blue-800"
+                                                    className="text-[#f69f00] hover:text-[#be4c1d]"
                                                 >
                                                     View Details
                                                 </button>
@@ -356,16 +350,16 @@ const AdminDashboard: React.FC = () => {
                                         <tr key={tip.id}>
                                             <td className="px-6 py-4 whitespace-nowrap">{tip.title}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${tip.category === 'emergency' ? 'bg-red-100 text-red-800' :
-                                                    tip.category === 'prevention' ? 'bg-blue-100 text-blue-800' :
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${tip.category === 'emergency' ? 'text-red-800' :
+                                                    tip.category === 'prevention' ? 'text-[#f69f00]' :
                                                         'bg-green-100 text-green-800'
                                                     }`}>
                                                     {tip.category}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${tip.status === 'published' ? 'bg-green-100 text-green-800' :
-                                                    tip.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${tip.status === 'published' ? 'text-green-800' :
+                                                    tip.status === 'draft' ? 'text-yellow-800' :
                                                         'bg-gray-100 text-gray-800'
                                                     }`}>
                                                     {tip.status}
@@ -378,7 +372,7 @@ const AdminDashboard: React.FC = () => {
                                                         setSelectedSafetyTip(tip);
                                                         setShowSafetyTipDetails(true);
                                                     }}
-                                                    className="text-blue-600 hover:text-blue-800"
+                                                    className="text-[#f69f00] hover:text-[#be4c1d]"
                                                 >
                                                     View
                                                 </button>
@@ -430,15 +424,15 @@ const AdminDashboard: React.FC = () => {
                                             <td className="px-6 py-4 whitespace-nowrap">{alert.location}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">{alert.type}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${alert.severity === 'high' ? 'bg-red-100 text-red-800' :
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${alert.severity === 'high' ? 'text-red-800' :
                                                     alert.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                                        'bg-green-100 text-green-800'
+                                                        'text-green-800'
                                                     }`}>
                                                     {alert.severity}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${alert.status === 'active' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${alert.status === 'active' ? 'text-red-800' : 'text-green-800'
                                                     }`}>
                                                     {alert.status}
                                                 </span>
@@ -450,7 +444,7 @@ const AdminDashboard: React.FC = () => {
                                                         setSelectedGeofence(alert);
                                                         setShowGeofenceDetails(true);
                                                     }}
-                                                    className="text-blue-600 hover:text-blue-800"
+                                                    className="text-[#f69f00] hover:text-[#be4c1d]"
                                                 >
                                                     View Details
                                                 </button>
@@ -485,27 +479,27 @@ const AdminDashboard: React.FC = () => {
                 <nav className="flex-1 flex flex-col gap-2 mt-8 px-4">
                     <button
                         onClick={() => setActiveTab("dashboard")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "dashboard" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "dashboard" ? 'bg-gradient-to-tr from-[#005524] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
                     >
-                        <span className="material-icons"></span> Dashboard
+                        <span className="text-xl">🏠</span> Dashboard
                     </button>
                     <button
                         onClick={() => setActiveTab("incidents")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "incidents" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "incidents" ? 'bg-gradient-to-tr from-[#005524] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
                     >
-                        <span className="material-icons"></span> Incident Reports
+                        <span className="text-xl">🚨</span> Incident Reports
                     </button>
                     <button
                         onClick={() => setActiveTab("safety-tips")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "safety-tips" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "safety-tips" ? 'bg-gradient-to-tr from-[#005524] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
                     >
-                        <span className="material-icons"></span> Safety Tips
+                        <span className="text-xl">💡</span> Safety Tips
                     </button>
                     <button
                         onClick={() => setActiveTab("geofencing")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "geofencing" ? 'bg-gradient-to-r from-[#f9a01b] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "geofencing" ? 'bg-gradient-to-tr from-[#005524] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
                     >
-                        <span className="material-icons"></span> Geofence Alerts
+                        <span className="text-xl">📍</span> Geofence Alerts
                     </button>
                 </nav>
                 {/* Bottom Buttons */}
@@ -514,13 +508,13 @@ const AdminDashboard: React.FC = () => {
                         onClick={() => setShowProfileSettings(true)}
                         className="w-full flex items-center gap-2 px-4 py-2 text-white hover:bg-[#f69f00] rounded-lg transition-colors mb-2"
                     >
-                        <span className="material-icons"></span> Profile Settings
+                        <span className="text-xl">⚙️</span> Profile Settings
                     </button>
                     <button
                         onClick={() => setShowLogoutConfirm(true)}
                         className="w-full flex items-center gap-2 px-4 py-2 text-white hover:bg-[#f69f00] rounded-lg transition-colors"
                     >
-                        <span className="material-icons"></span> Logout
+                        <span className="text-xl">🚪</span> Logout
                     </button>
                 </div>
             </div>

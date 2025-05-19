@@ -150,6 +150,14 @@ const Dashboard: React.FC = () => {
     }
   ]);
 
+  const [deviceStatus, setDeviceStatus] = useState<'Active' | 'Inactive'>('Active');
+  const [isSafe, setIsSafe] = useState(false);
+
+  const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
+  const [connectionTab, setConnectionTab] = useState<'profile' | 'message'>('profile');
+  const [messageText, setMessageText] = useState('');
+  const [messageSent, setMessageSent] = useState(false);
+
   const refreshFeed = () => {
     setIsRefreshing(true);
     // Simulate API call with setTimeout
@@ -401,13 +409,14 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-white/90 font-medium">Status:</span>
-                  <span className="text-white font-medium">Active</span>
+                  <span className={`font-medium ${deviceStatus === 'Active' ? 'text-[#f69f00]' : 'text-[#be4c1d]'}`}>{deviceStatus}</span>
                 </div>
               </div>
               <button
-                className="rounded-lg flex-1 bg-[#be4c1d] text-white py-2 px-4 flex items-center justify-center hover:bg-[#004015] transition-colors"
+                className={`rounded-lg flex-1 ${deviceStatus === 'Active' ? 'bg-[#be4c1d] hover:bg-[#004015]' : 'bg-[#f69f00] hover:bg-[#be4c1d]'} text-white py-2 px-4 flex items-center justify-center transition-colors`}
+                onClick={() => setDeviceStatus(deviceStatus === 'Active' ? 'Inactive' : 'Active')}
               >
-                Deactivate
+                {deviceStatus === 'Active' ? 'Deactivate' : 'Activate'}
               </button>
             </div>
           </div>{/* Emergency Types */}
@@ -487,6 +496,34 @@ const Dashboard: React.FC = () => {
 
         {/* Right Side - Connections */}
         <div className="w-1/4 p-4">
+          {/* Crisis Response Section */}
+          <div className="w-full bg-[#005524] rounded-lg p-4 mb-4">
+            <h3 className="text-lg font-bold text-white mb-1">Crisis Response</h3>
+            <p className="text-sm text-white mb-3 text-center">Let your friends and family know you are safe during a crisis.</p>
+            {isSafe ? (
+              <div className="flex flex-col items-center justify-center gap-2 text-[#f69f00] font-semibold">
+                <span className="material-icons"></span>
+                You are marked as Safe
+                <button
+                  className="ml-3 text-xs text-[#be4c1d] underline hover:text-red-700"
+                  onClick={() => setIsSafe(false)}
+                >
+                  Undo
+                </button>
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                <button
+                  className="bg-[#f69f00] hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
+                  onClick={() => setIsSafe(true)}
+                >
+                  <span className="material-icons"></span>
+                  I am Safe
+                </button>
+              </div>
+            )}
+          </div>
+          {/* Connections Section */}
           <div className="bg-[#005524] rounded-lg shadow-md p-4">
             <h2 className="text-2xl font-bold text-white mb-4">Connections</h2>
             <div className="space-y-2">
@@ -494,6 +531,7 @@ const Dashboard: React.FC = () => {
                 <div
                   key={connection.id}
                   className="flex items-center p-2 rounded-lg bg-white/10 hover:bg-white/20 cursor-pointer transition-colors duration-200"
+                  onClick={() => setSelectedConnection(connection)}
                 >
                   <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
                     👤
@@ -503,6 +541,95 @@ const Dashboard: React.FC = () => {
               ))}
             </div>
           </div>
+          {/* Connection Modal */}
+          {selectedConnection && (
+            <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-bold text-[#005524]">Connection Details</h2>
+                  <button
+                    onClick={() => {
+                      setSelectedConnection(null);
+                      setConnectionTab('profile');
+                      setMessageText('');
+                      setMessageSent(false);
+                    }}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center text-white text-3xl">
+                    👤
+                  </div>
+                  <div className="text-center">
+                    <h3 className="text-xl font-semibold text-gray-800">{selectedConnection.name}</h3>
+                  </div>
+                  {/* Tabs */}
+                  <div className="flex justify-center gap-4 mb-2">
+                    <button
+                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${connectionTab === 'profile' ? 'bg-[#005524] text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                      onClick={() => setConnectionTab('profile')}
+                    >
+                      Profile
+                    </button>
+                    <button
+                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${connectionTab === 'message' ? 'bg-[#005524] text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                      onClick={() => setConnectionTab('message')}
+                    >
+                      Message
+                    </button>
+                  </div>
+                  {/* Tab Content */}
+                  {connectionTab === 'profile' && (
+                    <div className="w-full text-left">
+                      <div className="mb-2">
+                        <span className="font-semibold text-gray-700">Email:</span> <span className="text-gray-600">user@calasag.com</span>
+                      </div>
+                      <div className="mb-2">
+                        <span className="font-semibold text-gray-700">Phone:</span> <span className="text-gray-600">+63 900 000 0000</span>
+                      </div>
+                      <div className="mb-2">
+                        <span className="font-semibold text-gray-700">Status:</span> <span className="text-green-600">Active</span>
+                      </div>
+                      <div className="mb-2">
+                        <span className="font-semibold text-gray-700">About:</span> <span className="text-gray-600">This is a placeholder profile. More info can be added here.</span>
+                      </div>
+                    </div>
+                  )}
+                  {connectionTab === 'message' && (
+                    <div className="w-full flex flex-col items-center">
+                      {messageSent ? (
+                        <div className="text-green-600 font-semibold mb-2">Message sent!</div>
+                      ) : (
+                        <>
+                          <textarea
+                            className="w-full border border-gray-300 rounded-lg p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                            rows={3}
+                            placeholder={`Message to ${selectedConnection.name}`}
+                            value={messageText}
+                            onChange={e => setMessageText(e.target.value)}
+                          />
+                          <button
+                            className="bg-[#005524] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#004015] transition-colors"
+                            onClick={() => {
+                              setMessageSent(true);
+                              setTimeout(() => setMessageSent(false), 1500);
+                              setMessageText('');
+                            }}
+                            disabled={!messageText.trim()}
+                          >
+                            Send
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Messages Modal */}

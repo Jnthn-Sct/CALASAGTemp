@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaHome, FaBell, FaUser, FaCog, FaSignOutAlt, FaSearch, FaMapMarkerAlt, FaPhone, FaExclamationTriangle, FaCheck, FaTimes, FaEnvelope, FaPhoneAlt, FaInfoCircle, FaMapMarkedAlt } from 'react-icons/fa';
 import logoImage from "../Images/no-bg-logo.png";
 import mapImage from "../Images/ph-map.png";
 
@@ -257,7 +258,7 @@ const Dashboard: React.FC = () => {
               className="bg-white rounded-lg px-3 py-1 w-40 text-sm border border-gray-300"
             />
             <button className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500">
-              🔍
+              <FaSearch size={16} />
             </button>
           </div>
         </div>
@@ -265,28 +266,25 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center justify-center space-x-8">
           <button
             onClick={() => handleNavigation("home")}
-            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "home" ? "text-[#005524]" : "text-gray-500 hover:text-[#005524]"
-              }`}
+            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "home" ? "text-[#005524]" : "text-gray-500 hover:text-[#005524]"}`}
           >
             <span className={`text-xl ${isRefreshing ? 'animate-spin' : ''}`}>
-              {isRefreshing ? '🔄' : '🏠'}
+              {isRefreshing ? '🔄' : <FaHome size={20} />}
             </span>
             <span className="text-xs mt-1">Home</span>
           </button>
           <button
             onClick={() => handleNavigation("message")}
-            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "message" ? "text-[#005524]" : "text-gray-500 hover:text-[#005524]"
-              }`}
+            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "message" ? "text-[#005524]" : "text-gray-500 hover:text-[#005524]"}`}
           >
-            <span className="text-xl">💬</span>
+            <span className="text-xl"><FaBell size={20} /></span>
             <span className="text-xs mt-1">Message</span>
           </button>
           <button
             onClick={() => handleNavigation("report")}
-            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "report" ? "text-[#005524]" : "text-gray-500 hover:text-[#005524]"
-              }`}
+            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "report" ? "text-[#005524]" : "text-gray-500 hover:text-[#005524]"}`}
           >
-            <span className="text-xl">⚠️</span>
+            <span className="text-xl"><FaExclamationTriangle size={20} /></span>
             <span className="text-xs mt-1">Report</span>
           </button>
         </div>
@@ -297,7 +295,7 @@ const Dashboard: React.FC = () => {
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-colors duration-200"
             >
-              <span>🔔</span>
+              <span className="text-[#f69f00]"><FaBell size={20} /></span>
               {notifications.filter(n => !n.read).length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full h-4 w-4 flex items-center justify-center text-xs">
                   {notifications.filter(n => !n.read).length}
@@ -347,23 +345,20 @@ const Dashboard: React.FC = () => {
                   onClick={() => handleProfileAction("profile")}
                   className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
                 >
-                  <span className="mr-2">👤</span>
-                  Profile
+                  <span className="mr-2"><FaUser size={16} /></span> Profile
                 </button>
                 <button
                   onClick={() => handleProfileAction("settings")}
                   className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
                 >
-                  <span className="mr-2">⚙️</span>
-                  Settings
+                  <span className="mr-2"><FaCog size={16} /></span> Settings
                 </button>
                 <div className="border-t border-gray-200 my-1"></div>
                 <button
                   onClick={() => handleProfileAction("logout")}
                   className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100 flex items-center"
                 >
-                  <span className="mr-2">🚪</span>
-                  Logout
+                  <span className="mr-2"><FaSignOutAlt size={16} /></span> Logout
                 </button>
               </div>
             )}
@@ -469,7 +464,7 @@ const Dashboard: React.FC = () => {
                     onClick={() => handleViewLocation(emergency)}
                     className="flex items-center text-green-600 text-sm hover:text-green-700 transition-colors"
                   >
-                    📍 View Location
+                    <span className="mr-1"><FaMapMarkerAlt size={16} /></span> View Location
                   </button>
                 </div>
               </div>
@@ -481,13 +476,13 @@ const Dashboard: React.FC = () => {
                   onClick={() => handleCallAssistance(emergency)}
                   className="flex-1 bg-[#005524] text-white py-2 px-4 flex items-center justify-center hover:bg-[#004015] transition-colors"
                 >
-                  📞 Call Assistance
+                  <span className="mr-2"><FaPhone size={16} /></span> Call Assistance
                 </button>
                 <button
                   onClick={() => handleReport(emergency)}
                   className="flex-1 bg-[#be4c1d] text-white py-2 px-4 flex items-center justify-center hover:bg-[#a33d16] transition-colors"
                 >
-                  ⚠️ Report
+                  <span className="mr-2"><FaExclamationTriangle size={16} /></span> Report
                 </button>
               </div>
             </div>
@@ -585,16 +580,16 @@ const Dashboard: React.FC = () => {
                   {connectionTab === 'profile' && (
                     <div className="w-full text-left">
                       <div className="mb-2">
-                        <span className="font-semibold text-gray-700">Email:</span> <span className="text-gray-600">user@calasag.com</span>
+                        <span className="font-semibold text-gray-700"><span className="inline-block mr-2"><FaEnvelope size={16} /></span>Email:</span> <span className="text-gray-600">user@calasag.com</span>
                       </div>
                       <div className="mb-2">
-                        <span className="font-semibold text-gray-700">Phone:</span> <span className="text-gray-600">+63 900 000 0000</span>
+                        <span className="font-semibold text-gray-700"><span className="inline-block mr-2"><FaPhoneAlt size={16} /></span>Phone:</span> <span className="text-gray-600">+63 900 000 0000</span>
                       </div>
                       <div className="mb-2">
-                        <span className="font-semibold text-gray-700">Status:</span> <span className="text-green-600">Active</span>
+                        <span className="font-semibold text-gray-700"><span className="inline-block mr-2"><FaInfoCircle size={16} /></span>Status:</span> <span className="text-green-600">Active</span>
                       </div>
                       <div className="mb-2">
-                        <span className="font-semibold text-gray-700">About:</span> <span className="text-gray-600">This is a placeholder profile. More info can be added here.</span>
+                        <span className="font-semibold text-gray-700"><span className="inline-block mr-2"><FaInfoCircle size={16} /></span>About:</span> <span className="text-gray-600">This is a placeholder profile. More info can be added here.</span>
                       </div>
                     </div>
                   )}
@@ -849,7 +844,7 @@ const Dashboard: React.FC = () => {
                     onClick={() => window.open(`https://www.google.com/maps?q=${selectedLocation.lat},${selectedLocation.lng}`, '_blank')}
                     className="flex-1 bg-[#005524] text-white py-2 px-4 rounded-lg hover:bg-[#004015] transition-colors flex items-center justify-center"
                   >
-                    🗺️ Open in Maps
+                    <span className="mr-2"><FaMapMarkedAlt size={16} /></span> Open in Maps
                   </button>
                   <button
                     onClick={() => setShowLocationView(false)}

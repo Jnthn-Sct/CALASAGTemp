@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import logoImage from "../Images/no-bg-logo.png";
+import { FaUserCircle, FaBell, FaMoon, FaSun, FaSearch, FaChevronDown, FaChevronLeft, FaChevronRight, FaTable, FaChartBar, FaKey, FaCalendarAlt, FaFileAlt, FaCubes, FaLock, FaUser, FaHome, FaCog } from 'react-icons/fa';
 
 interface Admin {
     id: number;
@@ -35,6 +37,9 @@ interface Report {
 
 const SuperAdminDashboard: React.FC = () => {
     const navigate = useNavigate();
+    // Get current user from localStorage
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{"name": "Super Admin", "email": "superadmin@calasag.com", "role": "Super Administrator"}');
+
     const [activeTab, setActiveTab] = useState<string>("dashboard");
     const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
     const [showAddAdmin, setShowAddAdmin] = useState<boolean>(false);
@@ -46,9 +51,28 @@ const SuperAdminDashboard: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
     const [showProfileSettings, setShowProfileSettings] = useState<boolean>(false);
     const [selectedDashboardCard, setSelectedDashboardCard] = useState<null | 'admins' | 'incidents' | 'responseTime'>(null);
-
-    // Get current user from localStorage
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{"name": "Super Admin", "email": "superadmin@calasag.com", "role": "Super Administrator"}');
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+    const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState<boolean>(false);
+    const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+    const [isEditingPersonal, setIsEditingPersonal] = useState(false);
+    const [isEditingSecurity, setIsEditingSecurity] = useState(false);
+    const [personalInfo, setPersonalInfo] = useState({
+        name: currentUser.name,
+        email: currentUser.email
+    });
+    const [securityInfo, setSecurityInfo] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+    });
+    const [notifications, setNotifications] = useState(false);
+    const [emailNotifications, setEmailNotifications] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [notificationsList] = useState([
+        { id: 1, message: 'New admin added', time: '2 mins ago' },
+        { id: 2, message: 'Incident report resolved', time: '1 hour ago' },
+        // Add more sample notifications as needed
+    ]);
 
     const [systemStats] = useState<SystemStats>({
         activeAdmins: 3,
@@ -117,88 +141,46 @@ const SuperAdminDashboard: React.FC = () => {
         switch (activeTab) {
             case "dashboard":
                 return (
-                    <>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                            <div
-                                className="bg-[#f8eed4] p-6 rounded-2xl shadow-lg flex flex-col items-start gap-2 cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
-                                onClick={() => setActiveTab('admin-management')}
-                            >
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="material-icons text-[#005524] text-3xl"></span>
-                                    <h3 className="text-lg font-semibold text-[#005524]">Active Admins</h3>
-                                </div>
-                                <p className="text-4xl font-bold text-[#232323]">{admins.filter(a => a.status === 'active').length}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div
+                            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-start gap-2 cursor-pointer hover:shadow-md transition-all"
+                            onClick={() => setActiveTab('admin-management')}
+                        >
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="material-icons text-[#005524] text-3xl"></span>
+                                <h3 className="text-lg font-semibold text-[#005524]">Active Admins</h3>
                             </div>
-                            <div
-                                className="bg-[#f8eed4] p-6 rounded-2xl shadow-lg flex flex-col items-start gap-2 cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
-                                onClick={() => setSelectedDashboardCard('incidents')}
-                            >
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="material-icons text-[#f9a01b] text-3xl"></span>
-                                    <h3 className="text-lg font-semibold text-[#f9a01b]">Total Incidents</h3>
-                                </div>
-                                <p className="text-4xl font-bold text-[#232323]">{systemStats.totalIncidents}</p>
-                            </div>
-                            <div
-                                className="bg-[#f8eed4] p-6 rounded-2xl shadow-lg flex flex-col items-start gap-2 cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
-                                onClick={() => setSelectedDashboardCard('responseTime')}
-                            >
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="material-icons text-[#be4c1d] text-3xl"></span>
-                                    <h3 className="text-lg font-semibold text-[#be4c1d]">Response Time</h3>
-                                </div>
-                                <p className="text-4xl font-bold text-[#232323]">{systemStats.responseTime}ms</p>
-                            </div>
+                            <p className="text-4xl font-bold text-[#232323]">{admins.filter(a => a.status === 'active').length}</p>
                         </div>
-                        {/* Dashboard Card Modal */}
-                        {selectedDashboardCard && selectedDashboardCard !== 'admins' && (
-                            <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-                                <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h2 className="text-2xl font-bold text-[#005524]">
-                                            {selectedDashboardCard === 'incidents' && 'Total Incidents'}
-                                            {selectedDashboardCard === 'responseTime' && 'Response Time'}
-                                        </h2>
-                                        <button
-                                            onClick={() => setSelectedDashboardCard(null)}
-                                            className="text-gray-500 hover:text-gray-700"
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
-                                    <div>
-                                        {selectedDashboardCard === 'incidents' && (
-                                            <ul className="space-y-2">
-                                                {reports.slice(0, 5).map(report => (
-                                                    <li key={report.id} className="flex items-center gap-2">
-                                                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">{report.type}</span>
-                                                        <span className="font-medium">{report.title}</span>
-                                                        <span className="text-xs text-gray-500 ml-2">{report.date}</span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                        {selectedDashboardCard === 'responseTime' && (
-                                            <div className="text-center">
-                                                <p className="text-4xl font-bold text-[#be4c1d] mb-2">{systemStats.responseTime}ms</p>
-                                                <p className="text-gray-700">Average response time for the last 24 hours.</p>
-                                                <div className="mt-4 text-sm text-gray-500">(You can add a chart or more analytics here.)</div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                        <div
+                            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-start gap-2 cursor-pointer hover:shadow-md transition-all"
+                            onClick={() => setSelectedDashboardCard('incidents')}
+                        >
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="material-icons text-[#f9a01b] text-3xl"></span>
+                                <h3 className="text-lg font-semibold text-[#f9a01b]">Total Incidents</h3>
                             </div>
-                        )}
-                    </>
+                            <p className="text-4xl font-bold text-[#232323]">{systemStats.totalIncidents}</p>
+                        </div>
+                        <div
+                            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-start gap-2 cursor-pointer hover:shadow-md transition-all"
+                            onClick={() => setSelectedDashboardCard('responseTime')}
+                        >
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="material-icons text-[#be4c1d] text-3xl"></span>
+                                <h3 className="text-lg font-semibold text-[#be4c1d]">Response Time</h3>
+                            </div>
+                            <p className="text-4xl font-bold text-[#232323]">{systemStats.responseTime}ms</p>
+                        </div>
+                    </div>
                 );
             case "admin-management":
                 return (
-                    <div className="bg-[#f8eed4] rounded-lg shadow-md p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-semibold text-[#005524]">Admin Management</h2>
+                    <div>
+                        <div className="flex justify-end mb-6">
                             <button
                                 onClick={() => setShowAddAdmin(true)}
-                                className="bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#F9C835] transition-colors"
+                                className="bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-colors"
                             >
                                 Add New Admin
                             </button>
@@ -215,9 +197,9 @@ const SuperAdminDashboard: React.FC = () => {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-[#f8eed4] divide-y divide-gray-200">
+                                <tbody className="bg-white divide-y divide-gray-200">
                                     {admins.map((admin) => (
-                                        <tr key={admin.id}>
+                                        <tr key={admin.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap">{admin.name}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">{admin.email}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">
@@ -264,119 +246,282 @@ const SuperAdminDashboard: React.FC = () => {
                 );
             case "feature-updates":
                 return (
-                    <div className="bg-[#f8eed4] rounded-lg shadow-md p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-semibold text-[#005524]">Feature Updates</h2>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full">
-                                <thead>
-                                    <tr className="bg-gray-50">
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                            <thead>
+                                <tr className="bg-gray-50">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {featureUpdates.map((update) => (
+                                    <tr key={update.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap">{update.name}</td>
+                                        <td className="px-6 py-4">{update.description}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${update.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                                update.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                                    'bg-yellow-100 text-yellow-800'
+                                                }`}>
+                                                {update.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">{update.date}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {update.status === 'pending' && (
+                                                <div className="space-x-2">
+                                                    <button
+                                                        onClick={() => handleFeatureUpdate(update.id, 'approved')}
+                                                        className="px-3 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200"
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleFeatureUpdate(update.id, 'rejected')}
+                                                        className="px-3 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200"
+                                                    >
+                                                        Reject
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="bg-[#f8eed4] divide-y divide-gray-200">
-                                    {featureUpdates.map((update) => (
-                                        <tr key={update.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap">{update.name}</td>
-                                            <td className="px-6 py-4">{update.description}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${update.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                                    update.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                                        'bg-yellow-100 text-yellow-800'
-                                                    }`}>
-                                                    {update.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{update.date}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                {update.status === 'pending' && (
-                                                    <div className="space-x-2">
-                                                        <button
-                                                            onClick={() => handleFeatureUpdate(update.id, 'approved')}
-                                                            className="px-3 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200"
-                                                        >
-                                                            Approve
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleFeatureUpdate(update.id, 'rejected')}
-                                                            className="px-3 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200"
-                                                        >
-                                                            Reject
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 );
             case "reports":
                 return (
-                    <div className="bg-[#f8eed4] rounded-lg shadow-md p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-semibold text-[#005524]">Reports Analysis</h2>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full">
-                                <thead>
-                                    <tr className="bg-gray-50">
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                            <thead>
+                                <tr className="bg-gray-50">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {reports.map((report) => (
+                                    <tr key={report.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                                                {report.type}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">{report.title}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${report.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                                                report.status === 'reviewed' ? 'bg-blue-100 text-blue-800' :
+                                                    'bg-yellow-100 text-yellow-800'
+                                                }`}>
+                                                {report.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${report.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                                report.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-green-100 text-green-800'
+                                                }`}>
+                                                {report.priority}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">{report.date}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedReport(report);
+                                                    setShowReportDetails(true);
+                                                }}
+                                                className="px-3 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                                            >
+                                                View Details
+                                            </button>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="bg-[#f8eed4] divide-y divide-gray-200">
-                                    {reports.map((report) => (
-                                        <tr key={report.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
-                                                    {report.type}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{report.title}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${report.status === 'resolved' ? 'bg-green-100 text-green-800' :
-                                                    report.status === 'reviewed' ? 'bg-blue-100 text-blue-800' :
-                                                        'bg-yellow-100 text-yellow-800'
-                                                    }`}>
-                                                    {report.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${report.priority === 'high' ? 'bg-red-100 text-red-800' :
-                                                    report.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                                        'bg-green-100 text-green-800'
-                                                    }`}>
-                                                    {report.priority}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{report.date}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedReport(report);
-                                                        setShowReportDetails(true);
-                                                    }}
-                                                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                                                >
-                                                    View Details
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                );
+            case "settings":
+                return (
+                    <div className="space-y-6">
+                        {/* Personal Information Section */}
+                        <div className="border-b border-gray-200 pb-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-[#005524]">Personal Information</h3>
+                                {!isEditingPersonal ? (
+                                    <button
+                                        onClick={() => setIsEditingPersonal(true)}
+                                        className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-opacity-90 transition-colors"
+                                    >
+                                        Edit
+                                    </button>
+                                ) : (
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setIsEditingPersonal(false)}
+                                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={() => setIsEditingPersonal(false)}
+                                            className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-opacity-90 transition-colors"
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                                    <input
+                                        type="text"
+                                        value={personalInfo.name}
+                                        disabled={!isEditingPersonal}
+                                        onChange={e => setPersonalInfo({ ...personalInfo, name: e.target.value })}
+                                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524] focus:border-transparent ${!isEditingPersonal ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                    <input
+                                        type="email"
+                                        value={personalInfo.email}
+                                        disabled={!isEditingPersonal}
+                                        onChange={e => setPersonalInfo({ ...personalInfo, email: e.target.value })}
+                                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524] focus:border-transparent ${!isEditingPersonal ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Security Section */}
+                        <div className="border-b border-gray-200 pb-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-[#005524] mb-4">Security</h3>
+                                {!isEditingSecurity ? (
+                                    <button
+                                        onClick={() => setIsEditingSecurity(true)}
+                                        className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-opacity-90 transition-colors"
+                                    >
+                                        Edit
+                                    </button>
+                                ) : (
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setIsEditingSecurity(false)}
+                                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={() => setIsEditingSecurity(false)}
+                                            className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-opacity-90 transition-colors"
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                                    <input
+                                        type="password"
+                                        value={securityInfo.currentPassword}
+                                        disabled={!isEditingSecurity}
+                                        onChange={e => setSecurityInfo({ ...securityInfo, currentPassword: e.target.value })}
+                                        placeholder="Enter current password"
+                                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524] focus:border-transparent ${!isEditingSecurity ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                    <input
+                                        type="password"
+                                        value={securityInfo.newPassword}
+                                        disabled={!isEditingSecurity}
+                                        onChange={e => setSecurityInfo({ ...securityInfo, newPassword: e.target.value })}
+                                        placeholder="Enter new password"
+                                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524] focus:border-transparent ${!isEditingSecurity ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                                    <input
+                                        type="password"
+                                        value={securityInfo.confirmPassword}
+                                        disabled={!isEditingSecurity}
+                                        onChange={e => setSecurityInfo({ ...securityInfo, confirmPassword: e.target.value })}
+                                        placeholder="Confirm new password"
+                                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524] focus:border-transparent ${!isEditingSecurity ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* General Settings Section */}
+                        <div className="border-b border-gray-200 pb-6">
+                            <h3 className="text-lg font-semibold text-[#005524] mb-4">General Settings</h3>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-700">Dark Mode</h4>
+                                        <p className="text-sm text-gray-500">Toggle dark mode on/off</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setIsDarkMode(!isDarkMode)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${isDarkMode ? 'bg-[#005524]' : 'bg-gray-200'}`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${isDarkMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-700">Notifications</h4>
+                                        <p className="text-sm text-gray-500">Enable/disable notifications</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setNotifications(!notifications)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${notifications ? 'bg-[#005524]' : 'bg-gray-200'}`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${notifications ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-700">Email Notifications</h4>
+                                        <p className="text-sm text-gray-500">Receive email notifications for updates</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setEmailNotifications(!emailNotifications)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${emailNotifications ? 'bg-[#005524]' : 'bg-gray-200'}`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${emailNotifications ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Save Button */}
+                        <div className="flex justify-end">
+                            <button
+                                className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-opacity-90 transition-colors"
+                            >
+                                Save Changes
+                            </button>
                         </div>
                     </div>
                 );
@@ -385,79 +530,169 @@ const SuperAdminDashboard: React.FC = () => {
         }
     };
 
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            const notifDropdown = document.getElementById('notif-dropdown');
+            if (notifDropdown && !notifDropdown.contains(event.target as Node)) {
+                setShowNotifications(false);
+            }
+        }
+        if (showNotifications) {
+            document.addEventListener('mousedown', handleClickOutside);
+        } else {
+            document.removeEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showNotifications]);
+
     return (
-        <div className="min-h-screen bg-white flex">
+        <div className={`min-h-screen flex ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
             {/* Sidebar */}
-            <div className="bg-[#005524] text-white w-72 min-h-screen flex flex-col shadow-lg">
-                <div className="p-6 flex flex-col items-center border-b border-[#333]">
-                    {/* Admin Profile Section */}
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#005524] to-[#f8eed4] flex items-center justify-center text-[#232323] text-3xl font-bold mb-3 shadow-lg">
-                        {currentUser.name.charAt(0)}
+            <aside className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-[#fff] border-r border-gray-200 min-h-screen flex flex-col shadow-lg z-30`}>
+                <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                    <div className="flex items-center gap-1">
+                        <img src={logoImage} alt="CALASAG Logo" className="h-7 w-auto object-contain" />
+                        {!isSidebarCollapsed && (
+                            <span className="text-lg font-bold text-[#005524] ml-1">CALASAG</span>
+                        )}
                     </div>
-                    <div className="text-center">
-                        <h2 className="font-semibold text-lg text-white">{currentUser.name}</h2>
-                        <p className="text-sm text-gray-400">{currentUser.email}</p>
-                        <p className="text-xs text-[#f9a01b] font-semibold">{currentUser.role}</p>
-                    </div>
+                    <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="text-gray-400 hover:text-[#005524]">
+                        {isSidebarCollapsed ? <FaChevronRight size={16} /> : <FaChevronLeft size={16} />}
+                    </button>
                 </div>
-                <nav className="flex-1 flex flex-col gap-2 mt-8 px-4">
+                <nav className="flex-1 flex flex-col gap-2 mt-4 px-2">
                     <button
-                        onClick={() => setActiveTab("dashboard")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "dashboard" ? 'bg-gradient-to-tr from-[#005524] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                        onClick={() => setActiveTab('dashboard')}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-base font-medium 
+                        ${activeTab === 'dashboard'
+                                ? 'bg-white text-[#005524] shadow-sm border border-gray-100'
+                                : 'text-gray-700 hover:bg-white hover:text-[#005524] hover:shadow-sm hover:translate-x-1'}`}
                     >
-                        <span className="text-xl">🏠</span> Dashboard
+                        <FaHome size={20} /> {!isSidebarCollapsed && 'Dashboard'}
                     </button>
                     <button
-                        onClick={() => setActiveTab("admin-management")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "admin-management" ? 'bg-gradient-to-tr from-[#005524] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                        onClick={() => setActiveTab('admin-management')}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-base font-medium 
+                        ${activeTab === 'admin-management'
+                                ? 'bg-white text-[#005524] shadow-sm border border-gray-100'
+                                : 'text-gray-700 hover:bg-white hover:text-[#005524] hover:shadow-sm hover:translate-x-1'}`}
                     >
-                        <span className="text-xl">👥</span> Admin Management
+                        <FaUser size={20} /> {!isSidebarCollapsed && 'Admin Management'}
                     </button>
                     <button
-                        onClick={() => setActiveTab("feature-updates")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "feature-updates" ? 'bg-gradient-to-tr from-[#005524] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                        onClick={() => setActiveTab('feature-updates')}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-base font-medium 
+                        ${activeTab === 'feature-updates'
+                                ? 'bg-white text-[#005524] shadow-sm border border-gray-100'
+                                : 'text-gray-700 hover:bg-white hover:text-[#005524] hover:shadow-sm hover:translate-x-1'}`}
                     >
-                        <span className="text-xl">🛠️</span> Feature Updates
+                        <FaKey size={20} /> {!isSidebarCollapsed && 'Feature Updates'}
                     </button>
                     <button
-                        onClick={() => setActiveTab("reports")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-base font-medium ${activeTab === "reports" ? 'bg-gradient-to-tr from-[#005524] to-[#f8eed4] text-[#232323]' : 'hover:bg-[#f69f00]'}`}
+                        onClick={() => setActiveTab('reports')}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-base font-medium 
+                        ${activeTab === 'reports'
+                                ? 'bg-white text-[#005524] shadow-sm border border-gray-100'
+                                : 'text-gray-700 hover:bg-white hover:text-[#005524] hover:shadow-sm hover:translate-x-1'}`}
                     >
-                        <span className="text-xl">📊</span> Reports Analysis
+                        <FaChartBar size={20} /> {!isSidebarCollapsed && 'Reports Analysis'}
                     </button>
                 </nav>
-                {/* Bottom Buttons */}
-                <div className="p-6 border-t border-[#333] mt-auto">
+                <div className="mt-auto p-4 border-t border-gray-100">
                     <button
-                        onClick={() => setShowProfileSettings(true)}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-white hover:bg-[#f69f00] rounded-lg transition-colors mb-2"
+                        onClick={() => setActiveTab('settings')}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-white hover:text-[#005524] hover:shadow-sm hover:translate-x-1 rounded-lg transition-all duration-200 mb-2"
                     >
-                        <span className="text-xl">⚙️</span> Profile Settings
+                        <FaCog size={20} /> {!isSidebarCollapsed && 'Settings'}
                     </button>
                     <button
                         onClick={() => setShowLogoutConfirm(true)}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-white hover:bg-[#f69f00] rounded-lg transition-colors"
+                        className="w-full flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-white hover:text-[#005524] hover:shadow-sm hover:translate-x-1 rounded-lg transition-all duration-200"
                     >
-                        <span className="text-xl">🚪</span> Logout
+                        <FaLock size={20} /> {!isSidebarCollapsed && 'Logout'}
                     </button>
                 </div>
-            </div>
+            </aside>
             {/* Main Content */}
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-h-screen">
                 {/* Top Navigation Bar */}
-                <div className="bg-[#005524] border-b border-[#333] p-6 flex items-center justify-between shadow-sm">
-                    <h1 className="text-2xl font-bold text-[#f9a01b] tracking-wide">Hi, Super Admin!</h1>
-                </div>
-                {/* Content Area */}
-                <div className="flex-1 p-8">
-                    {renderContent()}
-                </div>
+                <header className={`sticky top-0 z-20 bg-white border-b border-gray-200 flex items-center justify-between px-6 py-3 shadow-sm ${isDarkMode ? 'bg-gray-900 border-gray-800' : ''}`}>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="md:hidden text-gray-400 hover:text-[#005524]">
+                            <FaChevronRight size={16} />
+                        </button>
+                        <h1 className="text-xl font-semibold text-[#005524]">
+                            {activeTab === 'dashboard' && 'Dashboard'}
+                            {activeTab === 'admin-management' && 'Admin Management'}
+                            {activeTab === 'feature-updates' && 'Feature Updates'}
+                            {activeTab === 'reports' && 'Reports Analysis'}
+                            {activeTab === 'settings' && 'Settings'}
+                        </h1>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="text-gray-400 hover:text-[#005524] transition-colors duration-200 text-xl">
+                            {isDarkMode ? <FaSun size={20} /> : <FaMoon size={20} />}
+                        </button>
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowNotifications((prev) => !prev)}
+                                className="text-gray-400 hover:text-[#005524] transition-colors duration-200 text-xl relative"
+                            >
+                                <FaBell size={20} />
+                                {notificationsList.length > 0 && (
+                                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                                )}
+                            </button>
+                            {showNotifications && (
+                                <div id="notif-dropdown" className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                                    <div className="p-4 border-b border-gray-100 font-semibold text-[#005524]">Notifications</div>
+                                    <div className="max-h-64 overflow-y-auto">
+                                        {notificationsList.length === 0 ? (
+                                            <div className="p-4 text-gray-500 text-center">No notifications</div>
+                                        ) : (
+                                            notificationsList.map((notif) => (
+                                                <div key={notif.id} className="px-4 py-3 border-b last:border-b-0 border-gray-100 hover:bg-gray-50 cursor-pointer">
+                                                    <div className="text-sm text-gray-800">{notif.message}</div>
+                                                    <div className="text-xs text-gray-400">{notif.time}</div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowProfileSettings(true)}
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white hover:shadow-sm transition-all duration-200 focus:outline-none"
+                            >
+                                <img
+                                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}`}
+                                    alt="avatar"
+                                    className="w-8 h-8 rounded-full border-2 border-gray-200"
+                                />
+                                <span className="hidden md:inline text-gray-700 font-medium">{currentUser.name}</span>
+                            </button>
+                        </div>
+                    </div>
+                </header>
+                {/* Main Content Area */}
+                <main className="flex-1 p-6 md:p-8 bg-gray-50">
+                    <div className="max-w-[1600px] mx-auto">
+                        {/* Card-like container for main content */}
+                        <div className="bg-white rounded-xl shadow-sm p-6 md:p-8">
+                            {renderContent()}
+                        </div>
+                    </div>
+                </main>
             </div>
 
             {/* Add Admin Modal */}
             {showAddAdmin && (
                 <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg border border-gray-200">
                         <h2 className="text-2xl font-bold text-[#005524] mb-4">Add New Admin</h2>
                         <form onSubmit={handleAddAdmin}>
                             <div className="mb-4">
@@ -494,7 +729,7 @@ const SuperAdminDashboard: React.FC = () => {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004015]"
+                                    className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-opacity-90"
                                 >
                                     Add Admin
                                 </button>
@@ -612,7 +847,7 @@ const SuperAdminDashboard: React.FC = () => {
             {/* Logout Confirmation Modal */}
             {showLogoutConfirm && (
                 <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-                    <div className="bg-[#f69f00] rounded-lg p-6 w-full max-w-md">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg border border-gray-200">
                         <h2 className="text-2xl font-bold text-[#005524] mb-4">Confirm Logout</h2>
                         <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
                         <div className="flex justify-end space-x-4">
@@ -624,7 +859,7 @@ const SuperAdminDashboard: React.FC = () => {
                             </button>
                             <button
                                 onClick={handleLogout}
-                                className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004015]"
+                                className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-opacity-90"
                             >
                                 Logout
                             </button>
@@ -636,7 +871,7 @@ const SuperAdminDashboard: React.FC = () => {
             {/* Profile Settings Modal */}
             {showProfileSettings && (
                 <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg border border-gray-200">
                         <h2 className="text-2xl font-bold text-[#005524] mb-4">Profile Settings</h2>
                         <form className="space-y-4">
                             <div>
@@ -679,7 +914,7 @@ const SuperAdminDashboard: React.FC = () => {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004015]"
+                                    className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-opacity-90"
                                 >
                                     Save Changes
                                 </button>

@@ -1,6 +1,26 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaHome, FaBell, FaUser, FaCog, FaSignOutAlt, FaSearch, FaMapMarkerAlt, FaPhone, FaExclamationTriangle, FaCheck, FaTimes, FaEnvelope, FaPhoneAlt, FaInfoCircle, FaMapMarkedAlt } from 'react-icons/fa';
+import {
+  FaHome,
+  FaBell,
+  FaUser,
+  FaCog,
+  FaSignOutAlt,
+  FaSearch,
+  FaMapMarkerAlt,
+  FaPhone,
+  FaExclamationTriangle,
+  FaCheck,
+  FaTimes,
+  FaEnvelope,
+  FaPhoneAlt,
+  FaInfoCircle,
+  FaMapMarkedAlt,
+  FaFire,
+  FaShieldAlt,
+  FaCarCrash,
+  FaAmbulance,
+} from "react-icons/fa";
 import logoImage from "../Images/no-bg-logo.png";
 import mapImage from "../Images/ph-map.png";
 
@@ -29,7 +49,6 @@ interface Type {
   name: string;
 }
 
-
 interface Notification {
   id: number;
   message: string;
@@ -50,11 +69,16 @@ const Dashboard: React.FC = () => {
   const [showProfile, setShowProfile] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showLocationView, setShowLocationView] = useState<boolean>(false);
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
-  const [selectedEmergency, setSelectedEmergency] = useState<Emergency | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(
+    null
+  );
+  const [selectedEmergency, setSelectedEmergency] = useState<Emergency | null>(
+    null
+  );
   const [showCallConfirm, setShowCallConfirm] = useState<boolean>(false);
   const [showReportConfirm, setShowReportConfirm] = useState<boolean>(false);
-  const [selectedEmergencyForAction, setSelectedEmergencyForAction] = useState<Emergency | null>(null);
+  const [selectedEmergencyForAction, setSelectedEmergencyForAction] =
+    useState<Emergency | null>(null);
   const [emergencies, setEmergencies] = useState<Emergency[]>([
     {
       id: 1,
@@ -86,7 +110,7 @@ const Dashboard: React.FC = () => {
       avatar: "/avatars/john.png",
       emergency: "Lost Child",
       message: "Child missing in the park.",
-      location: { lat: 52.3737, lng: 4.8990 },
+      location: { lat: 52.3737, lng: 4.899 },
     },
     {
       id: 5,
@@ -112,7 +136,6 @@ const Dashboard: React.FC = () => {
       message: "I need car girl",
       location: { lat: 13.767783, lng: 121.063503 },
     },
-
   ]);
 
   const [connections, setConnections] = useState<Connection[]>([
@@ -141,29 +164,39 @@ const Dashboard: React.FC = () => {
       id: 1,
       message: "New emergency reported in your area",
       time: "5 minutes ago",
-      read: false
+      read: false,
     },
     {
       id: 2,
       message: "Your connection Vin Vernon Perez is nearby",
       time: "10 minutes ago",
-      read: false
-    }
+      read: false,
+    },
   ]);
 
-  const [deviceStatus, setDeviceStatus] = useState<'Active' | 'Inactive'>('Active');
+  const [deviceStatus, setDeviceStatus] = useState<"Active" | "Inactive">(
+    "Active"
+  );
   const [isSafe, setIsSafe] = useState(false);
 
-  const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
-  const [connectionTab, setConnectionTab] = useState<'profile' | 'message'>('profile');
-  const [messageText, setMessageText] = useState('');
+  const [selectedConnection, setSelectedConnection] =
+    useState<Connection | null>(null);
+  const [connectionTab, setConnectionTab] = useState<"profile" | "message">(
+    "profile"
+  );
+  const [messageText, setMessageText] = useState("");
   const [messageSent, setMessageSent] = useState(false);
+
+  const handleEmergencyAlert = (type: string) => {
+    alert(`Emergency alert for ${type} sent!`);
+    // Add logic to handle the emergency alert (e.g., API call, update state, etc.)
+  };
 
   const refreshFeed = () => {
     setIsRefreshing(true);
     // Simulate API call with setTimeout
     setTimeout(() => {
-      setEmergencies(prevEmergencies => {
+      setEmergencies((prevEmergencies) => {
         const shuffled = [...prevEmergencies].sort(() => Math.random() - 0.5);
         return shuffled;
       });
@@ -206,13 +239,13 @@ const Dashboard: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    navigate('/login');
+    localStorage.removeItem("user");
+    navigate("/login");
   };
 
   const markNotificationAsRead = (id: number) => {
-    setNotifications(prev =>
-      prev.map(notification =>
+    setNotifications((prev) =>
+      prev.map((notification) =>
         notification.id === id ? { ...notification, read: true } : notification
       )
     );
@@ -235,13 +268,13 @@ const Dashboard: React.FC = () => {
   };
 
   const initiateCall = () => {
-    window.open('tel:911', '_blank');
+    window.open("tel:911", "_blank");
     setShowCallConfirm(false);
   };
 
   const submitReport = () => {
     // Here you would typically send the report to your backend
-    console.log('Report submitted for:', selectedEmergencyForAction);
+    console.log("Report submitted for:", selectedEmergencyForAction);
     setShowReportConfirm(false);
   };
 
@@ -266,25 +299,41 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center justify-center space-x-8">
           <button
             onClick={() => handleNavigation("home")}
-            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "home" ? "text-[#005524]" : "text-gray-500 hover:text-[#005524]"}`}
+            className={`flex flex-col items-center transition-colors duration-200 ${
+              activeTab === "home"
+                ? "text-[#005524]"
+                : "text-gray-500 hover:text-[#005524]"
+            }`}
           >
-            <span className={`text-xl ${isRefreshing ? 'animate-spin' : ''}`}>
-              {isRefreshing ? '🔄' : <FaHome size={20} />}
+            <span className={`text-xl ${isRefreshing ? "animate-spin" : ""}`}>
+              {isRefreshing ? "🔄" : <FaHome size={20} />}
             </span>
             <span className="text-xs mt-1">Home</span>
           </button>
           <button
             onClick={() => handleNavigation("message")}
-            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "message" ? "text-[#005524]" : "text-gray-500 hover:text-[#005524]"}`}
+            className={`flex flex-col items-center transition-colors duration-200 ${
+              activeTab === "message"
+                ? "text-[#005524]"
+                : "text-gray-500 hover:text-[#005524]"
+            }`}
           >
-            <span className="text-xl"><FaBell size={20} /></span>
+            <span className="text-xl">
+              <FaBell size={20} />
+            </span>
             <span className="text-xs mt-1">Message</span>
           </button>
           <button
             onClick={() => handleNavigation("report")}
-            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "report" ? "text-[#005524]" : "text-gray-500 hover:text-[#005524]"}`}
+            className={`flex flex-col items-center transition-colors duration-200 ${
+              activeTab === "report"
+                ? "text-[#005524]"
+                : "text-gray-500 hover:text-[#005524]"
+            }`}
           >
-            <span className="text-xl"><FaExclamationTriangle size={20} /></span>
+            <span className="text-xl">
+              <FaExclamationTriangle size={20} />
+            </span>
             <span className="text-xs mt-1">Report</span>
           </button>
         </div>
@@ -295,10 +344,12 @@ const Dashboard: React.FC = () => {
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-colors duration-200"
             >
-              <span className="text-[#f69f00]"><FaBell size={20} /></span>
-              {notifications.filter(n => !n.read).length > 0 && (
+              <span className="text-[#f69f00]">
+                <FaBell size={20} />
+              </span>
+              {notifications.filter((n) => !n.read).length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full h-4 w-4 flex items-center justify-center text-xs">
-                  {notifications.filter(n => !n.read).length}
+                  {notifications.filter((n) => !n.read).length}
                 </span>
               )}
             </button>
@@ -307,17 +358,23 @@ const Dashboard: React.FC = () => {
             {showNotifications && (
               <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-1 z-50">
                 <div className="px-4 py-2 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-700">Notifications</h3>
+                  <h3 className="text-lg font-semibold text-gray-700">
+                    Notifications
+                  </h3>
                 </div>
                 <div className="max-h-96 overflow-y-auto">
-                  {notifications.map(notification => (
+                  {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${!notification.read ? 'bg-blue-50' : ''}`}
+                      className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
+                        !notification.read ? "bg-blue-50" : ""
+                      }`}
                       onClick={() => markNotificationAsRead(notification.id)}
                     >
                       <p className="text-gray-800">{notification.message}</p>
-                      <p className="text-sm text-gray-500 mt-1">{notification.time}</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {notification.time}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -334,7 +391,13 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="flex items-center text-[#005524]">
                 <span className="font-medium">{activeUser}</span>
-                <span className={`ml-1 transition-transform duration-200 ${showProfileMenu ? 'rotate-180' : ''}`}>▼</span>
+                <span
+                  className={`ml-1 transition-transform duration-200 ${
+                    showProfileMenu ? "rotate-180" : ""
+                  }`}
+                >
+                  ▼
+                </span>
               </div>
             </button>
 
@@ -345,20 +408,29 @@ const Dashboard: React.FC = () => {
                   onClick={() => handleProfileAction("profile")}
                   className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
                 >
-                  <span className="mr-2"><FaUser size={16} /></span> Profile
+                  <span className="mr-2">
+                    <FaUser size={16} />
+                  </span>{" "}
+                  Profile
                 </button>
                 <button
                   onClick={() => handleProfileAction("settings")}
                   className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
                 >
-                  <span className="mr-2"><FaCog size={16} /></span> Settings
+                  <span className="mr-2">
+                    <FaCog size={16} />
+                  </span>{" "}
+                  Settings
                 </button>
                 <div className="border-t border-gray-200 my-1"></div>
                 <button
                   onClick={() => handleProfileAction("logout")}
                   className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100 flex items-center"
                 >
-                  <span className="mr-2"><FaSignOutAlt size={16} /></span> Logout
+                  <span className="mr-2">
+                    <FaSignOutAlt size={16} />
+                  </span>{" "}
+                  Logout
                 </button>
               </div>
             )}
@@ -404,19 +476,38 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-white/90 font-medium">Status:</span>
-                  <span className={`font-medium ${deviceStatus === 'Active' ? 'text-[#f69f00]' : 'text-[#be4c1d]'}`}>{deviceStatus}</span>
+                  <span
+                    className={`font-medium ${
+                      deviceStatus === "Active"
+                        ? "text-[#f69f00]"
+                        : "text-[#be4c1d]"
+                    }`}
+                  >
+                    {deviceStatus}
+                  </span>
                 </div>
               </div>
               <button
-                className={`rounded-lg flex-1 ${deviceStatus === 'Active' ? 'bg-[#be4c1d] hover:bg-[#004015]' : 'bg-[#f69f00] hover:bg-[#be4c1d]'} text-white py-2 px-4 flex items-center justify-center transition-colors`}
-                onClick={() => setDeviceStatus(deviceStatus === 'Active' ? 'Inactive' : 'Active')}
+                className={`rounded-lg flex-1 ${
+                  deviceStatus === "Active"
+                    ? "bg-[#be4c1d] hover:bg-[#004015]"
+                    : "bg-[#f69f00] hover:bg-[#be4c1d]"
+                } text-white py-2 px-4 flex items-center justify-center transition-colors`}
+                onClick={() =>
+                  setDeviceStatus(
+                    deviceStatus === "Active" ? "Inactive" : "Active"
+                  )
+                }
               >
-                {deviceStatus === 'Active' ? 'Deactivate' : 'Activate'}
+                {deviceStatus === "Active" ? "Deactivate" : "Activate"}
               </button>
             </div>
-          </div>{/* Emergency Types */}
+          </div>
+          {/* Emergency Types */}
           <div className="bg-[#005524] rounded-lg shadow-md p-4">
-            <h2 className="text-2xl font-bold text-white mb-4">Emergency Types</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">
+              Emergency Types
+            </h2>
             <div className="space-y-2">
               {type.map((item) => (
                 <div
@@ -426,14 +517,14 @@ const Dashboard: React.FC = () => {
                   <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
                     SOS
                   </div>
-                  <span className="text-white ml-3">{item.name || "Unknown Type"}</span>
+                  <span className="text-white ml-3">
+                    {item.name || "Unknown Type"}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         </div>
-
-
 
         <div className="w-2/4 p-4">
           {/* User Info Card */}
@@ -443,20 +534,27 @@ const Dashboard: React.FC = () => {
                 👤
               </div>
               <div>
-                <span className="text-white text-lg font-medium">{activeUser}</span>
+                <span className="text-white text-lg font-medium">
+                  {activeUser}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Emergency Cards */}
           {emergencies.map((emergency) => (
-            <div key={emergency.id} className="bg-[#f8eed4] border border-gray-800 rounded-lg mb-4 overflow-hidden">
+            <div
+              key={emergency.id}
+              className="bg-[#f8eed4] border border-gray-800 rounded-lg mb-4 overflow-hidden"
+            >
               <div className="bg-[#f8eed4] p-4 flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-white">
                   👤
                 </div>
                 <div>
-                  <h3 className="text-[#005524] font-medium">{emergency.name}</h3>
+                  <h3 className="text-[#005524] font-medium">
+                    {emergency.name}
+                  </h3>
                   <p className="text-sm text-gray-600">{emergency.emergency}</p>
                 </div>
                 <div className="ml-auto">
@@ -464,25 +562,36 @@ const Dashboard: React.FC = () => {
                     onClick={() => handleViewLocation(emergency)}
                     className="flex items-center text-green-600 text-sm hover:text-green-700 transition-colors"
                   >
-                    <span className="mr-1"><FaMapMarkerAlt size={16} /></span> View Location
+                    <span className="mr-1">
+                      <FaMapMarkerAlt size={16} />
+                    </span>{" "}
+                    View Location
                   </button>
                 </div>
               </div>
               <div className="px-4 py-2 border-t border-gray-800">
-                <h4 className="text-xl font-bold text-[#005524] mb-2">{emergency.message}</h4>
+                <h4 className="text-xl font-bold text-[#005524] mb-2">
+                  {emergency.message}
+                </h4>
               </div>
               <div className="flex border-t border-gray-300">
                 <button
                   onClick={() => handleCallAssistance(emergency)}
                   className="flex-1 bg-[#005524] text-white py-2 px-4 flex items-center justify-center hover:bg-[#004015] transition-colors"
                 >
-                  <span className="mr-2"><FaPhone size={16} /></span> Call Assistance
+                  <span className="mr-2">
+                    <FaPhone size={16} />
+                  </span>{" "}
+                  Call Assistance
                 </button>
                 <button
                   onClick={() => handleReport(emergency)}
                   className="flex-1 bg-[#be4c1d] text-white py-2 px-4 flex items-center justify-center hover:bg-[#a33d16] transition-colors"
                 >
-                  <span className="mr-2"><FaExclamationTriangle size={16} /></span> Report
+                  <span className="mr-2">
+                    <FaExclamationTriangle size={16} />
+                  </span>{" "}
+                  Report
                 </button>
               </div>
             </div>
@@ -493,8 +602,12 @@ const Dashboard: React.FC = () => {
         <div className="w-1/4 p-4">
           {/* Crisis Response Section */}
           <div className="w-full bg-[#005524] rounded-lg p-4 mb-4">
-            <h3 className="text-lg font-bold text-white mb-1">Crisis Response</h3>
-            <p className="text-sm text-white mb-3 text-center">Let your friends and family know you are safe during a crisis.</p>
+            <h3 className="text-lg font-bold text-white mb-1">
+              Crisis Response
+            </h3>
+            <p className="text-sm text-white mb-3 text-center">
+              Let your friends and family know you are safe during a crisis.
+            </p>
             {isSafe ? (
               <div className="flex flex-col items-center justify-center gap-2 text-[#f69f00] font-semibold">
                 <span className="material-icons"></span>
@@ -512,8 +625,7 @@ const Dashboard: React.FC = () => {
                   className="bg-[#f69f00] hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
                   onClick={() => setIsSafe(true)}
                 >
-                  <span className="material-icons"></span>
-                  I am Safe
+                  <span className="material-icons"></span>I am Safe
                 </button>
               </div>
             )}
@@ -535,18 +647,52 @@ const Dashboard: React.FC = () => {
                 </div>
               ))}
             </div>
+            {/* Quick Alerts Subsection */}
+            <div className="mt-4">
+              <h3 className="text-lg font-bold text-white mb-2">
+                IoT Device Buttons
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleEmergencyAlert("Fire")}
+                  className="bg-red-600 text-white py-2 px-3 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center text-sm"
+                >
+                  <FaFire className="mr-1" /> Fire Alert
+                </button>
+                <button
+                  onClick={() => handleEmergencyAlert("Police")}
+                  className="bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center text-sm"
+                >
+                  <FaShieldAlt className="mr-1" /> Police Alert
+                </button>
+                <button
+                  onClick={() => handleEmergencyAlert("Accident")}
+                  className="bg-yellow-600 text-white py-2 px-3 rounded-lg hover:bg-yellow-700 transition-colors flex items-center justify-center text-sm"
+                >
+                  <FaCarCrash className="mr-1" /> Accident Alert
+                </button>
+                <button
+                  onClick={() => handleEmergencyAlert("Medical")}
+                  className="bg-green-600 text-white py-2 px-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center text-sm"
+                >
+                  <FaAmbulance className="mr-1" /> Medical Alert
+                </button>
+              </div>
+            </div>
           </div>
           {/* Connection Modal */}
           {selectedConnection && (
             <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-bold text-[#005524]">Connection Details</h2>
+                  <h2 className="text-2xl font-bold text-[#005524]">
+                    Connection Details
+                  </h2>
                   <button
                     onClick={() => {
                       setSelectedConnection(null);
-                      setConnectionTab('profile');
-                      setMessageText('');
+                      setConnectionTab("profile");
+                      setMessageText("");
                       setMessageSent(false);
                     }}
                     className="text-gray-500 hover:text-gray-700"
@@ -559,44 +705,83 @@ const Dashboard: React.FC = () => {
                     👤
                   </div>
                   <div className="text-center">
-                    <h3 className="text-xl font-semibold text-gray-800">{selectedConnection.name}</h3>
+                    <h3 className="text-xl font-semibold text-gray-800">
+                      {selectedConnection.name}
+                    </h3>
                   </div>
                   {/* Tabs */}
                   <div className="flex justify-center gap-4 mb-2">
                     <button
-                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${connectionTab === 'profile' ? 'bg-[#005524] text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                      onClick={() => setConnectionTab('profile')}
+                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${
+                        connectionTab === "profile"
+                          ? "bg-[#005524] text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                      onClick={() => setConnectionTab("profile")}
                     >
                       Profile
                     </button>
                     <button
-                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${connectionTab === 'message' ? 'bg-[#005524] text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                      onClick={() => setConnectionTab('message')}
+                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${
+                        connectionTab === "message"
+                          ? "bg-[#005524] text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                      onClick={() => setConnectionTab("message")}
                     >
                       Message
                     </button>
                   </div>
                   {/* Tab Content */}
-                  {connectionTab === 'profile' && (
+                  {connectionTab === "profile" && (
                     <div className="w-full text-left">
                       <div className="mb-2">
-                        <span className="font-semibold text-gray-700"><span className="inline-block mr-2"><FaEnvelope size={16} /></span>Email:</span> <span className="text-gray-600">user@calasag.com</span>
+                        <span className="font-semibold text-gray-700">
+                          <span className="inline-block mr-2">
+                            <FaEnvelope size={16} />
+                          </span>
+                          Email:
+                        </span>{" "}
+                        <span className="text-gray-600">user@calasag.com</span>
                       </div>
                       <div className="mb-2">
-                        <span className="font-semibold text-gray-700"><span className="inline-block mr-2"><FaPhoneAlt size={16} /></span>Phone:</span> <span className="text-gray-600">+63 900 000 0000</span>
+                        <span className="font-semibold text-gray-700">
+                          <span className="inline-block mr-2">
+                            <FaPhoneAlt size={16} />
+                          </span>
+                          Phone:
+                        </span>{" "}
+                        <span className="text-gray-600">+63 900 000 0000</span>
                       </div>
                       <div className="mb-2">
-                        <span className="font-semibold text-gray-700"><span className="inline-block mr-2"><FaInfoCircle size={16} /></span>Status:</span> <span className="text-green-600">Active</span>
+                        <span className="font-semibold text-gray-700">
+                          <span className="inline-block mr-2">
+                            <FaInfoCircle size={16} />
+                          </span>
+                          Status:
+                        </span>{" "}
+                        <span className="text-green-600">Active</span>
                       </div>
                       <div className="mb-2">
-                        <span className="font-semibold text-gray-700"><span className="inline-block mr-2"><FaInfoCircle size={16} /></span>About:</span> <span className="text-gray-600">This is a placeholder profile. More info can be added here.</span>
+                        <span className="font-semibold text-gray-700">
+                          <span className="inline-block mr-2">
+                            <FaInfoCircle size={16} />
+                          </span>
+                          About:
+                        </span>{" "}
+                        <span className="text-gray-600">
+                          This is a placeholder profile. More info can be added
+                          here.
+                        </span>
                       </div>
                     </div>
                   )}
-                  {connectionTab === 'message' && (
+                  {connectionTab === "message" && (
                     <div className="w-full flex flex-col items-center">
                       {messageSent ? (
-                        <div className="text-green-600 font-semibold mb-2">Message sent!</div>
+                        <div className="text-green-600 font-semibold mb-2">
+                          Message sent!
+                        </div>
                       ) : (
                         <>
                           <textarea
@@ -604,14 +789,14 @@ const Dashboard: React.FC = () => {
                             rows={3}
                             placeholder={`Message to ${selectedConnection.name}`}
                             value={messageText}
-                            onChange={e => setMessageText(e.target.value)}
+                            onChange={(e) => setMessageText(e.target.value)}
                           />
                           <button
                             className="bg-[#005524] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#004015] transition-colors"
                             onClick={() => {
                               setMessageSent(true);
                               setTimeout(() => setMessageSent(false), 1500);
-                              setMessageText('');
+                              setMessageText("");
                             }}
                             disabled={!messageText.trim()}
                           >
@@ -653,7 +838,9 @@ const Dashboard: React.FC = () => {
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96 max-h-[80vh] overflow-y-auto shadow-xl">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-[#005524]">Report an Emergency</h2>
+                <h2 className="text-2xl font-bold text-[#005524]">
+                  Report an Emergency
+                </h2>
                 <button
                   onClick={() => setShowReport(false)}
                   className="text-gray-500 hover:text-gray-700"
@@ -663,7 +850,9 @@ const Dashboard: React.FC = () => {
               </div>
               <form className="space-y-4">
                 <div>
-                  <label className="block text-gray-700 font-medium mb-2">Emergency Type</label>
+                  <label className="block text-gray-700 font-medium mb-2">
+                    Emergency Type
+                  </label>
                   <select className="w-full p-2 border border-gray-300 rounded-lg">
                     <option>Medical Emergency</option>
                     <option>Fire</option>
@@ -673,7 +862,9 @@ const Dashboard: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-gray-700 font-medium mb-2">Description</label>
+                  <label className="block text-gray-700 font-medium mb-2">
+                    Description
+                  </label>
                   <textarea
                     className="w-full p-2 border border-gray-300 rounded-lg"
                     rows={4}
@@ -681,7 +872,9 @@ const Dashboard: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 font-medium mb-2">Location</label>
+                  <label className="block text-gray-700 font-medium mb-2">
+                    Location
+                  </label>
                   <input
                     type="text"
                     className="w-full p-2 border border-gray-300 rounded-lg"
@@ -703,8 +896,12 @@ const Dashboard: React.FC = () => {
         {showLogoutConfirm && (
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-[#f69f00] rounded-lg p-6 w-96 shadow-xl">
-              <h2 className="text-2xl font-bold text-[#005524] mb-4">Confirm Logout</h2>
-              <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
+              <h2 className="text-2xl font-bold text-[#005524] mb-4">
+                Confirm Logout
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to logout?
+              </p>
               <div className="flex space-x-4">
                 <button
                   onClick={() => setShowLogoutConfirm(false)}
@@ -743,7 +940,9 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-center">
-                  <h3 className="text-xl font-semibold text-gray-800">{activeUser}</h3>
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    {activeUser}
+                  </h3>
                   <p className="text-gray-500">Member since 2024</p>
                 </div>
                 <div className="space-y-2">
@@ -780,7 +979,11 @@ const Dashboard: React.FC = () => {
                   <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <span className="text-gray-600">Email Notifications</span>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        defaultChecked
+                      />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#005524]"></div>
                     </label>
                   </div>
@@ -790,7 +993,11 @@ const Dashboard: React.FC = () => {
                   <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <span className="text-gray-600">Location Sharing</span>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        defaultChecked
+                      />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#005524]"></div>
                     </label>
                   </div>
@@ -805,7 +1012,9 @@ const Dashboard: React.FC = () => {
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-[600px] shadow-xl">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-[#005524]">Emergency Location</h2>
+                <h2 className="text-2xl font-bold text-[#005524]">
+                  Emergency Location
+                </h2>
                 <button
                   onClick={() => setShowLocationView(false)}
                   className="text-gray-500 hover:text-gray-700"
@@ -815,9 +1024,13 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="space-y-4">
                 <div className="bg-gray-100 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">{selectedEmergency.name}</h3>
+                  <h3 className="font-semibold text-gray-800 mb-2">
+                    {selectedEmergency.name}
+                  </h3>
                   <p className="text-gray-600">{selectedEmergency.emergency}</p>
-                  <p className="text-gray-600 mt-1">{selectedEmergency.message}</p>
+                  <p className="text-gray-600 mt-1">
+                    {selectedEmergency.message}
+                  </p>
                 </div>
                 <div className="relative h-[400px] bg-gray-200 rounded-lg overflow-hidden">
                   <img
@@ -833,18 +1046,28 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center text-sm text-gray-600">
                   <div>
-                    <span className="font-medium">Latitude:</span> {selectedLocation.lat}
+                    <span className="font-medium">Latitude:</span>{" "}
+                    {selectedLocation.lat}
                   </div>
                   <div>
-                    <span className="font-medium">Longitude:</span> {selectedLocation.lng}
+                    <span className="font-medium">Longitude:</span>{" "}
+                    {selectedLocation.lng}
                   </div>
                 </div>
                 <div className="flex space-x-4">
                   <button
-                    onClick={() => window.open(`https://www.google.com/maps?q=${selectedLocation.lat},${selectedLocation.lng}`, '_blank')}
+                    onClick={() =>
+                      window.open(
+                        `https://www.google.com/maps?q=${selectedLocation.lat},${selectedLocation.lng}`,
+                        "_blank"
+                      )
+                    }
                     className="flex-1 bg-[#005524] text-white py-2 px-4 rounded-lg hover:bg-[#004015] transition-colors flex items-center justify-center"
                   >
-                    <span className="mr-2"><FaMapMarkedAlt size={16} /></span> Open in Maps
+                    <span className="mr-2">
+                      <FaMapMarkedAlt size={16} />
+                    </span>{" "}
+                    Open in Maps
                   </button>
                   <button
                     onClick={() => setShowLocationView(false)}
@@ -863,7 +1086,9 @@ const Dashboard: React.FC = () => {
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-[#005524]">Call Assistance</h2>
+                <h2 className="text-2xl font-bold text-[#005524]">
+                  Call Assistance
+                </h2>
                 <button
                   onClick={() => setShowCallConfirm(false)}
                   className="text-gray-500 hover:text-gray-700"
@@ -873,11 +1098,14 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="space-y-4">
                 <p className="text-gray-600">
-                  Are you sure you want to call emergency assistance for {selectedEmergencyForAction.name}'s {selectedEmergencyForAction.emergency}?
+                  Are you sure you want to call emergency assistance for{" "}
+                  {selectedEmergencyForAction.name}'s{" "}
+                  {selectedEmergencyForAction.emergency}?
                 </p>
                 <div className="bg-gray-100 p-4 rounded-lg">
                   <p className="text-sm text-gray-600">
-                    This will initiate a call to emergency services. Please ensure this is a genuine emergency.
+                    This will initiate a call to emergency services. Please
+                    ensure this is a genuine emergency.
                   </p>
                 </div>
                 <div className="flex space-x-4">
@@ -904,7 +1132,9 @@ const Dashboard: React.FC = () => {
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-[#005524]">Report Emergency</h2>
+                <h2 className="text-2xl font-bold text-[#005524]">
+                  Report Emergency
+                </h2>
                 <button
                   onClick={() => setShowReportConfirm(false)}
                   className="text-gray-500 hover:text-gray-700"
@@ -914,10 +1144,13 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="space-y-4">
                 <p className="text-gray-600">
-                  You are about to report {selectedEmergencyForAction.name}'s {selectedEmergencyForAction.emergency}.
+                  You are about to report {selectedEmergencyForAction.name}'s{" "}
+                  {selectedEmergencyForAction.emergency}.
                 </p>
                 <div className="space-y-2">
-                  <label className="block text-gray-700 font-medium">Additional Details</label>
+                  <label className="block text-gray-700 font-medium">
+                    Additional Details
+                  </label>
                   <textarea
                     className="w-full p-2 border border-gray-300 rounded-lg"
                     rows={3}

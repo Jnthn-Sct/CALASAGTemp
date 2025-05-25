@@ -56,6 +56,12 @@ interface Notification {
   read: boolean;
 }
 
+interface CrisisAlert {
+  type: string;
+  reporter: string;
+  isSelf: boolean;
+}
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [activeUser, setActiveUser] = useState<string>("Juan Dela Cruz");
@@ -79,6 +85,13 @@ const Dashboard: React.FC = () => {
   const [showReportConfirm, setShowReportConfirm] = useState<boolean>(false);
   const [selectedEmergencyForAction, setSelectedEmergencyForAction] =
     useState<Emergency | null>(null);
+  const [isSafe, setIsSafe] = useState<boolean>(false);
+  const [crisisAlert, setCrisisAlert] = useState<CrisisAlert>({
+    type: "Fire",
+    reporter: "Justine Mae Dolor",
+    isSelf: false,
+  });
+
   const [emergencies, setEmergencies] = useState<Emergency[]>([
     {
       id: 1,
@@ -177,7 +190,6 @@ const Dashboard: React.FC = () => {
   const [deviceStatus, setDeviceStatus] = useState<"Active" | "Inactive">(
     "Active"
   );
-  const [isSafe, setIsSafe] = useState(false);
 
   const [selectedConnection, setSelectedConnection] =
     useState<Connection | null>(null);
@@ -189,12 +201,25 @@ const Dashboard: React.FC = () => {
 
   const handleEmergencyAlert = (type: string) => {
     alert(`Emergency alert for ${type} sent!`);
-    // Add logic to handle the emergency alert (e.g., API call, update state, etc.)
+    setCrisisAlert({
+      type,
+      reporter: activeUser,
+      isSelf: true,
+    });
+    setIsSafe(false);
+  };
+
+  const resetCrisisAlert = () => {
+    setIsSafe(false);
+    setCrisisAlert({
+      type: "Fire",
+      reporter: "Justine Mae Dolor",
+      isSelf: false,
+    });
   };
 
   const refreshFeed = () => {
     setIsRefreshing(true);
-    // Simulate API call with setTimeout
     setTimeout(() => {
       setEmergencies((prevEmergencies) => {
         const shuffled = [...prevEmergencies].sort(() => Math.random() - 0.5);
@@ -273,7 +298,6 @@ const Dashboard: React.FC = () => {
   };
 
   const submitReport = () => {
-    // Here you would typically send the report to your backend
     console.log("Report submitted for:", selectedEmergencyForAction);
     setShowReportConfirm(false);
   };
@@ -354,7 +378,6 @@ const Dashboard: React.FC = () => {
               )}
             </button>
 
-            {/* Notifications Dropdown */}
             {showNotifications && (
               <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-1 z-50">
                 <div className="px-4 py-2 border-b border-gray-200">
@@ -401,7 +424,6 @@ const Dashboard: React.FC = () => {
               </div>
             </button>
 
-            {/* Profile Dropdown Menu */}
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
                 <button
@@ -442,7 +464,6 @@ const Dashboard: React.FC = () => {
       <div className="flex flex-1 relative">
         {/* Left Side - Map & Device Info */}
         <div className="w-1/4 p-4 flex flex-col space-y-4">
-          {/* Map Component */}
           <div className="bg-[#005524] rounded-lg shadow-md p-3 h-fit">
             <div className="flex justify-between items-center mb-2">
               <h2 className="text-xl font-bold text-white">Your Location</h2>
@@ -462,7 +483,6 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Device Info */}
           <div className="bg-[#005524] rounded-lg shadow-md p-4">
             <h2 className="text-xl font-bold text-white mb-4">Your Device</h2>
             <div className="flex items-center space-x-4">
@@ -503,7 +523,6 @@ const Dashboard: React.FC = () => {
               </button>
             </div>
           </div>
-          {/* Emergency Types */}
           <div className="bg-[#005524] rounded-lg shadow-md p-4">
             <h2 className="text-2xl font-bold text-white mb-4">
               Emergency Types
@@ -527,7 +546,6 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="w-2/4 p-4">
-          {/* User Info Card */}
           <div className="bg-[#005524] border border-gray-300 rounded-lg p-4 mb-4 flex items-center justify-center">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-white text-xl">
@@ -541,7 +559,6 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Emergency Cards */}
           {emergencies.map((emergency) => (
             <div
               key={emergency.id}
@@ -600,37 +617,40 @@ const Dashboard: React.FC = () => {
 
         {/* Right Side - Connections */}
         <div className="w-1/4 p-4">
-          {/* Crisis Response Section */}
           <div className="w-full bg-[#005524] rounded-lg p-4 mb-4">
             <h3 className="text-lg font-bold text-white mb-1">
               Crisis Response
             </h3>
             <p className="text-sm text-white mb-3 text-center">
-              Let your friends and family know you are safe during a crisis.
+              Respond to nearby emergencies or mark yourself as safe.
             </p>
             {isSafe ? (
               <div className="flex flex-col items-center justify-center gap-2 text-[#f69f00] font-semibold">
-                <span className="material-icons"></span>
+                <FaCheck className="text-2xl" />
                 You are marked as Safe
                 <button
-                  className="ml-3 text-xs text-[#be4c1d] underline hover:text-red-700"
-                  onClick={() => setIsSafe(false)}
+                  className="text-xs text-[#be4c1d] underline hover:text-red-700"
+                  onClick={resetCrisisAlert}
                 >
                   Undo
                 </button>
               </div>
             ) : (
-              <div className="flex justify-center">
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-white font-semibold">
+                  {crisisAlert.isSelf
+                    ? `You reported a ${crisisAlert.type} Alert`
+                    : `${crisisAlert.type} Alert reported by ${crisisAlert.reporter} nearby`}
+                </p>
                 <button
                   className="bg-[#f69f00] hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
                   onClick={() => setIsSafe(true)}
                 >
-                  <span className="material-icons"></span>I am Safe
+                  <FaCheck /> I am Safe
                 </button>
               </div>
             )}
           </div>
-          {/* Connections Section */}
           <div className="bg-[#005524] rounded-lg shadow-md p-4">
             <h2 className="text-2xl font-bold text-white mb-4">Connections</h2>
             <div className="space-y-2">
@@ -647,10 +667,9 @@ const Dashboard: React.FC = () => {
                 </div>
               ))}
             </div>
-            {/* Quick Alerts Subsection */}
             <div className="mt-4">
               <h3 className="text-lg font-bold text-white mb-2">
-                IoT Device Buttons
+                Quick Alerts
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -680,7 +699,6 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
-          {/* Connection Modal */}
           {selectedConnection && (
             <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
@@ -709,7 +727,6 @@ const Dashboard: React.FC = () => {
                       {selectedConnection.name}
                     </h3>
                   </div>
-                  {/* Tabs */}
                   <div className="flex justify-center gap-4 mb-2">
                     <button
                       className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${
@@ -732,7 +749,6 @@ const Dashboard: React.FC = () => {
                       Message
                     </button>
                   </div>
-                  {/* Tab Content */}
                   {connectionTab === "profile" && (
                     <div className="w-full text-left">
                       <div className="mb-2">
@@ -812,7 +828,6 @@ const Dashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Messages Modal */}
         {showMessages && (
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96 max-h-[80vh] overflow-y-auto shadow-xl">
@@ -827,13 +842,11 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="space-y-4">
                 <p className="text-gray-600">Your messages will appear here.</p>
-                {/* Add your messages content here */}
               </div>
             </div>
           </div>
         )}
 
-        {/* Report Modal */}
         {showReport && (
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96 max-h-[80vh] overflow-y-auto shadow-xl">
@@ -892,7 +905,6 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Logout Confirmation Modal */}
         {showLogoutConfirm && (
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-[#f69f00] rounded-lg p-6 w-96 shadow-xl">
@@ -920,7 +932,6 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Profile Modal */}
         {showProfile && (
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
@@ -960,7 +971,6 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Settings Modal */}
         {showSettings && (
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
@@ -1007,7 +1017,6 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Location View Modal */}
         {showLocationView && selectedLocation && selectedEmergency && (
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-[600px] shadow-xl">
@@ -1081,7 +1090,6 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Call Assistance Confirmation Modal */}
         {showCallConfirm && selectedEmergencyForAction && (
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
@@ -1127,7 +1135,6 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Report Confirmation Modal */}
         {showReportConfirm && selectedEmergencyForAction && (
           <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96 shadow-xl">

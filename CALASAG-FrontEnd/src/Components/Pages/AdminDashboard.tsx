@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { FaUserCircle, FaBell, FaMoon, FaSun, FaSearch, FaChevronDown, FaChevronLeft, FaChevronRight, FaTable, FaChartBar, FaKey, FaCalendarAlt, FaFileAlt, FaCubes, FaLock, FaUser, FaHome, FaCog } from 'react-icons/fa';
 import logoImage from "../Images/no-bg-logo.png";
 
+// Import Chart.js components
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title as ChartTitle } from 'chart.js';
+import { Pie, Bar } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, ChartTitle);
+
 interface User {
     id: number;
     name: string;
@@ -32,15 +38,6 @@ interface SafetyTip {
     date: string;
 }
 
-interface GeofenceAlert {
-    id: number;
-    location: string;
-    type: 'entry' | 'exit' | 'violation';
-    severity: 'low' | 'medium' | 'high';
-    status: 'active' | 'resolved';
-    date: string;
-}
-
 interface CommunityContent {
     id: number;
     type: 'post' | 'comment' | 'feedback';
@@ -65,8 +62,6 @@ const AdminDashboard: React.FC = () => {
     const [showIncidentDetails, setShowIncidentDetails] = useState<boolean>(false);
     const [selectedIncident, setSelectedIncident] = useState<IncidentReport | null>(null);
     const [showSafetyTipModal, setShowSafetyTipModal] = useState<boolean>(false);
-    const [showGeofenceDetails, setShowGeofenceDetails] = useState<boolean>(false);
-    const [selectedGeofence, setSelectedGeofence] = useState<GeofenceAlert | null>(null);
     const [showSafetyTipDetails, setShowSafetyTipDetails] = useState<boolean>(false);
     const [selectedSafetyTip, setSelectedSafetyTip] = useState<SafetyTip | null>(null);
     const [showAddUserModal, setShowAddUserModal] = useState<boolean>(false);
@@ -74,12 +69,14 @@ const AdminDashboard: React.FC = () => {
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [showProfileSettings, setShowProfileSettings] = useState<boolean>(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
-    const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
     const [showNotifications, setShowNotifications] = useState<boolean>(false);
     const [notificationsList, setNotificationsList] = useState([
         { id: 1, message: 'New incident reported', time: '2 mins ago' },
         { id: 2, message: 'Safety tip published', time: '1 hour ago' },
     ]);
+
+    // State to manage dropdown open/close in sidebar
+    const [openSidebarDropdown, setOpenSidebarDropdown] = useState<string | null>(null);
 
     // Settings-related states
     const [isEditingPersonal, setIsEditingPersonal] = useState(false);
@@ -110,11 +107,6 @@ const AdminDashboard: React.FC = () => {
     const [safetyTips, setSafetyTips] = useState<SafetyTip[]>([
         { id: 1, title: "Emergency Preparedness", content: "Always keep emergency contacts handy", category: "emergency", status: "published", date: "2024-03-20" },
         { id: 2, title: "Personal Safety", content: "Stay aware of your surroundings", category: "prevention", status: "published", date: "2024-03-19" },
-    ]);
-
-    const [geofenceAlerts, setGeofenceAlerts] = useState<GeofenceAlert[]>([
-        { id: 1, location: "Restricted Area A", type: "violation", severity: "high", status: "active", date: "2024-03-20" },
-        { id: 2, location: "Building B", type: "entry", severity: "low", status: "resolved", date: "2024-03-19" },
     ]);
 
     const [communityContent, setCommunityContent] = useState<CommunityContent[]>([
@@ -149,14 +141,6 @@ const AdminDashboard: React.FC = () => {
         ));
     };
 
-    const handleGeofenceAction = (alertId: number, action: 'resolve' | 'escalate') => {
-        setGeofenceAlerts(geofenceAlerts.map(alert =>
-            alert.id === alertId
-                ? { ...alert, status: action === 'resolve' ? 'resolved' : 'active' }
-                : alert
-        ));
-    };
-
     const handleContentModeration = (contentId: number, action: 'approve' | 'reject') => {
         setCommunityContent(communityContent.map(content =>
             content.id === contentId
@@ -166,44 +150,112 @@ const AdminDashboard: React.FC = () => {
     };
 
     const renderContent = () => {
+        // Prepare data for charts
+        const userStatusData = {
+            labels: ['Active', 'Inactive'],
+            datasets: [
+                {
+                    data: [users.filter(u => u.status === 'active').length, users.filter(u => u.status === 'inactive').length],
+                    backgroundColor: ['#005524', '#f69f00'], // CALASAG green and orange
+                    borderColor: ['#ffffff', '#ffffff'],
+                    borderWidth: 1,
+                },
+            ],
+        };
+
+        const incidentSeverityData = {
+            labels: ['Low', 'Medium', 'High', 'Critical'],
+            datasets: [
+                {
+                    label: 'Number of Incidents',
+                    data: [
+                        incidents.filter(i => i.severity === 'low').length,
+                        incidents.filter(i => i.severity === 'medium').length,
+                        incidents.filter(i => i.severity === 'high').length,
+                        incidents.filter(i => i.severity === 'critical').length,
+                    ],
+                    backgroundColor: ['#34d399', '#fbc02d', '#f56565', '#c53030'], // Example colors: green, yellow, red-orange, darker red
+                    borderColor: ['#ffffff', '#ffffff', '#ffffff', '#ffffff'],
+                    borderWidth: 1,
+                },
+            ],
+        };
+
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false, // Allow charts to resize freely
+            plugins: {
+                legend: {
+                    position: 'bottom' as const,
+                },
+                title: {
+                    display: false,
+                    text: 'Chart Title',
+                },
+            },
+        };
+
         switch (activeTab) {
             case "dashboard":
                 return (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        {/* Total Users Card */}
-                        <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
-                            onClick={() => setActiveTab("users")}>
-                            <h3 className="text-lg font-semibold text-[#005524] mb-2">Total Users</h3>
-                            <p className="text-3xl font-bold">{users.length}</p>
-                            <p className="text-sm text-gray-500 mt-2">Click to view all users</p>
+                    <div className="p-4">
+                        {/* Top Metric Cards */}
+                        <div className="grid grid-cols-1 gap-6 mb-6 md:grid-cols-2 lg:grid-cols-3">
+                            {/* Total Users Metric Card */}
+                            <div className="bg-[#f8eed4] p-4 rounded-lg shadow-md flex items-center">
+                                <div className="flex-shrink-0 bg-[#005524] text-white p-3 rounded-md mr-4">
+                                    <FaUser size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-500">Total Users</p>
+                                    <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+                                </div>
+                            </div>
+
+                            {/* Active Users Metric Card */}
+                            <div className="bg-[#f8eed4] p-4 rounded-lg shadow-md flex items-center">
+                                <div className="flex-shrink-0 bg-[#f69f00] text-white p-3 rounded-md mr-4">
+                                    <FaUser size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-500">Active Users</p>
+                                    <p className="text-2xl font-bold text-gray-900">{users.filter(u => u.status === 'active').length}</p>
+                                </div>
+                            </div>
+
+                            {/* Critical Incidents Metric Card */}
+                            <div className="bg-[#f8eed4] p-4 rounded-lg shadow-md flex items-center">
+                                <div className="flex-shrink-0 bg-red-600 text-white p-3 rounded-md mr-4">
+                                    <FaBell size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-500">Critical Incidents</p>
+                                    <p className="text-2xl font-bold text-gray-900">{incidents.filter(i => i.severity === 'critical').length}</p>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Active Users Card */}
-                        <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
-                            onClick={() => setActiveTab("users")}>
-                            <h3 className="text-lg font-semibold text-[#005524] mb-2">Active Users</h3>
-                            <p className="text-3xl font-bold">{users.filter(u => u.status === 'active').length}</p>
-                            <p className="text-sm text-gray-500 mt-2">Currently active</p>
-                        </div>
+                        {/* Charts Section */}
+                        <div className="grid grid-cols-1 gap-6 mb-6 md:grid-cols-2">
+                            {/* User Status Distribution Chart */}
+                            <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md">
+                                <h3 className="text-lg font-semibold text-[#005524] mb-4">User Status Distribution</h3>
+                                <div style={{ height: '300px' }}>
+                                    <Pie data={userStatusData} options={chartOptions} />
+                                </div>
+                            </div>
 
-                        {/* Critical Incidents Card */}
-                        <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
-                            onClick={() => setActiveTab("incidents")}>
-                            <h3 className="text-lg font-semibold text-[#005524] mb-2">Critical Incidents</h3>
-                            <p className="text-3xl font-bold">{incidents.filter(i => i.severity === 'critical').length}</p>
-                            <p className="text-sm text-gray-500 mt-2">Requires immediate attention</p>
-                        </div>
-
-                        {/* Active Alerts Card */}
-                        <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer hover:scale-[1.03] hover:shadow-xl transition-transform"
-                            onClick={() => setActiveTab("geofencing")}>
-                            <h3 className="text-lg font-semibold text-[#005524] mb-2">Active Alerts</h3>
-                            <p className="text-3xl font-bold">{geofenceAlerts.filter(g => g.status === 'active').length}</p>
-                            <p className="text-sm text-gray-500 mt-2">Active geofence alerts</p>
+                            {/* Incident Severity Chart */}
+                            <div className="bg-[#f8eed4] p-6 rounded-lg shadow-md">
+                                <h3 className="text-lg font-semibold text-[#005524] mb-4">Incident Severity Breakdown</h3>
+                                <div style={{ height: '300px' }}>
+                                    <Bar data={incidentSeverityData} options={chartOptions} />
+                                </div>
+                            </div>
                         </div>
 
                         {/* Recent Activity Section */}
-                        <div className="col-span-full bg-white rounded-lg shadow-md p-6 mt-6">
+                        <div className="bg-white rounded-lg shadow-md p-6">
                             <h2 className="text-xl font-semibold text-[#005524] mb-4">Recent Activity</h2>
                             <div className="space-y-4">
                                 {incidents.slice(0, 3).map((incident) => (
@@ -228,11 +280,12 @@ const AdminDashboard: React.FC = () => {
                         </div>
                     </div>
                 );
-            case "users":
+
+            case "users": // Original case for the full user table
                 return (
                     <div className="bg-white rounded-lg shadow-md p-6">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-semibold text-[#005524]">User Management</h2>
+                            <h2 className="text-xl font-semibold text-[#005524]">All Users (Table View)</h2>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="min-w-full">
@@ -297,6 +350,47 @@ const AdminDashboard: React.FC = () => {
                         </div>
                     </div>
                 );
+
+            case "total-users-list": // Case for displaying all users as a list
+                return (
+                    <>
+                        <h2 className="text-xl font-semibold text-[#005524] mb-4">All Users</h2>
+                        <div className="space-y-4">
+                            {users.map((user, index) => (
+                                <div key={user.id} className={`flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg ${index < users.length - 1 ? 'border-b border-gray-200 pb-4' : ''}`}>
+                                    <div className="w-10 h-10 rounded-full bg-[#f9a01b] flex items-center justify-center text-white font-bold">
+                                        {user.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-medium">{user.name}</h3>
+                                        <p className="text-sm text-gray-500">{user.email} • Status: {user.status} • Last Login: {user.lastLogin}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                );
+
+            case "active-users-list": // Case for displaying only active users as a list
+                return (
+                    <>
+                        <h2 className="text-xl font-semibold text-[#005524] mb-4">Active Users</h2>
+                        <div className="space-y-4">
+                            {users.filter(user => user.status === 'active').map((user, index, arr) => (
+                                <div key={user.id} className={`flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg ${index < arr.length - 1 ? 'border-b border-gray-200 pb-4' : ''}`}>
+                                    <div className="w-10 h-10 rounded-full bg-[#f9a01b] flex items-center justify-center text-white font-bold">
+                                        {user.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-medium">{user.name}</h3>
+                                        <p className="text-sm text-gray-500">{user.email} • Last Login: {user.lastLogin}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                );
+
             case "incidents":
                 return (
                     <div className="bg-white rounded-lg shadow-md p-6">
@@ -413,61 +507,6 @@ const AdminDashboard: React.FC = () => {
                                                         Archive
                                                     </button>
                                                 )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                );
-            case "geofencing":
-                return (
-                    <div className="bg-white rounded-lg shadow-md p-6">
-                        <div className="flex justify-between items-center mb-6">
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full">
-                                <thead>
-                                    <tr className="bg-gray-50">
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {geofenceAlerts.map((alert) => (
-                                        <tr key={alert.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap">{alert.location}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{alert.type}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${alert.severity === 'high' ? 'text-red-800' :
-                                                    alert.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                                        'text-green-800'
-                                                    }`}>
-                                                    {alert.severity}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${alert.status === 'active' ? 'text-red-800' : 'text-green-800'
-                                                    }`}>
-                                                    {alert.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{alert.date}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedGeofence(alert);
-                                                        setShowGeofenceDetails(true);
-                                                    }}
-                                                    className="text-[#f69f00] hover:text-[#be4c1d]"
-                                                >
-                                                    View Details
-                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -602,18 +641,6 @@ const AdminDashboard: React.FC = () => {
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <h4 className="text-sm font-medium text-gray-700">Dark Mode</h4>
-                                        <p className="text-sm text-gray-500">Toggle dark mode on/off</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setIsDarkMode(!isDarkMode)}
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${isDarkMode ? 'bg-[#005524]' : 'bg-gray-200'}`}
-                                    >
-                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${isDarkMode ? 'translate-x-6' : 'translate-x-1'}`} />
-                                    </button>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <div>
                                         <h4 className="text-sm font-medium text-gray-700">Notifications</h4>
                                         <p className="text-sm text-gray-500">Enable/disable notifications</p>
                                     </div>
@@ -657,8 +684,8 @@ const AdminDashboard: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 flex">
             {/* Sidebar */}
-            <aside className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-[#fff] border-r border-gray-200 min-h-screen flex flex-col shadow-lg z-30`}>
-                <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <aside className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-[#fff] border-r border-gray-200 min-h-screen flex flex-col shadow-lg z-30 fixed inset-y-0 left-0`}>
+                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
                     <div className="flex items-center gap-1">
                         <img src={logoImage} alt="CALASAG Logo" className="h-7 w-auto object-contain" />
                         {!isSidebarCollapsed && (
@@ -680,6 +707,55 @@ const AdminDashboard: React.FC = () => {
                     >
                         <FaHome size={20} /> {!isSidebarCollapsed && 'Dashboard'}
                     </button>
+
+                    {/* Users Management Dropdown */}
+                    <div className="">
+                        <button
+                            onClick={() => {
+                                if (isSidebarCollapsed) {
+                                    // Optionally, open the dropdown after expanding
+                                    setOpenSidebarDropdown('users-management');
+                                } else {
+                                    setOpenSidebarDropdown(openSidebarDropdown === 'users-management' ? null : 'users-management');
+                                }
+                            }}
+                            className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-base font-medium whitespace-nowrap
+                            ${activeTab === "users" ? 'bg-white text-[#005524] shadow-sm border border-gray-100' : 'text-gray-700 hover:bg-white hover:text-[#005524] hover:shadow-sm hover:translate-x-1'}
+                            ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}
+                            `}
+                        >
+                            <div className="flex items-center gap-3">
+                                <FaUser size={20} /> {!isSidebarCollapsed && 'Users Management'}
+                            </div>
+                            {!isSidebarCollapsed && <FaChevronDown className={`transform transition-transform ${openSidebarDropdown === 'users-management' ? 'rotate-180' : ''}`} />}
+                        </button>
+                        {openSidebarDropdown === 'users-management' && !isSidebarCollapsed && (
+                            <div className="ml-6 mt-2 space-y-2 border-l border-gray-200 pl-4">
+                                <button
+                                    onClick={() => setActiveTab("users")}
+                                    className={`w-full text-left px-2 py-1 rounded-lg text-sm transition-colors duration-200
+                                    ${activeTab === 'users' ? 'text-[#005524] font-semibold' : 'text-gray-700 hover:text-[#005524]'}`}
+                                >
+                                    View Full User Table
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("total-users-list")}
+                                    className={`w-full text-left px-2 py-1 rounded-lg text-sm transition-colors duration-200
+                                    ${activeTab === 'total-users-list' ? 'text-[#005524] font-semibold' : 'text-gray-700 hover:text-[#005524]'}`}
+                                >
+                                    Total Users List
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("active-users-list")}
+                                    className={`w-full text-left px-2 py-1 rounded-lg text-sm transition-colors duration-200
+                                    ${activeTab === 'active-users-list' ? 'text-[#005524] font-semibold' : 'text-gray-700 hover:text-[#005524]'}`}
+                                >
+                                    Active Users List
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
                     <button
                         onClick={() => setActiveTab("incidents")}
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-base font-medium 
@@ -698,15 +774,7 @@ const AdminDashboard: React.FC = () => {
                     >
                         <FaFileAlt size={20} /> {!isSidebarCollapsed && 'Safety Tips'}
                     </button>
-                    <button
-                        onClick={() => setActiveTab("geofencing")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-base font-medium 
-                        ${activeTab === "geofencing"
-                                ? 'bg-white text-[#005524] shadow-sm border border-gray-100'
-                                : 'text-gray-700 hover:bg-white hover:text-[#005524] hover:shadow-sm hover:translate-x-1'}`}
-                    >
-                        <FaCubes size={20} /> {!isSidebarCollapsed && 'Geofence Alerts'}
-                    </button>
+
                 </nav>
 
                 <div className="p-4 border-t border-gray-100">
@@ -726,7 +794,7 @@ const AdminDashboard: React.FC = () => {
             </aside>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col">
+            <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
                 {/* Top Navigation Bar */}
                 <header className="sticky top-0 z-20 bg-white border-b border-gray-200 flex items-center justify-between px-6 py-3 shadow-sm">
                     <div className="flex items-center gap-4">
@@ -737,15 +805,11 @@ const AdminDashboard: React.FC = () => {
                             {activeTab === 'dashboard' && 'Dashboard'}
                             {activeTab === 'incidents' && 'Incident Reports'}
                             {activeTab === 'safety-tips' && 'Safety Tips'}
-                            {activeTab === 'geofencing' && 'Geofence Alerts'}
                             {activeTab === 'settings' && 'Settings'}
                         </h1>
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="text-gray-400 hover:text-[#005524] transition-colors duration-200 text-xl">
-                            {isDarkMode ? <FaSun size={20} /> : <FaMoon size={20} />}
-                        </button>
                         <div className="relative">
                             <button
                                 onClick={() => setShowNotifications((prev) => !prev)}
@@ -866,55 +930,6 @@ const AdminDashboard: React.FC = () => {
                             </button>
                             <button
                                 onClick={() => setShowIncidentDetails(false)}
-                                className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Geofence Details Modal */}
-            {showGeofenceDetails && selectedGeofence && (
-                <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                        <h2 className="text-2xl font-bold text-[#005524] mb-4">Geofence Alert Details</h2>
-                        <div className="space-y-4">
-                            <div>
-                                <h3 className="font-semibold text-gray-700">Location</h3>
-                                <p className="text-gray-600">{selectedGeofence.location}</p>
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-gray-700">Type</h3>
-                                <p className="text-gray-600">{selectedGeofence.type}</p>
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-gray-700">Severity</h3>
-                                <p className="text-gray-600">{selectedGeofence.severity}</p>
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-gray-700">Date</h3>
-                                <p className="text-gray-600">{selectedGeofence.date}</p>
-                            </div>
-                        </div>
-                        <div className="mt-6 flex justify-end space-x-4">
-                            {selectedGeofence.severity === 'high' && (
-                                <button
-                                    onClick={() => handleGeofenceAction(selectedGeofence.id, 'escalate')}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                                >
-                                    Escalate
-                                </button>
-                            )}
-                            <button
-                                onClick={() => handleGeofenceAction(selectedGeofence.id, 'resolve')}
-                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                            >
-                                Resolve
-                            </button>
-                            <button
-                                onClick={() => setShowGeofenceDetails(false)}
                                 className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
                             >
                                 Close
@@ -1053,56 +1068,6 @@ const AdminDashboard: React.FC = () => {
                                 Logout
                             </button>
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Add User Modal */}
-            {showAddUserModal && (
-                <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                        <h2 className="text-2xl font-bold text-[#005524] mb-4">Add New User</h2>
-                        <form className="space-y-4">
-                            <div>
-                                <label className="block text-gray-700 text-sm font-bold mb-2">Name</label>
-                                <input
-                                    type="text"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
-                                    placeholder="Enter user's name"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-700 text-sm font-bold mb-2">Email</label>
-                                <input
-                                    type="email"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
-                                    placeholder="Enter user's email"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-700 text-sm font-bold mb-2">Initial Password</label>
-                                <input
-                                    type="password"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
-                                    placeholder="Enter initial password"
-                                />
-                            </div>
-                            <div className="flex justify-end space-x-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAddUserModal(false)}
-                                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004015]"
-                                >
-                                    Add User
-                                </button>
-                            </div>
-                        </form>
                     </div>
                 </div>
             )}

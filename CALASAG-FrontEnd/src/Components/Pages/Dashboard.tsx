@@ -91,6 +91,10 @@ const Dashboard: React.FC = () => {
   );
   const [showCallConfirm, setShowCallConfirm] = useState<boolean>(false);
   const [showReportConfirm, setShowReportConfirm] = useState<boolean>(false);
+  const [showAlertConfirm, setShowAlertConfirm] = useState<boolean>(false);
+  const [selectedAlertType, setSelectedAlertType] = useState<string | null>(
+    null
+  );
   const [selectedEmergencyForAction, setSelectedEmergencyForAction] =
     useState<Emergency | null>(null);
   const [isSafe, setIsSafe] = useState<boolean>(false);
@@ -102,6 +106,13 @@ const Dashboard: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatRecipient, setCurrentChatRecipient] = useState<string>("");
   const [showChatList, setShowChatList] = useState<boolean>(true);
+  const [selectedConnection, setSelectedConnection] =
+    useState<Connection | null>(null);
+  const [connectionTab, setConnectionTab] = useState<"profile" | "message">(
+    "profile"
+  );
+  const [messageText, setMessageText] = useState("");
+  const [messageSent, setMessageSent] = useState(false);
 
   const [emergencies, setEmergencies] = useState<Emergency[]>([
     {
@@ -180,7 +191,6 @@ const Dashboard: React.FC = () => {
     { id: 4, name: "Accident" },
     { id: 5, name: "Theft" },
     { id: 6, name: "General Assistance" },
-    { id: 7, name: "Other" },
   ]);
 
   const [notifications, setNotifications] = useState<Notification[]>([
@@ -202,22 +212,15 @@ const Dashboard: React.FC = () => {
     "Active"
   );
 
-  const [selectedConnection, setSelectedConnection] =
-    useState<Connection | null>(null);
-  const [connectionTab, setConnectionTab] = useState<"profile" | "message">(
-    "profile"
-  );
-  const [messageText, setMessageText] = useState("");
-  const [messageSent, setMessageSent] = useState(false);
-
   const handleEmergencyAlert = (type: string) => {
-    alert(`Emergency alert for ${type} sent!`);
     setCrisisAlert({
       type,
       reporter: activeUser,
       isSelf: true,
     });
     setIsSafe(false);
+    setSelectedAlertType(type);
+    setShowAlertConfirm(true);
   };
 
   const resetCrisisAlert = () => {
@@ -319,7 +322,7 @@ const Dashboard: React.FC = () => {
       sender: activeUser,
       receiver: receiver,
       content: content,
-      timestamp: new Date().toLocaleTimeString()
+      timestamp: new Date().toLocaleTimeString(),
     };
     setMessages([...messages, newMessage]);
     setMessageSent(true);
@@ -334,7 +337,7 @@ const Dashboard: React.FC = () => {
 
   const getUniqueChatRecipients = () => {
     const recipients = new Set<string>();
-    messages.forEach(message => {
+    messages.forEach((message) => {
       if (message.sender === activeUser) {
         recipients.add(message.receiver);
       } else {
@@ -346,7 +349,8 @@ const Dashboard: React.FC = () => {
 
   const getLastMessage = (recipient: string) => {
     const relevantMessages = messages.filter(
-      msg => (msg.sender === activeUser && msg.receiver === recipient) ||
+      (msg) =>
+        (msg.sender === activeUser && msg.receiver === recipient) ||
         (msg.sender === recipient && msg.receiver === activeUser)
     );
     return relevantMessages[relevantMessages.length - 1];
@@ -373,10 +377,11 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center justify-center space-x-8">
           <button
             onClick={() => handleNavigation("home")}
-            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "home"
-              ? "text-[#005524]"
-              : "text-gray-500 hover:text-[#005524]"
-              }`}
+            className={`flex flex-col items-center transition-colors duration-200 ${
+              activeTab === "home"
+                ? "text-[#005524]"
+                : "text-gray-500 hover:text-[#005524]"
+            }`}
           >
             <span className={`text-xl ${isRefreshing ? "animate-spin" : ""}`}>
               {isRefreshing ? "🔄" : <FaHome size={20} />}
@@ -385,10 +390,11 @@ const Dashboard: React.FC = () => {
           </button>
           <button
             onClick={() => handleNavigation("message")}
-            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "message"
-              ? "text-[#005524]"
-              : "text-gray-500 hover:text-[#005524]"
-              }`}
+            className={`flex flex-col items-center transition-colors duration-200 ${
+              activeTab === "message"
+                ? "text-[#005524]"
+                : "text-gray-500 hover:text-[#005524]"
+            }`}
           >
             <span className="text-xl">
               <FaBell size={20} />
@@ -397,10 +403,11 @@ const Dashboard: React.FC = () => {
           </button>
           <button
             onClick={() => handleNavigation("report")}
-            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "report"
-              ? "text-[#005524]"
-              : "text-gray-500 hover:text-[#005524]"
-              }`}
+            className={`flex flex-col items-center transition-colors duration-200 ${
+              activeTab === "report"
+                ? "text-[#005524]"
+                : "text-gray-500 hover:text-[#005524]"
+            }`}
           >
             <span className="text-xl">
               <FaExclamationTriangle size={20} />
@@ -436,8 +443,9 @@ const Dashboard: React.FC = () => {
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${!notification.read ? "bg-blue-50" : ""
-                        }`}
+                      className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
+                        !notification.read ? "bg-blue-50" : ""
+                      }`}
                       onClick={() => markNotificationAsRead(notification.id)}
                     >
                       <p className="text-gray-800">{notification.message}</p>
@@ -461,8 +469,9 @@ const Dashboard: React.FC = () => {
               <div className="flex items-center text-[#005524]">
                 <span className="font-medium">{activeUser}</span>
                 <span
-                  className={`ml-1 transition-transform duration-200 ${showProfileMenu ? "rotate-180" : ""
-                    }`}
+                  className={`ml-1 transition-transform duration-200 ${
+                    showProfileMenu ? "rotate-180" : ""
+                  }`}
                 >
                   ▼
                 </span>
@@ -542,20 +551,22 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <span className="text-white/90 font-medium">Status:</span>
                   <span
-                    className={`font-medium ${deviceStatus === "Active"
-                      ? "text-[#f69f00]"
-                      : "text-[#be4c1d]"
-                      }`}
+                    className={`font-medium ${
+                      deviceStatus === "Active"
+                        ? "text-[#f69f00]"
+                        : "text-[#be4c1d]"
+                    }`}
                   >
                     {deviceStatus}
                   </span>
                 </div>
               </div>
               <button
-                className={`rounded-lg flex-1 ${deviceStatus === "Active"
-                  ? "bg-[#be4c1d] hover:bg-[#004015]"
-                  : "bg-[#f69f00] hover:bg-[#be4c1d]"
-                  } text-white py-2 px-4 flex items-center justify-center transition-colors`}
+                className={`rounded-lg flex-1 ${
+                  deviceStatus === "Active"
+                    ? "bg-[#be4c1d] hover:bg-[#004015]"
+                    : "bg-[#f69f00] hover:bg-[#be4c1d]"
+                } text-white py-2 px-4 flex items-center justify-center transition-colors`}
                 onClick={() =>
                   setDeviceStatus(
                     deviceStatus === "Active" ? "Inactive" : "Active"
@@ -567,9 +578,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className="bg-[#005524] rounded-lg shadow-md p-4">
-            <h2 className="text-2xl font-bold text-white mb-4">
-              Emergency Types
-            </h2>
+            <h2 className="text-2xl font-bold text-white mb-4">Safety Tips</h2>
             <div className="space-y-2">
               {type.map((item) => (
                 <div
@@ -712,7 +721,7 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="mt-4">
               <h3 className="text-lg font-bold text-white mb-2">
-                Quick Alerts
+                Physical IoT Device Buttons
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -772,19 +781,21 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="flex justify-center gap-4 mb-2">
                     <button
-                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${connectionTab === "profile"
-                        ? "bg-[#005524] text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }`}
+                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${
+                        connectionTab === "profile"
+                          ? "bg-[#005524] text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
                       onClick={() => setConnectionTab("profile")}
                     >
                       Profile
                     </button>
                     <button
-                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${connectionTab === "message"
-                        ? "bg-[#005524] text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }`}
+                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${
+                        connectionTab === "message"
+                          ? "bg-[#005524] text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
                       onClick={() => setConnectionTab("message")}
                     >
                       Message
@@ -850,7 +861,12 @@ const Dashboard: React.FC = () => {
                           />
                           <button
                             className="bg-[#005524] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#004015] transition-colors"
-                            onClick={() => handleSendMessage(selectedConnection.name, messageText)}
+                            onClick={() =>
+                              handleSendMessage(
+                                selectedConnection.name,
+                                messageText
+                              )
+                            }
                             disabled={!messageText.trim()}
                           >
                             Send
@@ -916,8 +932,12 @@ const Dashboard: React.FC = () => {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex justify-between items-start">
-                                <h3 className="font-medium text-gray-900">{recipient}</h3>
-                                <span className="text-xs text-gray-500">{lastMessage?.timestamp}</span>
+                                <h3 className="font-medium text-gray-900">
+                                  {recipient}
+                                </h3>
+                                <span className="text-xs text-gray-500">
+                                  {lastMessage?.timestamp}
+                                </span>
                               </div>
                               <p className="text-sm text-gray-500 truncate">
                                 {lastMessage?.content || "No messages yet"}
@@ -934,22 +954,29 @@ const Dashboard: React.FC = () => {
                   {messages
                     .filter(
                       (message) =>
-                        (message.sender === activeUser && message.receiver === currentChatRecipient) ||
-                        (message.sender === currentChatRecipient && message.receiver === activeUser)
+                        (message.sender === activeUser &&
+                          message.receiver === currentChatRecipient) ||
+                        (message.sender === currentChatRecipient &&
+                          message.receiver === activeUser)
                     )
                     .map((message) => (
                       <div
                         key={message.id}
-                        className={`p-3 rounded-lg ${message.sender === activeUser
-                          ? "bg-[#005524] text-white ml-auto"
-                          : "bg-gray-100 text-gray-800"
-                          } max-w-[80%]`}
+                        className={`p-3 rounded-lg ${
+                          message.sender === activeUser
+                            ? "bg-[#005524] text-white ml-auto"
+                            : "bg-gray-100 text-gray-800"
+                        } max-w-[80%]`}
                       >
                         <div className="flex justify-between items-start mb-1">
                           <span className="font-medium text-sm">
-                            {message.sender === activeUser ? "You" : message.sender}
+                            {message.sender === activeUser
+                              ? "You"
+                              : message.sender}
                           </span>
-                          <span className="text-xs opacity-75">{message.timestamp}</span>
+                          <span className="text-xs opacity-75">
+                            {message.timestamp}
+                          </span>
                         </div>
                         <p className="text-sm">{message.content}</p>
                       </div>
@@ -1241,6 +1268,49 @@ const Dashboard: React.FC = () => {
                     className="flex-1 bg-[#005524] text-white py-2 px-4 rounded-lg hover:bg-[#004015] transition-colors flex items-center justify-center"
                   >
                     📞 Call Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showAlertConfirm && selectedAlertType && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-[#005524]">
+                  Emergency Alert
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowAlertConfirm(false);
+                    setSelectedAlertType(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-4">
+                <p className="text-gray-600">
+                  You have triggered this {selectedAlertType} alert.
+                </p>
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    Your alert has been sent to nearby users and emergency
+                    services.
+                  </p>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowAlertConfirm(false);
+                      setSelectedAlertType(null);
+                    }}
+                    className="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Close
                   </button>
                 </div>
               </div>

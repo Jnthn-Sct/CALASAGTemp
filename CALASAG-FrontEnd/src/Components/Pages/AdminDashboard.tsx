@@ -105,14 +105,21 @@ const AdminDashboard: React.FC = () => {
     ]);
 
     const [safetyTips, setSafetyTips] = useState<SafetyTip[]>([
-        { id: 1, title: "Emergency Preparedness", content: "Always keep emergency contacts handy", category: "emergency", status: "published", date: "2024-03-20" },
-        { id: 2, title: "Personal Safety", content: "Stay aware of your surroundings", category: "prevention", status: "published", date: "2024-03-19" },
+        { id: 1, title: "Medical Emergency", content: "Stay calm and assess the situation", category: "emergency", status: "published", date: "2024-03-20" },
+        { id: 2, title: "Missing Person", content: "Report to authorities immediately", category: "prevention", status: "published", date: "2024-03-19" },
+        { id: 3, title: "Accident", content: "Secure the scenes.", category: "emergency", status: "published", date: "2024-03-20" },
     ]);
 
     const [communityContent, setCommunityContent] = useState<CommunityContent[]>([
         { id: 1, type: "post", content: "Safety concern in Library", author: "User One", status: "pending", date: "2024-03-20" },
         { id: 2, type: "feedback", content: "Great security measures", author: "User Two", status: "approved", date: "2024-03-19" },
     ]);
+
+    const [newSafetyTip, setNewSafetyTip] = useState({
+        title: '',
+        content: '',
+        category: 'general'
+    });
 
     const handleLogout = () => {
         localStorage.removeItem('userRole');
@@ -133,10 +140,10 @@ const AdminDashboard: React.FC = () => {
         setShowIncidentDetails(false);
     };
 
-    const handleSafetyTipAction = (tipId: number, action: 'publish' | 'archive') => {
+    const handleSafetyTipAction = (tipId: number, action: 'publish' | 'archive' | 'unarchive') => {
         setSafetyTips(safetyTips.map(tip =>
             tip.id === tipId
-                ? { ...tip, status: action === 'publish' ? 'published' : 'archived' }
+                ? { ...tip, status: action === 'publish' ? 'published' : action === 'archive' ? 'archived' : 'draft' }
                 : tip
         ));
     };
@@ -147,6 +154,21 @@ const AdminDashboard: React.FC = () => {
                 ? { ...content, status: action === 'approve' ? 'approved' : 'rejected' }
                 : content
         ));
+    };
+
+    const handleAddSafetyTip = (e: React.FormEvent) => {
+        e.preventDefault();
+        const newTip: SafetyTip = {
+            id: safetyTips.length + 1,
+            title: newSafetyTip.title,
+            content: newSafetyTip.content,
+            category: newSafetyTip.category as SafetyTip['category'],
+            status: 'draft',
+            date: new Date().toISOString().split('T')[0]
+        };
+        setSafetyTips([...safetyTips, newTip]);
+        setShowSafetyTipModal(false);
+        setNewSafetyTip({ title: '', content: '', category: 'general' });
     };
 
     const renderContent = () => {
@@ -505,6 +527,14 @@ const AdminDashboard: React.FC = () => {
                                                         className="text-gray-600 hover:text-gray-800"
                                                     >
                                                         Archive
+                                                    </button>
+                                                )}
+                                                {tip.status === 'archived' && (
+                                                    <button
+                                                        onClick={() => handleSafetyTipAction(tip.id, 'unarchive')}
+                                                        className="text-blue-600 hover:text-blue-800"
+                                                    >
+                                                        Unarchive
                                                     </button>
                                                 )}
                                             </td>
@@ -944,33 +974,48 @@ const AdminDashboard: React.FC = () => {
                 <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-6 w-full max-w-md">
                         <h2 className="text-2xl font-bold text-[#005524] mb-4">Add Safety Tip</h2>
-                        <form className="space-y-4">
+                        <form onSubmit={handleAddSafetyTip} className="space-y-4">
                             <div>
                                 <label className="block text-gray-700 text-sm font-bold mb-2">Title</label>
                                 <input
                                     type="text"
+                                    value={newSafetyTip.title}
+                                    onChange={(e) => setNewSafetyTip({ ...newSafetyTip, title: e.target.value })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                                    required
                                 />
                             </div>
                             <div>
                                 <label className="block text-gray-700 text-sm font-bold mb-2">Content</label>
                                 <textarea
+                                    value={newSafetyTip.content}
+                                    onChange={(e) => setNewSafetyTip({ ...newSafetyTip, content: e.target.value })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
                                     rows={4}
+                                    required
                                 />
                             </div>
                             <div>
                                 <label className="block text-gray-700 text-sm font-bold mb-2">Category</label>
-                                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]">
-                                    <option value="general">General</option>
+                                <select
+                                    value={newSafetyTip.category}
+                                    onChange={(e) => setNewSafetyTip({ ...newSafetyTip, category: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                                    required
+                                >
+                                    <option value="accident">Accident</option>
                                     <option value="emergency">Emergency</option>
                                     <option value="prevention">Prevention</option>
+                                    <option value="general-assistance">General Assistance</option>
                                 </select>
                             </div>
                             <div className="flex justify-end space-x-4">
                                 <button
                                     type="button"
-                                    onClick={() => setShowSafetyTipModal(false)}
+                                    onClick={() => {
+                                        setShowSafetyTipModal(false);
+                                        setNewSafetyTip({ title: '', content: '', category: 'general' });
+                                    }}
                                     className="px-4 py-2 text-gray-600 hover:text-gray-800"
                                 >
                                     Cancel
@@ -1028,13 +1073,18 @@ const AdminDashboard: React.FC = () => {
                             )}
                             {selectedSafetyTip.status === 'published' && (
                                 <button
-                                    onClick={() => {
-                                        handleSafetyTipAction(selectedSafetyTip.id, 'archive');
-                                        setShowSafetyTipDetails(false);
-                                    }}
-                                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                                    onClick={() => handleSafetyTipAction(selectedSafetyTip.id, 'archive')}
+                                    className="text-gray-600 hover:text-gray-800"
                                 >
                                     Archive
+                                </button>
+                            )}
+                            {selectedSafetyTip.status === 'archived' && (
+                                <button
+                                    onClick={() => handleSafetyTipAction(selectedSafetyTip.id, 'unarchive')}
+                                    className="text-blue-600 hover:text-blue-800"
+                                >
+                                    Unarchive
                                 </button>
                             )}
                             <button

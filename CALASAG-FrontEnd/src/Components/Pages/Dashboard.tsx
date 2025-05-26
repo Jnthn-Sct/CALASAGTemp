@@ -47,6 +47,8 @@ interface Connection {
 interface Type {
   id: number;
   name: string;
+  content: string;
+  icon: string;
 }
 
 interface Notification {
@@ -113,6 +115,10 @@ const Dashboard: React.FC = () => {
   );
   const [messageText, setMessageText] = useState("");
   const [messageSent, setMessageSent] = useState(false);
+
+  // State for Safety Tips Modal
+  const [showSafetyTipModal, setShowSafetyTipModal] = useState<boolean>(false);
+  const [selectedSafetyTip, setSelectedSafetyTip] = useState<Type | null>(null);
 
   const [emergencies, setEmergencies] = useState<Emergency[]>([
     {
@@ -185,12 +191,12 @@ const Dashboard: React.FC = () => {
   ]);
 
   const [type, setType] = useState<Type[]>([
-    { id: 1, name: "Medical Emergency" },
-    { id: 2, name: "Missing Person" },
-    { id: 3, name: "Fire" },
-    { id: 4, name: "Accident" },
-    { id: 5, name: "Theft" },
-    { id: 6, name: "General Assistance" },
+    { id: 1, name: "Medical Emergency", content: "Stay calm and assess the situation. Call emergency services if necessary.", icon: 'FaAmbulance' },
+    { id: 2, name: "Missing Person", content: "Report to authorities immediately. Provide a detailed description of the person.", icon: 'FaInfoCircle' },
+    { id: 3, name: "Fire", content: "Activate the fire alarm. Evacuate the building using designated exits. Do not use elevators.", icon: 'FaFire' },
+    { id: 4, name: "Accident", content: "Ensure the scene is safe. Check for injuries. Call for medical help if needed.", icon: 'FaCarCrash' },
+    { id: 5, name: "Theft", content: "Report the theft to the police immediately. Secure the area to preserve evidence.", icon: 'FaShieldAlt' },
+    { id: 6, name: "General Assistance", content: "Identify the type of assistance needed. Contact appropriate services or individuals.", icon: 'FaInfoCircle' },
   ]);
 
   const [notifications, setNotifications] = useState<Notification[]>([
@@ -211,6 +217,15 @@ const Dashboard: React.FC = () => {
   const [deviceStatus, setDeviceStatus] = useState<"Active" | "Inactive">(
     "Active"
   );
+
+  const iconMap: { [key: string]: React.ElementType } = {
+    FaAmbulance: FaAmbulance,
+    FaInfoCircle: FaInfoCircle,
+    FaFire: FaFire,
+    FaCarCrash: FaCarCrash,
+    FaShieldAlt: FaShieldAlt,
+    // Add other icons as needed
+  };
 
   const handleEmergencyAlert = (type: string) => {
     setCrisisAlert({
@@ -377,11 +392,10 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center justify-center space-x-8">
           <button
             onClick={() => handleNavigation("home")}
-            className={`flex flex-col items-center transition-colors duration-200 ${
-              activeTab === "home"
-                ? "text-[#005524]"
-                : "text-gray-500 hover:text-[#005524]"
-            }`}
+            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "home"
+              ? "text-[#005524]"
+              : "text-gray-500 hover:text-[#005524]"
+              }`}
           >
             <span className={`text-xl ${isRefreshing ? "animate-spin" : ""}`}>
               {isRefreshing ? "🔄" : <FaHome size={20} />}
@@ -390,11 +404,10 @@ const Dashboard: React.FC = () => {
           </button>
           <button
             onClick={() => handleNavigation("message")}
-            className={`flex flex-col items-center transition-colors duration-200 ${
-              activeTab === "message"
-                ? "text-[#005524]"
-                : "text-gray-500 hover:text-[#005524]"
-            }`}
+            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "message"
+              ? "text-[#005524]"
+              : "text-gray-500 hover:text-[#005524]"
+              }`}
           >
             <span className="text-xl">
               <FaBell size={20} />
@@ -403,11 +416,10 @@ const Dashboard: React.FC = () => {
           </button>
           <button
             onClick={() => handleNavigation("report")}
-            className={`flex flex-col items-center transition-colors duration-200 ${
-              activeTab === "report"
-                ? "text-[#005524]"
-                : "text-gray-500 hover:text-[#005524]"
-            }`}
+            className={`flex flex-col items-center transition-colors duration-200 ${activeTab === "report"
+              ? "text-[#005524]"
+              : "text-gray-500 hover:text-[#005524]"
+              }`}
           >
             <span className="text-xl">
               <FaExclamationTriangle size={20} />
@@ -443,9 +455,8 @@ const Dashboard: React.FC = () => {
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
-                        !notification.read ? "bg-blue-50" : ""
-                      }`}
+                      className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${!notification.read ? "bg-blue-50" : ""
+                        }`}
                       onClick={() => markNotificationAsRead(notification.id)}
                     >
                       <p className="text-gray-800">{notification.message}</p>
@@ -469,9 +480,8 @@ const Dashboard: React.FC = () => {
               <div className="flex items-center text-[#005524]">
                 <span className="font-medium">{activeUser}</span>
                 <span
-                  className={`ml-1 transition-transform duration-200 ${
-                    showProfileMenu ? "rotate-180" : ""
-                  }`}
+                  className={`ml-1 transition-transform duration-200 ${showProfileMenu ? "rotate-180" : ""
+                    }`}
                 >
                   ▼
                 </span>
@@ -551,22 +561,20 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <span className="text-white/90 font-medium">Status:</span>
                   <span
-                    className={`font-medium ${
-                      deviceStatus === "Active"
-                        ? "text-[#f69f00]"
-                        : "text-[#be4c1d]"
-                    }`}
+                    className={`font-medium ${deviceStatus === "Active"
+                      ? "text-[#f69f00]"
+                      : "text-[#be4c1d]"
+                      }`}
                   >
                     {deviceStatus}
                   </span>
                 </div>
               </div>
               <button
-                className={`rounded-lg flex-1 ${
-                  deviceStatus === "Active"
-                    ? "bg-[#be4c1d] hover:bg-[#004015]"
-                    : "bg-[#f69f00] hover:bg-[#be4c1d]"
-                } text-white py-2 px-4 flex items-center justify-center transition-colors`}
+                className={`rounded-lg flex-1 ${deviceStatus === "Active"
+                  ? "bg-[#be4c1d] hover:bg-[#004015]"
+                  : "bg-[#f69f00] hover:bg-[#be4c1d]"
+                  } text-white py-2 px-4 flex items-center justify-center transition-colors`}
                 onClick={() =>
                   setDeviceStatus(
                     deviceStatus === "Active" ? "Inactive" : "Active"
@@ -584,9 +592,13 @@ const Dashboard: React.FC = () => {
                 <div
                   key={item.id}
                   className="flex items-center p-2 rounded-lg bg-white/10 hover:bg-white/20 cursor-pointer transition-colors duration-200"
+                  onClick={() => {
+                    setSelectedSafetyTip(item);
+                    setShowSafetyTipModal(true);
+                  }}
                 >
-                  <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
-                    SOS
+                  <div className="w-8 h-8 rounded-full bg-[#f69f00]-300 flex items-center justify-center text-white">
+                    {iconMap[item.icon] ? React.createElement(iconMap[item.icon]) : '?'}
                   </div>
                   <span className="text-white ml-3">
                     {item.name || "Unknown Type"}
@@ -781,21 +793,19 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="flex justify-center gap-4 mb-2">
                     <button
-                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${
-                        connectionTab === "profile"
-                          ? "bg-[#005524] text-white"
-                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      }`}
+                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${connectionTab === "profile"
+                        ? "bg-[#005524] text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
                       onClick={() => setConnectionTab("profile")}
                     >
                       Profile
                     </button>
                     <button
-                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${
-                        connectionTab === "message"
-                          ? "bg-[#005524] text-white"
-                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      }`}
+                      className={`px-4 py-1 rounded-full font-medium text-sm transition-colors ${connectionTab === "message"
+                        ? "bg-[#005524] text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
                       onClick={() => setConnectionTab("message")}
                     >
                       Message
@@ -962,11 +972,10 @@ const Dashboard: React.FC = () => {
                     .map((message) => (
                       <div
                         key={message.id}
-                        className={`p-3 rounded-lg ${
-                          message.sender === activeUser
-                            ? "bg-[#005524] text-white ml-auto"
-                            : "bg-gray-100 text-gray-800"
-                        } max-w-[80%]`}
+                        className={`p-3 rounded-lg ${message.sender === activeUser
+                          ? "bg-[#005524] text-white ml-auto"
+                          : "bg-gray-100 text-gray-800"
+                          } max-w-[80%]`}
                       >
                         <div className="flex justify-between items-start mb-1">
                           <span className="font-medium text-sm">
@@ -1360,6 +1369,32 @@ const Dashboard: React.FC = () => {
                   >
                     Submit Report
                   </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Safety Tip Details Modal */}
+        {showSafetyTipModal && selectedSafetyTip && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-[#005524]">{selectedSafetyTip.name}</h2>
+                <button
+                  onClick={() => {
+                    setShowSafetyTipModal(false);
+                    setSelectedSafetyTip(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gray-700">Content</h3>
+                  <p className="text-gray-600">{selectedSafetyTip.content}</p>
                 </div>
               </div>
             </div>

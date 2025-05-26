@@ -685,7 +685,7 @@ const AdminDashboard: React.FC = () => {
         <div className="min-h-screen bg-gray-50 flex">
             {/* Sidebar */}
             <aside className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-[#fff] border-r border-gray-200 min-h-screen flex flex-col shadow-lg z-30 fixed inset-y-0 left-0`}>
-                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                <div className="flex items-center justify-between px-5 py-5.5 border-b border-gray-100">
                     <div className="flex items-center gap-1">
                         <img src={logoImage} alt="CALASAG Logo" className="h-7 w-auto object-contain" />
                         {!isSidebarCollapsed && (

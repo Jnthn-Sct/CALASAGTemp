@@ -2,6 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logoImage from "../Images/no-bg-logo.png";
 import { FaUserCircle, FaBell, FaMoon, FaSun, FaSearch, FaChevronDown, FaChevronLeft, FaChevronRight, FaTable, FaChartBar, FaKey, FaCalendarAlt, FaFileAlt, FaCubes, FaLock, FaUser, FaHome, FaCog } from 'react-icons/fa';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    BarElement,
+    ArcElement,
+    Title,
+    Tooltip,
+    Legend,
+} from 'chart.js';
+
+// Register ChartJS components
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    BarElement,
+    ArcElement,
+    Title,
+    Tooltip,
+    Legend
+);
 
 interface Admin {
     id: number;
@@ -10,12 +36,6 @@ interface Admin {
     status: 'active' | 'inactive';
     lastLogin: string;
     permissions: string[];
-}
-
-interface SystemStats {
-    activeAdmins: number;
-    totalIncidents: number;
-    responseTime: number;
 }
 
 interface FeatureUpdate {
@@ -28,7 +48,7 @@ interface FeatureUpdate {
 
 interface Report {
     id: number;
-    type: 'incident' | 'geofencing' | 'alert';
+    type: 'incident' | 'alert';
     title: string;
     status: 'pending' | 'reviewed' | 'resolved';
     date: string;
@@ -37,7 +57,6 @@ interface Report {
 
 const SuperAdminDashboard: React.FC = () => {
     const navigate = useNavigate();
-    // Get current user from localStorage
     const currentUser = JSON.parse(localStorage.getItem('user') || '{"name": "Super Admin", "email": "superadmin@calasag.com", "role": "Super Administrator"}');
 
     const [activeTab, setActiveTab] = useState<string>("dashboard");
@@ -50,10 +69,8 @@ const SuperAdminDashboard: React.FC = () => {
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
     const [showProfileSettings, setShowProfileSettings] = useState<boolean>(false);
-    const [selectedDashboardCard, setSelectedDashboardCard] = useState<null | 'admins' | 'incidents' | 'responseTime'>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState<boolean>(false);
-    const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
     const [isEditingPersonal, setIsEditingPersonal] = useState(false);
     const [isEditingSecurity, setIsEditingSecurity] = useState(false);
     const [personalInfo, setPersonalInfo] = useState({
@@ -71,14 +88,7 @@ const SuperAdminDashboard: React.FC = () => {
     const [notificationsList] = useState([
         { id: 1, message: 'New admin added', time: '2 mins ago' },
         { id: 2, message: 'Incident report resolved', time: '1 hour ago' },
-        // Add more sample notifications as needed
     ]);
-
-    const [systemStats] = useState<SystemStats>({
-        activeAdmins: 3,
-        totalIncidents: 25,
-        responseTime: 120
-    });
 
     const [featureUpdates] = useState<FeatureUpdate[]>([
         { id: 1, name: "New Alert System", description: "Implementation of real-time alert system", status: 'pending', date: "2024-03-20" },
@@ -88,8 +98,7 @@ const SuperAdminDashboard: React.FC = () => {
 
     const [reports] = useState<Report[]>([
         { id: 1, type: 'incident', title: "System Outage Report", status: 'pending', date: "2024-03-20", priority: 'high' },
-        { id: 2, type: 'geofencing', title: "Zone Violation Report", status: 'reviewed', date: "2024-03-19", priority: 'medium' },
-        { id: 3, type: 'alert', title: "Security Alert Report", status: 'resolved', date: "2024-03-18", priority: 'low' }
+        { id: 2, type: 'alert', title: "Security Alert Report", status: 'resolved', date: "2024-03-18", priority: 'low' }
     ]);
 
     const [admins, setAdmins] = useState<Admin[]>([
@@ -97,6 +106,57 @@ const SuperAdminDashboard: React.FC = () => {
         { id: 2, name: "Admin Two", email: "admin2@calasag.com", status: "active", lastLogin: "2024-03-19 15:45", permissions: ['user_management'] },
         { id: 3, name: "Admin Three", email: "admin3@calasag.com", status: "inactive", lastLogin: "2024-03-18 09:15", permissions: ['report_view'] },
     ]);
+
+    // Chart data
+    const incidentData = {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [
+            {
+                label: 'Incidents',
+                data: [12, 19, 15, 25, 22, 30],
+                borderColor: '#005524',
+                backgroundColor: 'rgba(0, 85, 36, 0.1)',
+                tension: 0.4,
+                fill: true,
+            },
+        ],
+    };
+
+    const adminActivityData = {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [
+            {
+                label: 'Active Admins',
+                data: [3, 4, 3, 5, 4, 2, 3],
+                backgroundColor: '#005524',
+            },
+        ],
+    };
+
+    const reportDistributionData = {
+        labels: ['Incidents', 'Alerts'],
+        datasets: [
+            {
+                data: [45, 30],
+                backgroundColor: [
+                    '#005524',
+                    '#f9a01b',
+                    '#be4c1d',
+                ],
+                borderWidth: 0,
+            },
+        ],
+    };
+
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top' as const,
+            },
+        },
+    };
 
     const handleLogout = () => {
         localStorage.removeItem('userRole');
@@ -141,39 +201,52 @@ const SuperAdminDashboard: React.FC = () => {
         switch (activeTab) {
             case "dashboard":
                 return (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div
-                            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-start gap-2 cursor-pointer hover:shadow-md transition-all"
-                            onClick={() => setActiveTab('admin-management')}
-                        >
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="material-icons text-[#005524] text-3xl"></span>
-                                <h3 className="text-lg font-semibold text-[#005524]">Active Admins</h3>
+                    <div className="space-y-6">
+                        {/* Charts Section */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Incident Trends Chart */}
+                            <div className="bg-[#f8eed4] p-6 rounded-xl shadow-sm border border-gray-200">
+                                <h3 className="text-lg font-semibold text-[#005524] mb-4">Incident Trends</h3>
+                                <div className="h-[300px]">
+                                    <Line data={incidentData} options={chartOptions} />
+                                </div>
                             </div>
-                            <p className="text-4xl font-bold text-[#232323]">{admins.filter(a => a.status === 'active').length}</p>
-                        </div>
-                        <div
-                            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-start gap-2 cursor-pointer hover:shadow-md transition-all"
-                            onClick={() => setSelectedDashboardCard('incidents')}
-                        >
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="material-icons text-[#f9a01b] text-3xl"></span>
-                                <h3 className="text-lg font-semibold text-[#f9a01b]">Total Incidents</h3>
+
+                            {/* Admin Activity Chart */}
+                            <div className="bg-[#f8eed4] p-6 rounded-xl shadow-sm border border-gray-200">
+                                <h3 className="text-lg font-semibold text-[#005524] mb-4">Admin Activity</h3>
+                                <div className="h-[300px]">
+                                    <Bar data={adminActivityData} options={chartOptions} />
+                                </div>
                             </div>
-                            <p className="text-4xl font-bold text-[#232323]">{systemStats.totalIncidents}</p>
-                        </div>
-                        <div
-                            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-start gap-2 cursor-pointer hover:shadow-md transition-all"
-                            onClick={() => setSelectedDashboardCard('responseTime')}
-                        >
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="material-icons text-[#be4c1d] text-3xl"></span>
-                                <h3 className="text-lg font-semibold text-[#be4c1d]">Response Time</h3>
+
+                            {/* Report Distribution Chart */}
+                            <div className="bg-[#f8eed4] p-6 rounded-xl shadow-sm border border-gray-200">
+                                <h3 className="text-lg font-semibold text-[#005524] mb-4">Report Distribution</h3>
+                                <div className="h-[300px]">
+                                    <Doughnut data={reportDistributionData} options={chartOptions} />
+                                </div>
                             </div>
-                            <p className="text-4xl font-bold text-[#232323]">{systemStats.responseTime}ms</p>
+
+                            {/* Recent Activity */}
+                            <div className="bg-[#f8eed4] p-6 rounded-xl shadow-sm border border-gray-200">
+                                <h3 className="text-lg font-semibold text-[#005524] mb-4">Recent Activity</h3>
+                                <div className="space-y-4">
+                                    {notificationsList.map((notif) => (
+                                        <div key={notif.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                                            <div className="w-2 h-2 mt-2 rounded-full bg-[#005524]"></div>
+                                            <div>
+                                                <p className="text-sm text-gray-800">{notif.message}</p>
+                                                <p className="text-xs text-gray-500">{notif.time}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 );
+
             case "admin-management":
                 return (
                     <div>
@@ -244,6 +317,7 @@ const SuperAdminDashboard: React.FC = () => {
                         </div>
                     </div>
                 );
+
             case "feature-updates":
                 return (
                     <div className="overflow-x-auto">
@@ -295,6 +369,7 @@ const SuperAdminDashboard: React.FC = () => {
                         </table>
                     </div>
                 );
+
             case "reports":
                 return (
                     <div className="overflow-x-auto">
@@ -352,6 +427,7 @@ const SuperAdminDashboard: React.FC = () => {
                         </table>
                     </div>
                 );
+
             case "settings":
                 return (
                     <div className="space-y-6">
@@ -478,18 +554,6 @@ const SuperAdminDashboard: React.FC = () => {
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <h4 className="text-sm font-medium text-gray-700">Dark Mode</h4>
-                                        <p className="text-sm text-gray-500">Toggle dark mode on/off</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setIsDarkMode(!isDarkMode)}
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${isDarkMode ? 'bg-[#005524]' : 'bg-gray-200'}`}
-                                    >
-                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${isDarkMode ? 'translate-x-6' : 'translate-x-1'}`} />
-                                    </button>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <div>
                                         <h4 className="text-sm font-medium text-gray-700">Notifications</h4>
                                         <p className="text-sm text-gray-500">Enable/disable notifications</p>
                                     </div>
@@ -548,10 +612,10 @@ const SuperAdminDashboard: React.FC = () => {
     }, [showNotifications]);
 
     return (
-        <div className={`min-h-screen flex ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
+        <div className="min-h-screen flex bg-white">
             {/* Sidebar */}
-            <aside className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-[#fff] border-r border-gray-200 min-h-screen flex flex-col shadow-lg z-30`}>
-                <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <aside className={`fixed h-screen transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-[#fff] border-r border-gray-200 flex flex-col shadow-lg z-30`}>
+                <div className="flex items-center justify-between p-5.5 border-b border-gray-100">
                     <div className="flex items-center gap-1">
                         <img src={logoImage} alt="CALASAG Logo" className="h-7 w-auto object-contain" />
                         {!isSidebarCollapsed && (
@@ -562,7 +626,7 @@ const SuperAdminDashboard: React.FC = () => {
                         {isSidebarCollapsed ? <FaChevronRight size={16} /> : <FaChevronLeft size={16} />}
                     </button>
                 </div>
-                <nav className="flex-1 flex flex-col gap-2 mt-4 px-2">
+                <nav className="flex flex-col gap-2 mt-4 px-2">
                     <button
                         onClick={() => setActiveTab('dashboard')}
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-base font-medium 
@@ -616,9 +680,9 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
             </aside>
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-screen">
+            <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
                 {/* Top Navigation Bar */}
-                <header className={`sticky top-0 z-20 bg-white border-b border-gray-200 flex items-center justify-between px-6 py-3 shadow-sm ${isDarkMode ? 'bg-gray-900 border-gray-800' : ''}`}>
+                <header className="sticky top-0 z-20 bg-white border-b border-gray-200 flex items-center justify-between px-6 py-3 shadow-sm">
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="md:hidden text-gray-400 hover:text-[#005524]">
                             <FaChevronRight size={16} />
@@ -632,9 +696,6 @@ const SuperAdminDashboard: React.FC = () => {
                         </h1>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="text-gray-400 hover:text-[#005524] transition-colors duration-200 text-xl">
-                            {isDarkMode ? <FaSun size={20} /> : <FaMoon size={20} />}
-                        </button>
                         <div className="relative">
                             <button
                                 onClick={() => setShowNotifications((prev) => !prev)}
@@ -864,62 +925,6 @@ const SuperAdminDashboard: React.FC = () => {
                                 Logout
                             </button>
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Profile Settings Modal */}
-            {showProfileSettings && (
-                <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg border border-gray-200">
-                        <h2 className="text-2xl font-bold text-[#005524] mb-4">Profile Settings</h2>
-                        <form className="space-y-4">
-                            <div>
-                                <label className="block text-gray-700 text-sm font-bold mb-2">Name</label>
-                                <input
-                                    type="text"
-                                    defaultValue={currentUser.name}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-700 text-sm font-bold mb-2">Email</label>
-                                <input
-                                    type="email"
-                                    defaultValue={currentUser.email}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-700 text-sm font-bold mb-2">New Password</label>
-                                <input
-                                    type="password"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-700 text-sm font-bold mb-2">Confirm Password</label>
-                                <input
-                                    type="password"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
-                                />
-                            </div>
-                            <div className="flex justify-end space-x-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowProfileSettings(false)}
-                                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-opacity-90"
-                                >
-                                    Save Changes
-                                </button>
-                            </div>
-                        </form>
                     </div>
                 </div>
             )}

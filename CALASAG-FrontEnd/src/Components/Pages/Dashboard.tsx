@@ -52,7 +52,7 @@ interface Connection {
 interface ConnectionRequest {
   id: number;
   sender_id: string;
-  receiver_id: string;
+  recipient_id: string;
   status: "pending" | "accepted" | "rejected";
   created_at: string;
   sender_name: string;
@@ -70,8 +70,8 @@ interface Notification {
   id: number;
   user_id: string;
   type: string;
-  content: string;
-  is_read: boolean;
+  message: string;
+  read: boolean;
   created_at: string;
 }
 
@@ -81,6 +81,8 @@ interface Message {
   receiver_id: string;
   content: string;
   timestamp: string;
+  sender_name: string;
+  receiver_name: string;
 }
 
 interface CrisisAlert {
@@ -239,7 +241,14 @@ const Dashboard: React.FC = () => {
         .ilike("name", `%${query}%`)
         .neq("user_id", userProfile?.id);
       if (error) throw new Error(`Search error: ${error.message}`);
-      setSearchResults(data || []);
+      setSearchResults(
+        data?.map((user) => ({
+          id: user.user_id,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar,
+        })) || []
+      );
       setShowSearchResults(true);
     } catch (error: any) {
       console.error("Error searching users:", error);
@@ -247,8 +256,12 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleSendConnectionRequest = async (receiverId: string) => {
+  const handleSendConnectionRequest = async (recipientId: string) => {
     try {
+      if (!recipientId) {
+        throw new Error("Recipient ID is missing");
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -258,7 +271,7 @@ const Dashboard: React.FC = () => {
         .from("connection_requests")
         .select("*")
         .eq("sender_id", user.id)
-        .eq("receiver_id", receiverId)
+        .eq("recipient_id", recipientId)
         .eq("status", "pending")
         .single();
 
@@ -271,7 +284,7 @@ const Dashboard: React.FC = () => {
         .from("connections")
         .select("*")
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-        .or(`user1_id.eq.${receiverId},user2_id.eq.${receiverId}`)
+        .or(`user1_id.eq.${recipientId},user2_id.eq.${recipientId}`)
         .single();
 
       if (existingConnection) {
@@ -281,7 +294,7 @@ const Dashboard: React.FC = () => {
 
       const newRequest = {
         sender_id: user.id,
-        receiver_id: receiverId,
+        recipient_id: recipientId,
         status: "pending",
         created_at: new Date().toISOString(),
       };
@@ -297,19 +310,38 @@ const Dashboard: React.FC = () => {
         .eq("user_id", user.id)
         .single();
 
+      const { data: recipientData } = await supabase
+        .from("users")
+        .select("name")
+        .eq("user_id", recipientId)
+        .single();
+
       const { error: notificationError } = await supabase
         .from("notifications")
         .insert({
-          user_id: receiverId,
+          user_id: recipientId,
           type: "connection_request",
-          content: `${
+          message: `${
             senderData?.name || "User"
-          } sent you a connection request.`,
-          is_read: false,
+          } sent a connection request to ${recipientData?.name || "User"}.`,
+          read: false,
           created_at: new Date().toISOString(),
         });
-      if (notificationError)
+      if (notificationError) {
+        const { data: schemaData, error: schemaError } = await supabase
+          .from("notifications")
+          .select("*")
+          .limit(1);
+        if (schemaError) {
+          console.error("Schema fetch error:", schemaError.message);
+        } else {
+          console.log(
+            "Notifications schema:",
+            Object.keys(schemaData[0] || {})
+          );
+        }
         throw new Error(`Notification error: ${notificationError.message}`);
+      }
 
       setError(null);
       setShowProfile(false);
@@ -318,7 +350,11 @@ const Dashboard: React.FC = () => {
       alert("Connection request sent successfully!");
     } catch (error: any) {
       console.error("Error sending connection request:", error);
-      setError(`Failed to send connection request: ${error.message}`);
+      setError(
+        error.message === "Recipient ID is missing"
+          ? "Cannot send connection request: No user selected."
+          : `Failed to send connection request: ${error.message}`
+      );
     }
   };
 
@@ -336,7 +372,7 @@ const Dashboard: React.FC = () => {
         .from("connection_requests")
         .update({ status: action })
         .eq("id", requestId)
-        .eq("receiver_id", user.id);
+        .eq("recipient_id", user.id);
       if (error)
         throw new Error(`Connection request update error: ${error.message}`);
 
@@ -349,7 +385,7 @@ const Dashboard: React.FC = () => {
       if (action === "accepted") {
         const { data: requestData } = await supabase
           .from("connection_requests")
-          .select("sender_id")
+          .select("sender_id, recipient_id")
           .eq("id", requestId)
           .single();
         if (requestData) {
@@ -358,19 +394,78 @@ const Dashboard: React.FC = () => {
             .select("name, avatar")
             .eq("user_id", requestData.sender_id)
             .single();
+          const { data: recipientData } = await supabase
+            .from("users")
+            .select("name")
+            .eq("user_id", requestData.recipient_id)
+            .single();
           setNotifications((prev) => [
             {
               id: Date.now(),
               user_id: user.id,
               type: "connection_accepted",
-              content: `You are now connected with ${
-                senderData?.name || "User"
-              }.`,
-              is_read: false,
+              message: `${
+                recipientData?.name || "User"
+              } accepted a connection with ${senderData?.name || "User"}.`,
+              read: false,
               created_at: new Date().toISOString(),
             },
             ...prev,
           ]);
+
+          const newConnection = {
+            user1_id:
+              user.id < requestData.sender_id ? user.id : requestData.sender_id,
+            user2_id:
+              user.id < requestData.sender_id ? requestData.sender_id : user.id,
+            created_at: new Date().toISOString(),
+          };
+          const { error: connectionError } = await supabase
+            .from("connections")
+            .insert(newConnection);
+          if (connectionError) {
+            console.error("Error inserting connection:", connectionError);
+            throw new Error(
+              `Connection insertion error: ${connectionError.message}`
+            );
+          }
+
+          const { data: connectionsData, error: connectionsError } =
+            await supabase
+              .from("connections")
+              .select("id, user1_id, user2_id")
+              .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+          if (connectionsError) {
+            console.error("Connections fetch error:", connectionsError.message);
+            throw new Error(
+              `Connections fetch error: ${connectionsError.message}`
+            );
+          }
+
+          const formattedConnections: Connection[] = [];
+          for (const conn of connectionsData || []) {
+            const isUser1 = conn.user1_id === user.id;
+            const connectedUserId = isUser1 ? conn.user2_id : conn.user1_id;
+            const { data: connectedUser, error: userError } = await supabase
+              .from("users")
+              .select("name, avatar")
+              .eq("user_id", connectedUserId)
+              .single();
+            if (userError) {
+              console.error(
+                `Error fetching user ${connectedUserId}:`,
+                userError
+              );
+              continue;
+            }
+            formattedConnections.push({
+              id: conn.id,
+              name: connectedUser?.name || "Unknown User",
+              avatar: connectedUser?.avatar || null,
+              connected_user_id: connectedUserId,
+            });
+          }
+          setConnections(formattedConnections);
         }
       }
     } catch (error: any) {
@@ -383,7 +478,6 @@ const Dashboard: React.FC = () => {
     const fetchUserData = async () => {
       setIsLoading(true);
       try {
-        // Check session first
         const {
           data: { session },
           error: sessionError,
@@ -399,7 +493,6 @@ const Dashboard: React.FC = () => {
           return;
         }
 
-        // Fetch user data
         const {
           data: { user },
           error: userError,
@@ -409,7 +502,6 @@ const Dashboard: React.FC = () => {
           throw new Error("No authenticated user found");
         }
 
-        // Fetch user profile
         const { data: profileData, error: profileError } = await supabase
           .from("users")
           .select("user_id, name, email, role, avatar")
@@ -430,7 +522,6 @@ const Dashboard: React.FC = () => {
           });
         }
 
-        // Fetch connections
         const { data: connectionsData, error: connectionsError } =
           await supabase
             .from("connections")
@@ -443,7 +534,6 @@ const Dashboard: React.FC = () => {
           );
         }
 
-        // Fetch user data for connected users
         const formattedConnections: Connection[] = [];
         for (const conn of connectionsData || []) {
           const isUser1 = conn.user1_id === user.id;
@@ -455,7 +545,7 @@ const Dashboard: React.FC = () => {
             .single();
           if (userError) {
             console.error(`Error fetching user ${connectedUserId}:`, userError);
-            continue; // Skip if user data can't be fetched
+            continue;
           }
           formattedConnections.push({
             id: conn.id,
@@ -466,7 +556,6 @@ const Dashboard: React.FC = () => {
         }
         setConnections(formattedConnections);
 
-        // Fetch connection requests (updated to use recipient_id)
         const { data: requestsData, error: requestsError } = await supabase
           .from("connection_requests")
           .select("id, sender_id, recipient_id, status, created_at")
@@ -477,7 +566,6 @@ const Dashboard: React.FC = () => {
             "Connection requests fetch error:",
             requestsError.message
           );
-          // Log schema for debugging
           const { data: schemaData, error: schemaError } = await supabase
             .from("connection_requests")
             .select("*")
@@ -495,7 +583,6 @@ const Dashboard: React.FC = () => {
           );
         }
 
-        // Fetch sender details separately
         const formattedRequests: ConnectionRequest[] = [];
         for (const req of requestsData || []) {
           const { data: senderData, error: senderError } = await supabase
@@ -508,12 +595,12 @@ const Dashboard: React.FC = () => {
               `Error fetching sender ${req.sender_id}:`,
               senderError
             );
-            continue; // Skip if sender data can't be fetched
+            continue;
           }
           formattedRequests.push({
             id: req.id,
             sender_id: req.sender_id,
-            receiver_id: req.recipient_id, // Use recipient_id here
+            recipient_id: req.recipient_id,
             status: req.status,
             created_at: req.created_at,
             sender_name: senderData?.name || "Unknown User",
@@ -522,7 +609,6 @@ const Dashboard: React.FC = () => {
         }
         setConnectionRequests(formattedRequests);
 
-        // Fetch emergencies
         const { data: emergenciesData, error: emergenciesError } =
           await supabase
             .from("emergencies")
@@ -547,7 +633,6 @@ const Dashboard: React.FC = () => {
             : emergenciesData || [];
         setEmergencies(filteredEmergencies);
 
-        // Fetch safety tips
         const { data: tipsData, error: tipsError } = await supabase
           .from("safety_tips")
           .select("*");
@@ -557,7 +642,6 @@ const Dashboard: React.FC = () => {
         }
         setSafetyTips(tipsData || []);
 
-        // Fetch notifications
         const { data: notificationsData, error: notificationsError } =
           await supabase
             .from("notifications")
@@ -575,18 +659,28 @@ const Dashboard: React.FC = () => {
         }
         setNotifications(notificationsData || []);
 
-        // Fetch messages
         const { data: messagesData, error: messagesError } = await supabase
           .from("messages")
-          .select("*")
+          .select(
+            "*, sender:users!sender_id(name), receiver:users!receiver_id(name)"
+          )
           .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
         if (messagesError) {
           console.error("Messages fetch error:", messagesError.message);
           throw new Error(`Messages fetch error: ${messagesError.message}`);
         }
-        setMessages(messagesData || []);
+        setMessages(
+          messagesData?.map((msg) => ({
+            id: msg.id,
+            sender_id: msg.sender_id,
+            receiver_id: msg.receiver_id,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            sender_name: msg.sender?.name || "Unknown User",
+            receiver_name: msg.receiver?.name || "Unknown User",
+          })) || []
+        );
 
-        // Fetch crisis alerts
         const { data: alertsData, error: alertsError } = await supabase
           .from("crisis_alerts")
           .select("*")
@@ -600,7 +694,6 @@ const Dashboard: React.FC = () => {
         setCrisisAlert(alertsData[0] || null);
         setIsSafe(alertsData[0]?.type === "Safe");
 
-        // Fetch all crisis alerts
         const { data: crisisAlertsData, error: crisisAlertsError } =
           await supabase
             .from("crisis_alerts")
@@ -617,7 +710,6 @@ const Dashboard: React.FC = () => {
         }
         setCrisisAlerts(crisisAlertsData || []);
 
-        // Fetch user safe alerts
         const { data: userSafeAlertsData, error: userSafeAlertsError } =
           await supabase
             .from("crisis_alerts")
@@ -636,7 +728,6 @@ const Dashboard: React.FC = () => {
         }
         setUserSafeAlerts(userSafeAlertsData || []);
 
-        // Set up subscriptions
         const notificationSubscription = supabase
           .channel("notifications")
           .on(
@@ -667,7 +758,7 @@ const Dashboard: React.FC = () => {
               event: "INSERT",
               schema: "public",
               table: "connection_requests",
-              filter: `recipient_id=eq.${user.id}`, // Updated to recipient_id
+              filter: `recipient_id=eq.${user.id}`,
             },
             async (payload) => {
               console.log("New connection request:", payload.new);
@@ -688,7 +779,7 @@ const Dashboard: React.FC = () => {
                 {
                   id: newRequest.id,
                   sender_id: newRequest.sender_id,
-                  receiver_id: newRequest.recipient_id, // Updated to recipient_id
+                  recipient_id: newRequest.recipient_id,
                   status: newRequest.status,
                   created_at: newRequest.created_at,
                   sender_name: senderData?.name || "User",
@@ -699,12 +790,14 @@ const Dashboard: React.FC = () => {
               setNotifications((prev) => [
                 {
                   id: newRequest.id,
-                  user_id: newRequest.recipient_id, // Updated to recipient_id
+                  user_id: newRequest.recipient_id,
                   type: "connection_request",
-                  content: `${
+                  message: `${
                     senderData?.name || "User"
-                  } sent you a connection request.`,
-                  is_read: false,
+                  } sent a connection request to ${
+                    userProfile?.name || "User"
+                  }.`,
+                  read: false,
                   created_at: newRequest.created_at,
                 },
                 ...prev,
@@ -717,7 +810,7 @@ const Dashboard: React.FC = () => {
               event: "UPDATE",
               schema: "public",
               table: "connection_requests",
-              filter: `recipient_id=eq.${user.id}`, // Updated to recipient_id
+              filter: `recipient_id=eq.${user.id}`,
             },
             (payload) => {
               console.log("Connection request updated:", payload.new);
@@ -735,17 +828,55 @@ const Dashboard: React.FC = () => {
               console.error("Connection request subscription error:", err);
           });
 
-        // ... (rest of the subscriptions remain unchanged)
+        const messageSubscription = supabase
+          .channel("messages")
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "messages",
+              filter: `receiver_id=eq.${user.id}`,
+            },
+            async (payload) => {
+              console.log("New message:", payload.new);
+              const newMessage = payload.new as any;
+              const { data: senderData } = await supabase
+                .from("users")
+                .select("name")
+                .eq("user_id", newMessage.sender_id)
+                .single();
+              const { data: receiverData } = await supabase
+                .from("users")
+                .select("name")
+                .eq("user_id", newMessage.receiver_id)
+                .single();
+              setMessages((prev) => [
+                {
+                  id: newMessage.id,
+                  sender_id: newMessage.sender_id,
+                  receiver_id: newMessage.receiver_id,
+                  content: newMessage.content,
+                  timestamp: newMessage.timestamp,
+                  sender_name: senderData?.name || "Unknown User",
+                  receiver_name: receiverData?.name || "Unknown User",
+                },
+                ...prev,
+              ]);
+            }
+          )
+          .subscribe((status, err) => {
+            if (err) console.error("Message subscription error:", err);
+          });
 
         return () => {
           supabase.removeChannel(notificationSubscription);
           supabase.removeChannel(connectionRequestSubscription);
-          // ... (remove other subscriptions)
+          supabase.removeChannel(messageSubscription);
         };
       } catch (err: any) {
         console.error("Error fetching data:", err);
         setError(`Failed to load dashboard data: ${err.message}`);
-        // Only redirect to login for auth-related errors
         if (
           err.message.includes("Session fetch error") ||
           err.message.includes("No authenticated user")
@@ -759,7 +890,6 @@ const Dashboard: React.FC = () => {
 
     fetchUserData();
 
-    // Auth state change listener
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === "SIGNED_OUT") {
@@ -856,10 +986,10 @@ const Dashboard: React.FC = () => {
         .map((u) => ({
           user_id: u.id,
           type: "emergency",
-          content: `${activeUser || "User"} triggered a ${type} alert at Lat: ${
+          message: `${activeUser || "User"} triggered a ${type} alert at Lat: ${
             userLocation.lat
           }, Lng: ${userLocation.lng}!`,
-          is_read: false,
+          read: false,
           created_at: new Date().toISOString(),
         }));
 
@@ -935,10 +1065,10 @@ const Dashboard: React.FC = () => {
           .map((u) => ({
             user_id: u.id,
             type: "safe_alert",
-            content: `${
+            message: `${
               activeUser || "User"
             } marked themselves as safe for crisis #${crisisId}`,
-            is_read: false,
+            read: false,
             created_at: new Date().toISOString(),
           }));
 
@@ -1022,11 +1152,11 @@ const Dashboard: React.FC = () => {
     try {
       const { error } = await supabase
         .from("notifications")
-        .update({ is_read: true })
+        .update({ read: true })
         .eq("id", id);
       if (error) throw new Error(`Notification update error: ${error.message}`);
       setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
     } catch (error: any) {
       console.error("Error marking notification as read:", error);
@@ -1066,8 +1196,8 @@ const Dashboard: React.FC = () => {
       const newNotification = {
         user_id: user.id,
         type: "report",
-        content: `Reported ${selectedEmergencyForAction.emergency_type} by ${selectedEmergencyForAction.name}`,
-        is_read: false,
+        message: `Reported ${selectedEmergencyForAction.emergency_type} by ${selectedEmergencyForAction.name}`,
+        read: false,
         created_at: new Date().toISOString(),
       };
       const { error } = await supabase
@@ -1089,14 +1219,27 @@ const Dashboard: React.FC = () => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user");
 
+      const { data: receiverData } = await supabase
+        .from("users")
+        .select("name")
+        .eq("user_id", selectedConnection.connected_user_id)
+        .single();
+
       const newMessage = {
         sender_id: user.id,
         receiver_id: selectedConnection.connected_user_id,
         content: messageText,
         timestamp: new Date().toISOString(),
+        sender_name: userProfile?.name || "User",
+        receiver_name: receiverData?.name || "User",
       };
 
-      const { error } = await supabase.from("messages").insert(newMessage);
+      const { error } = await supabase.from("messages").insert({
+        sender_id: newMessage.sender_id,
+        receiver_id: newMessage.receiver_id,
+        content: newMessage.content,
+        timestamp: newMessage.timestamp,
+      });
       if (error) throw new Error(`Message send error: ${error.message}`);
       setMessages([...messages, newMessage]);
       setMessageText("");
@@ -1110,25 +1253,28 @@ const Dashboard: React.FC = () => {
 
   const handleSelectConnection = (connection: Connection) => {
     setSelectedConnection(connection);
-    setShowConnectionOptions(true);
+    setCurrentChatRecipient(connection.name);
+    setShowChatList(false);
+    setShowMessages(true);
+    setActiveTab("message");
   };
 
   const handleConnectionAction = (action: string, connection: Connection) => {
     setShowConnectionOptions(false);
     if (action === "message") {
+      setSelectedConnection(connection);
       setCurrentChatRecipient(connection.name);
       setShowChatList(false);
       setShowMessages(true);
       setActiveTab("message");
     } else if (action === "profile") {
-      setShowProfile(true);
-      setUserProfile({
+      setSelectedSearchProfile({
         id: connection.connected_user_id,
         name: connection.name,
         email: "N/A",
-        role: "N/A",
         avatar: connection.avatar,
       });
+      setShowProfile(true);
     }
   };
 
@@ -1246,9 +1392,9 @@ const Dashboard: React.FC = () => {
               className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-colors duration-200"
             >
               <FaBell size={20} className="text-[#f69f00]" />
-              {notifications.filter((n) => !n.is_read).length > 0 && (
+              {notifications.filter((n) => !n.read).length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full h-4 w-4 flex items-center justify-center text-xs">
-                  {notifications.filter((n) => !n.is_read).length}
+                  {notifications.filter((n) => !n.read).length}
                 </span>
               )}
             </button>
@@ -1271,12 +1417,12 @@ const Dashboard: React.FC = () => {
                       <div
                         key={notification.id}
                         className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
-                          !notification.is_read ? "bg-blue-50" : ""
+                          !notification.read ? "bg-blue-50" : ""
                         }`}
                         onClick={() => markNotificationAsRead(notification.id)}
                       >
                         <p className="text-gray-800 text-sm">
-                          {notification.content}
+                          {notification.message}
                         </p>
                         <p className="text-xs text-gray-500">
                           {new Date(notification.created_at).toLocaleString()}
@@ -1758,133 +1904,153 @@ const Dashboard: React.FC = () => {
               <p className="text-white/80">No active alerts.</p>
             )}
           </div>
-          {activeTab === "message" && (
-            <div className="bg-[#005524] rounded-lg shadow-md p-4">
-              <h2 className="text-xl font-bold text-white mb-4">Messages</h2>
-              {showChatList ? (
-                <div>
-                  {isLoading ? (
-                    <p className="text-white/80">Loading messages...</p>
-                  ) : connections.length > 0 ? (
-                    connections.map((connection) => (
-                      <div
-                        key={connection.id}
-                        className="flex items-center space-x-4 mb-2 cursor-pointer hover:bg-[#004015] p-2 rounded"
-                        onClick={() => handleSelectConnection(connection)}
-                      >
-                        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
-                          {connection.avatar ? (
-                            <img
-                              src={connection.avatar}
-                              className="w-full h-full rounded-full"
-                              alt={connection.name}
-                            />
-                          ) : (
-                            <span>👤</span>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-white font-semibold">
-                            {connection.name}
-                          </p>
-                          <p className="text-white/80 text-sm">
-                            {getMessagesForRecipient(
-                              connection.connected_user_id
-                            )[0]?.content || "No messages yet"}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-white/80">No connections to message.</p>
-                  )}
-                </div>
-              ) : (
-                <div>
-                  <div className="flex items-center space-x-4 mb-4">
-                    <button
-                      onClick={() => setShowChatList(true)}
-                      className="text-white hover:text-white/80"
-                    >
-                      ← Back to Chat List
-                    </button>
-                    {selectedConnection && (
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
-                          {selectedConnection.avatar ? (
-                            <img
-                              src={selectedConnection.avatar}
-                              className="w-full h-full rounded-full"
-                              alt={selectedConnection.name}
-                            />
-                          ) : (
-                            <span>👤</span>
-                          )}
-                        </div>
-                        <span className="text-white font-semibold">
-                          {selectedConnection.name}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div
-                    ref={chatContainerRef}
-                    className="bg-white rounded-lg p-4 max-h-80 overflow-y-auto border border-gray-300"
-                  >
-                    {selectedConnection &&
-                      getMessagesForRecipient(
-                        selectedConnection.connected_user_id
-                      ).map((msg) => (
-                        <div
-                          key={msg.id}
-                          className={`mb-3 flex ${
-                            msg.sender_id === userProfile?.id
-                              ? "justify-end"
-                              : "justify-start"
-                          }`}
-                        >
-                          <div
-                            className={`max-w-xs p-3 rounded-lg shadow-sm ${
-                              msg.sender_id === userProfile?.id
-                                ? "bg-[#005524] text-white"
-                                : "bg-gray-200 text-gray-800"
-                            }`}
-                          >
-                            <p>{msg.content}</p>
-                            <p className="text-xs opacity-70 mt-1 text-right">
-                              {new Date(msg.timestamp).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                  <div className="mt-4 flex items-center space-x-2">
-                    <textarea
-                      value={messageText}
-                      onChange={(e) => setMessageText(e.target.value)}
-                      placeholder="Type a message..."
-                      className="flex-1 p-2 rounded-lg border border-gray-300 resize-none h-16"
-                    />
-                    <button
-                      onClick={handleSendMessage}
-                      className="bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015] disabled:opacity-50"
-                      disabled={!messageText.trim() || !selectedConnection}
-                    >
-                      Send
-                    </button>
-                  </div>
-                  {messageSent && (
-                    <p className="text-green-500 text-sm mt-2">Message sent!</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
+
+      {showMessages && showChatList && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-[#005524]">Messages</h2>
+              <button
+                onClick={() => {
+                  setShowMessages(false);
+                  setActiveTab("home");
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            {isLoading ? (
+              <p>Loading messages...</p>
+            ) : connections.length > 0 ? (
+              connections.map((connection) => (
+                <div
+                  key={connection.id}
+                  className="flex items-center space-x-4 mb-2 cursor-pointer hover:bg-gray-100 p-2 rounded"
+                  onClick={() => handleSelectConnection(connection)}
+                >
+                  <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
+                    {connection.avatar ? (
+                      <img
+                        src={connection.avatar}
+                        className="w-full h-full rounded-full"
+                        alt={connection.name}
+                      />
+                    ) : (
+                      <span>👤</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-gray-800 font-semibold">
+                      {connection.name}
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      {getMessagesForRecipient(connection.connected_user_id)[0]
+                        ?.content || "No messages yet"}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-600">No connections to message.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showMessages && !showChatList && selectedConnection && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl flex flex-col h-[70vh]">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
+                  {selectedConnection.avatar ? (
+                    <img
+                      src={selectedConnection.avatar}
+                      className="w-full h-full rounded-full"
+                      alt={selectedConnection.name}
+                    />
+                  ) : (
+                    <span>👤</span>
+                  )}
+                </div>
+                <h2 className="text-xl font-bold text-[#005524]">
+                  {selectedConnection.name}
+                </h2>
+              </div>
+              <button
+                onClick={() => {
+                  setShowChatList(true);
+                  setShowMessages(true);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto p-4 bg-gray-50 rounded-lg border border-gray-200"
+            >
+              {getMessagesForRecipient(
+                selectedConnection.connected_user_id
+              ).map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`mb-4 flex ${
+                    msg.sender_id === userProfile?.id
+                      ? "justify-end"
+                      : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-[70%] p-3 rounded-lg shadow-sm ${
+                      msg.sender_id === userProfile?.id
+                        ? "bg-[#005524] text-white"
+                        : "bg-gray-200 text-gray-800"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">
+                      {msg.sender_id === userProfile?.id
+                        ? "You"
+                        : msg.sender_name}
+                    </p>
+                    <p>{msg.content}</p>
+                    <p className="text-xs opacity-70 mt-1 text-right">
+                      {new Date(msg.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center space-x-2">
+              <textarea
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                placeholder="Type a message..."
+                className="flex-1 p-2 rounded-lg border border-gray-300 resize-none h-16"
+              />
+              <button
+                onClick={handleSendMessage}
+                className="bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015] disabled:opacity-50"
+                disabled={!messageText.trim() || !selectedConnection}
+              >
+                Send
+              </button>
+            </div>
+            {messageSent && (
+              <p className="text-green-500 text-sm mt-2 text-center">
+                Message sent!
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {showConnectionOptions && selectedConnection && (
         <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
@@ -1903,50 +2069,32 @@ const Dashboard: React.FC = () => {
             <div className="space-y-2">
               <button
                 onClick={() =>
-                  handleConnectionAction("profile", selectedConnection)
+                  handleConnectionAction("message", selectedConnection)
                 }
                 className="w-full bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015] flex items-center justify-center"
               >
                 <FaEnvelope className="mr-2" /> Message
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showSafetyTipModal && selectedSafetyTip && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#005524]">
-                {selectedSafetyTip.name}
-              </h2>
               <button
-                onClick={() => setShowSafetyTipModal(false)}
-                className="text-gray-500 hover:text-gray-700"
+                onClick={() =>
+                  handleConnectionAction("profile", selectedConnection)
+                }
+                className="w-full bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015] flex items-center justify-center"
               >
-                <FaTimes />
+                <FaUser className="mr-2" /> View Profile
               </button>
             </div>
-            <p className="text-gray-700">{selectedSafetyTip.content}</p>
           </div>
         </div>
       )}
 
-      {showProfile && (
+      {showProfile && selectedSearchProfile && (
         <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#005524]">
-                {selectedSearchProfile
-                  ? selectedSearchProfile.name
-                  : "Your Profile"}
-              </h2>
+              <h2 className="text-xl font-bold text-[#005524]">User Profile</h2>
               <button
-                onClick={() => {
-                  setShowProfile(false);
-                  setSelectedSearchProfile(null);
-                }}
+                onClick={() => setShowProfile(false)}
                 className="text-gray-500 hover:text-gray-700"
               >
                 <FaTimes />
@@ -1954,11 +2102,11 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="flex items-center space-x-4 mb-4">
               <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center text-white text-2xl">
-                {(selectedSearchProfile || userProfile)?.avatar ? (
+                {selectedSearchProfile.avatar ? (
                   <img
-                    src={(selectedSearchProfile || userProfile)?.avatar}
+                    src={selectedSearchProfile.avatar}
                     className="w-full h-full rounded-full"
-                    alt="Profile"
+                    alt={selectedSearchProfile.name}
                   />
                 ) : (
                   <span>👤</span>
@@ -1966,35 +2114,28 @@ const Dashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-lg font-semibold text-gray-800">
-                  {(selectedSearchProfile || userProfile)?.name}
+                  {selectedSearchProfile.name}
                 </p>
                 <p className="text-sm text-gray-600">
-                  {(selectedSearchProfile || userProfile)?.email}
+                  {selectedSearchProfile.email}
                 </p>
-                {!selectedSearchProfile && userProfile && (
-                  <p className="text-sm text-gray-600">
-                    Role: {userProfile.role}
-                  </p>
-                )}
               </div>
             </div>
-            {selectedSearchProfile && (
-              <button
-                onClick={() =>
-                  handleSendConnectionRequest(selectedSearchProfile.id)
-                }
-                className="w-full bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015] flex items-center justify-center"
-              >
-                <FaUserPlus className="mr-2" /> Send Connection Request
-              </button>
-            )}
+            <button
+              onClick={() =>
+                handleSendConnectionRequest(selectedSearchProfile.id)
+              }
+              className="w-full bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015] flex items-center justify-center"
+            >
+              <FaUserPlus className="mr-2" /> Send Connection Request
+            </button>
           </div>
         </div>
       )}
 
       {showSettings && (
         <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-[#005524]">Settings</h2>
               <button
@@ -2004,28 +2145,40 @@ const Dashboard: React.FC = () => {
                 <FaTimes />
               </button>
             </div>
-            <p className="text-gray-700">
-              Settings options will be available soon.
-            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Device Status
+                </label>
+                <select
+                  value={deviceStatus}
+                  onChange={(e) =>
+                    setDeviceStatus(e.target.value as "Active" | "Inactive")
+                  }
+                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#005524] focus:ring focus:ring-[#005524] focus:ring-opacity-50"
+                >
+                  <option>Active</option>
+                  <option>Inactive</option>
+                </select>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowSettings(false)}
+              className="mt-4 w-full bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015]"
+            >
+              Save Settings
+            </button>
           </div>
         </div>
       )}
 
       {showLogoutConfirm && (
         <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#005524]">
-                Confirm Logout
-              </h2>
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FaTimes />
-              </button>
-            </div>
-            <p className="text-gray-700 mb-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">
+              Confirm Logout
+            </h2>
+            <p className="text-gray-600 mb-4">
               Are you sure you want to log out?
             </p>
             <div className="flex justify-end space-x-2">
@@ -2048,7 +2201,7 @@ const Dashboard: React.FC = () => {
 
       {showLocationView && selectedLocation && selectedEmergency && (
         <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-[#005524]">
                 Emergency Location
@@ -2061,50 +2214,40 @@ const Dashboard: React.FC = () => {
               </button>
             </div>
             <div className="mb-4">
-              <p className="text-gray-700">
-                {selectedEmergency.emergency_type} reported by{" "}
-                {selectedEmergency.name}
+              <p className="text-gray-800 font-semibold">
+                {selectedEmergency.emergency_type}
               </p>
               <p className="text-sm text-gray-600">
-                Latitude: {selectedLocation.lat}
+                Reported by {selectedEmergency.name}
               </p>
               <p className="text-sm text-gray-600">
-                Longitude: {selectedLocation.lng}
+                Lat: {selectedLocation.lat}, Lng: {selectedLocation.lng}
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-600">
                 {new Date(selectedEmergency.created_at).toLocaleString()}
               </p>
             </div>
-            <img
-              src={mapImage}
-              alt="Map"
-              className="w-full h-48 rounded-lg mb-4"
-            />
-            <button
-              onClick={() => setShowLocationView(false)}
-              className="w-full bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015]"
-            >
-              Close
-            </button>
+            <div className="bg-gray-200 h-48 rounded-lg flex items-center justify-center">
+              <img
+                src={mapImage}
+                className="h-full w-full object-cover rounded-lg"
+                alt="Map placeholder"
+              />
+            </div>
           </div>
         </div>
       )}
 
       {showCallConfirm && selectedEmergencyForAction && (
         <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#005524]">Confirm Call</h2>
-              <button
-                onClick={() => setShowCallConfirm(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FaTimes />
-              </button>
-            </div>
-            <p className="text-gray-700 mb-4">
-              Call assistance for {selectedEmergencyForAction.emergency_type}{" "}
-              reported by {selectedEmergencyForAction.name}?
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">
+              Call Assistance
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Call emergency services for{" "}
+              {selectedEmergencyForAction.emergency_type} reported by{" "}
+              {selectedEmergencyForAction.name}?
             </p>
             <div className="flex justify-end space-x-2">
               <button
@@ -2126,19 +2269,11 @@ const Dashboard: React.FC = () => {
 
       {showReportConfirm && selectedEmergencyForAction && (
         <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#005524]">
-                Confirm Report
-              </h2>
-              <button
-                onClick={() => setShowReportConfirm(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FaTimes />
-              </button>
-            </div>
-            <p className="text-gray-700 mb-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">
+              Report Emergency
+            </h2>
+            <p className="text-gray-600 mb-4">
               Report {selectedEmergencyForAction.emergency_type} by{" "}
               {selectedEmergencyForAction.name}?
             </p>
@@ -2162,29 +2297,55 @@ const Dashboard: React.FC = () => {
 
       {showAlertConfirm && selectedAlertType && (
         <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#005524]">
-                Alert Confirmation
-              </h2>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">
+              Alert Sent
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Your {selectedAlertType} alert has been sent to all users.
+            </p>
+            <div className="flex justify-end space-x-2">
               <button
                 onClick={() => setShowAlertConfirm(false)}
+                className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+              >
+                Close
+              </button>
+              {!isSafe && (
+                <button
+                  onClick={() => handleMarkSafe()}
+                  className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
+                >
+                  Mark Safe
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSafetyTipModal && selectedSafetyTip && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-[#005524]">
+                {selectedSafetyTip.name}
+              </h2>
+              <button
+                onClick={() => setShowSafetyTipModal(false)}
                 className="text-gray-500 hover:text-gray-700"
               >
                 <FaTimes />
               </button>
             </div>
-            <p className="text-gray-700 mb-4">
-              {selectedAlertType === "Safe"
-                ? "You have marked yourself as safe."
-                : `Your ${selectedAlertType} alert has been sent to all users.`}
-            </p>
-            <button
-              onClick={() => setShowAlertConfirm(false)}
-              className="w-full bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015]"
-            >
-              OK
-            </button>
+            <div className="flex items-center space-x-4 mb-4">
+              <div className="text-[#005524]">
+                {(iconMap[selectedSafetyTip.icon] || FaShieldAlt)({
+                  size: 24,
+                })}
+              </div>
+              <p className="text-gray-600">{selectedSafetyTip.content}</p>
+            </div>
           </div>
         </div>
       )}

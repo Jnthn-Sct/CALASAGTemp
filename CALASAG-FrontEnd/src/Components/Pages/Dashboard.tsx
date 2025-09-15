@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaHome,
@@ -26,6 +26,7 @@ import logoImage from "../Images/no-bg-logo.png";
 import mapImage from "../Images/ph-map.png";
 import { supabase } from "../../db";
 
+// Interfaces remain unchanged
 interface Location {
   lat: number;
   lng: number;
@@ -125,24 +126,15 @@ const Dashboard: React.FC = () => {
   const [showProfile, setShowProfile] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showLocationView, setShowLocationView] = useState<boolean>(false);
-  const [showConnectionOptions, setShowConnectionOptions] =
-    useState<boolean>(false);
-  const [selectedConnection, setSelectedConnection] =
-    useState<Connection | null>(null);
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(
-    null
-  );
-  const [selectedEmergency, setSelectedEmergency] = useState<Emergency | null>(
-    null
-  );
+  const [showConnectionOptions, setShowConnectionOptions] = useState<boolean>(false);
+  const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+  const [selectedEmergency, setseasonalEmergency] = useState<Emergency | null>(null);
   const [showCallConfirm, setShowCallConfirm] = useState<boolean>(false);
   const [showReportConfirm, setShowReportConfirm] = useState<boolean>(false);
   const [showAlertConfirm, setShowAlertConfirm] = useState<boolean>(false);
-  const [selectedAlertType, setSelectedAlertType] = useState<string | null>(
-    null
-  );
-  const [selectedEmergencyForAction, setSelectedEmergencyForAction] =
-    useState<Emergency | null>(null);
+  const [selectedAlertType, setSelectedAlertType] = useState<string | null>(null);
+  const [selectedEmergencyForAction, setSelectedEmergencyForAction] = useState<Emergency | null>(null);
   const [isSafe, setIsSafe] = useState<boolean>(false);
   const [crisisAlert, setCrisisAlert] = useState<CrisisAlert | null>(null);
   const [crisisAlerts, setCrisisAlerts] = useState<CrisisAlert[]>([]);
@@ -153,32 +145,25 @@ const Dashboard: React.FC = () => {
   const [messageText, setMessageText] = useState("");
   const [messageSent, setMessageSent] = useState(false);
   const [showSafetyTipModal, setShowSafetyTipModal] = useState<boolean>(false);
-  const [selectedSafetyTip, setSelectedSafetyTip] = useState<SafetyTip | null>(
-    null
-  );
+  const [selectedSafetyTip, setSelectedSafetyTip] = useState<SafetyTip | null>(null);
   const [emergencies, setEmergencies] = useState<Emergency[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
-  const [connectionRequests, setConnectionRequests] = useState<
-    ConnectionRequest[]
-  >([]);
+  const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([]);
   const [safetyTips, setSafetyTips] = useState<SafetyTip[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [deviceStatus, setDeviceStatus] = useState<"Active" | "Inactive">(
-    "Active"
-  );
+  const [deviceStatus, setDeviceStatus] = useState<"Active" | "Inactive">("Active");
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<Location>({
     lat: 14.5995,
     lng: 120.9842,
   });
-  const [emergencyFilter, setEmergencyFilter] = useState<"nearby" | "all">(
-    "nearby"
-  );
+  const [emergencyFilter, setEmergencyFilter] = useState<"nearby" | "all">("nearby");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
-  const [selectedSearchProfile, setSelectedSearchProfile] =
-    useState<SearchResult | null>(null);
+  const [selectedSearchProfile, setSelectedSearchProfile] = useState<SearchResult | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const alertsPerPage = 4;
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const iconMap: { [key: string]: React.ElementType } = {
@@ -189,11 +174,24 @@ const Dashboard: React.FC = () => {
     FaShieldAlt,
   };
 
-  const randomLocation = (
-    centerLat: number,
-    centerLng: number,
-    radiusKm: number
-  ): Location => {
+  // Memoized unread notification count
+  const unreadNotificationCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  );
+
+  // Calculate total pages and current page alerts
+  const totalPages = Math.ceil(userSafeAlerts.length / alertsPerPage);
+  const indexOfLastAlert = currentPage * alertsPerPage;
+  const indexOfFirstAlert = indexOfLastAlert - alertsPerPage;
+  const currentAlerts = userSafeAlerts.slice(indexOfFirstAlert, indexOfLastAlert);
+
+  // Handle page change
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+  };
+
+  const randomLocation = (centerLat: number, centerLng: number, radiusKm: number): Location => {
     const r = radiusKm / 111;
     const u = Math.random();
     const v = Math.random();
@@ -208,8 +206,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages, currentChatRecipient]);
 
@@ -739,15 +736,37 @@ const Dashboard: React.FC = () => {
               filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
-              console.log("New notification:", payload.new);
+              console.log("New notification received:", payload.new);
               setNotifications((prev) => {
-                if (prev.some((n) => n.id === payload.new.id)) return prev;
+                // Check for duplicates by ID
+                if (prev.some((n) => n.id === payload.new.id)) {
+                  console.log(`Duplicate notification ID ${payload.new.id} ignored`);
+                  return prev;
+                }
                 return [payload.new as Notification, ...prev].slice(0, 50);
               });
             }
           )
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${user.id}`,
+            },
+            (payload) => {
+              console.log("Notification updated:", payload.new);
+              setNotifications((prev) =>
+                prev.map((n) =>
+                  n.id === payload.new.id ? { ...n, read: payload.new.read } : n
+                )
+              );
+            }
+          )
           .subscribe((status, err) => {
             if (err) console.error("Notification subscription error:", err);
+            console.log("Notification subscription status:", status);
           });
 
         const connectionRequestSubscription = supabase
@@ -908,6 +927,12 @@ const Dashboard: React.FC = () => {
       authListener.subscription.unsubscribe();
     };
   }, [navigate, userLocation, emergencyFilter]);
+
+  // Debug notifications state
+  useEffect(() => {
+    console.log("Current notifications:", notifications);
+    console.log("Unread notification count:", unreadNotificationCount);
+  }, [notifications, unreadNotificationCount]);
 
   const refreshFeed = async () => {
     setIsLoading(true);
@@ -1100,7 +1125,9 @@ const Dashboard: React.FC = () => {
         .delete()
         .eq("user_id", user.id);
       if (error) throw new Error(`Clear notifications error: ${error.message}`);
+
       setNotifications([]);
+      console.log("All notifications cleared successfully");
     } catch (error: any) {
       console.error("Error clearing notifications:", error);
       setError(`Failed to clear notifications: ${error.message}`);
@@ -1150,14 +1177,24 @@ const Dashboard: React.FC = () => {
 
   const markNotificationAsRead = async (id: number) => {
     try {
+      // Optimistically update the state
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      );
+
       const { error } = await supabase
         .from("notifications")
         .update({ read: true })
         .eq("id", id);
-      if (error) throw new Error(`Notification update error: ${error.message}`);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
+      if (error) {
+        console.error("Notification update error:", error.message);
+        // Revert optimistic update on error
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, read: false } : n))
+        );
+        throw new Error(`Notification update error: ${error.message}`);
+      }
+      console.log(`Notification ${id} marked as read successfully`);
     } catch (error: any) {
       console.error("Error marking notification as read:", error);
       setError(`Failed to mark notification as read: ${error.message}`);
@@ -1294,27 +1331,28 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f8eed4] flex flex-col">
-      <div className="bg-[#f8eed4] border-b border-gray-300 p-2 flex items-center justify-between shadow-sm">
-        <div className="flex items-center">
-          <img src={logoImage} className="h-10 w-auto" alt="Logo" />
-          <div className="ml-4 relative">
+      {/* Navbar */}
+      <div className="bg-[#f8eed4] border-b border-gray-300 p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between shadow-sm">
+        <div className="flex items-center w-full sm:w-auto mb-4 sm:mb-0">
+          <img src={logoImage} className="h-10 w-auto sm:h-12" alt="Logo" />
+          <div className="ml-0 sm:ml-4 relative w-full sm:w-64">
             <input
               type="text"
               placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              className="bg-white rounded-lg px-3 py-1 w-40 text-sm border border-gray-300"
+              className="bg-white rounded-2xl px-4 py-2 w-full text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
             />
-            <button className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500">
+            <button className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-[#005524] transition-colors duration-200">
               <FaSearch size={16} />
             </button>
             {showSearchResults && (
-              <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+              <div className="absolute top-full left-0 mt-2 w-full sm:w-64 bg-white rounded-2xl shadow-xl z-50 max-h-60 overflow-y-auto animate-in fade-in duration-300 border border-gray-100 hover:border-[#005524]/20">
                 {searchResults.length > 0 ? (
                   searchResults.map((user) => (
                     <div
                       key={user.id}
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center space-x-3"
+                      className="px-4 py-3 hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer flex items-center space-x-3 rounded-2xl"
                       onClick={() => {
                         setSelectedSearchProfile(user);
                         setShowProfile(true);
@@ -1322,7 +1360,7 @@ const Dashboard: React.FC = () => {
                         setSearchQuery("");
                       }}
                     >
-                      <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
                         {user.avatar ? (
                           <img
                             src={user.avatar}
@@ -1334,28 +1372,26 @@ const Dashboard: React.FC = () => {
                         )}
                       </div>
                       <div>
-                        <p className="text-gray-800 font-semibold">
-                          {user.name}
-                        </p>
-                        <p className="text-sm text-gray-500">{user.email}</p>
+                        <p className="text-[#005524] font-bold">{user.name}</p>
+                        <p className="text-sm text-gray-600">{user.email}</p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="px-4 py-2 text-gray-500">No users found.</p>
+                  <p className="px-4 py-3 text-gray-600">No users found.</p>
                 )}
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex items-center justify-center space-x-8">
+        <div className="flex items-center justify-center space-x-4 sm:space-x-8">
           <button
             onClick={() => handleNavigation("home")}
-            className={`flex flex-col items-center transition-colors duration-200 ${
+            className={`flex flex-col items-center transition-all duration-300 ${
               activeTab === "home"
                 ? "text-[#005524]"
-                : "text-gray-500 hover:text-[#005524]"
+                : "text-gray-600 hover:text-[#005524] hover:scale-110"
             }`}
           >
             <FaHome size={20} />
@@ -1363,10 +1399,10 @@ const Dashboard: React.FC = () => {
           </button>
           <button
             onClick={() => handleNavigation("message")}
-            className={`flex flex-col items-center transition-colors duration-200 ${
+            className={`flex flex-col items-center transition-all duration-300 ${
               activeTab === "message"
                 ? "text-[#005524]"
-                : "text-gray-500 hover:text-[#005524]"
+                : "text-gray-600 hover:text-[#005524] hover:scale-110"
             }`}
           >
             <FaEnvelope size={20} />
@@ -1374,10 +1410,10 @@ const Dashboard: React.FC = () => {
           </button>
           <button
             onClick={() => handleNavigation("report")}
-            className={`flex flex-col items-center transition-colors duration-200 ${
+            className={`flex flex-col items-center transition-all duration-300 ${
               activeTab === "report"
                 ? "text-[#005524]"
-                : "text-gray-500 hover:text-[#005524]"
+                : "text-gray-600 hover:text-[#005524] hover:scale-110"
             }`}
           >
             <FaExclamationTriangle size={20} />
@@ -1385,28 +1421,28 @@ const Dashboard: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-4 mt-4 sm:mt-0">
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-colors duration-200"
+              className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-all duration-300 hover:scale-110"
             >
               <FaBell size={20} className="text-[#f69f00]" />
-              {notifications.filter((n) => !n.read).length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full h-4 w-4 flex items-center justify-center text-xs">
-                  {notifications.filter((n) => !n.read).length}
+              {unreadNotificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#be4c1d] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
+                  {unreadNotificationCount}
                 </span>
               )}
             </button>
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-1 z-50">
-                <div className="px-4 py-2 border-b border-gray-200 flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-gray-700">
+              <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#005524]/20">
+                <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+                  <h3 className="text-lg font-bold text-[#005524]">
                     Notifications
                   </h3>
                   <button
                     onClick={clearAllNotifications}
-                    className="text-sm text-red-500 hover:text-red-600"
+                    className="text-sm text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
                   >
                     Clear All
                   </button>
@@ -1416,34 +1452,32 @@ const Dashboard: React.FC = () => {
                     notifications.map((notification) => (
                       <div
                         key={notification.id}
-                        className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
-                          !notification.read ? "bg-blue-50" : ""
+                        className={`px-4 py-3 hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer rounded-2xl ${
+                          !notification.read ? "bg-[#005524]/5" : ""
                         }`}
                         onClick={() => markNotificationAsRead(notification.id)}
                       >
-                        <p className="text-gray-800 text-sm">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-gray-900 text-sm">{notification.message}</p>
+                        <p className="text-xs text-gray-600">
                           {new Date(notification.created_at).toLocaleString()}
                         </p>
                       </div>
                     ))
                   ) : (
-                    <p className="px-4 py-3 text-gray-500">No notifications.</p>
+                    <p className="px-4 py-3 text-gray-600">No notifications.</p>
                   )}
                   {connectionRequests.length > 0 && (
-                    <div className="border-t border-gray-200 py-2">
-                      <h3 className="px-4 py-2 text-lg font-semibold text-gray-700">
+                    <div className="border-t border-gray-100 py-2">
+                      <h3 className="px-4 py-2 text-lg font-bold text-[#005524]">
                         Connection Requests
                       </h3>
                       {connectionRequests.map((request) => (
                         <div
                           key={request.id}
-                          className="px-4 py-3 flex items-center justify-between hover:bg-gray-50"
+                          className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 hover:scale-105 transition-all duration-300 rounded-2xl"
                         >
                           <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
                               {request.sender_avatar ? (
                                 <img
                                   src={request.sender_avatar}
@@ -1454,7 +1488,7 @@ const Dashboard: React.FC = () => {
                                 <span>👤</span>
                               )}
                             </div>
-                            <p className="text-gray-800 text-sm">
+                            <p className="text-gray-900 text-sm">
                               {request.sender_name} wants to connect
                             </p>
                           </div>
@@ -1466,7 +1500,7 @@ const Dashboard: React.FC = () => {
                                   "accepted"
                                 )
                               }
-                              className="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600"
+                              className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                             >
                               <FaCheck className="inline mr-1" /> Accept
                             </button>
@@ -1477,7 +1511,7 @@ const Dashboard: React.FC = () => {
                                   "rejected"
                                 )
                               }
-                              className="bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600"
+                              className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                             >
                               <FaTimes className="inline mr-1" /> Reject
                             </button>
@@ -1493,9 +1527,9 @@ const Dashboard: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center space-x-2 focus:outline-none hover:bg-gray-100 rounded-lg px-2 py-1 transition-colors duration-200"
+              className="flex items-center space-x-2 focus:outline-none hover:bg-gray-100 rounded-2xl px-3 py-2 transition-all duration-300 hover:scale-105"
             >
-              <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
                 {userProfile?.avatar ? (
                   <img
                     src={userProfile.avatar}
@@ -1507,11 +1541,11 @@ const Dashboard: React.FC = () => {
                 )}
               </div>
               <div className="flex items-center text-[#005524]">
-                <span className="font-medium">
+                <span className="font-bold">
                   {isLoading ? "Loading..." : activeUser || "User"}
                 </span>
                 <span
-                  className={`ml-1 transition-transform duration-200 ${
+                  className={`ml-2 transition-transform duration-300 ${
                     showProfileMenu ? "rotate-180" : ""
                   }`}
                 >
@@ -1520,25 +1554,25 @@ const Dashboard: React.FC = () => {
               </div>
             </button>
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#005524]/20">
                 <button
                   onClick={() => handleProfileAction("profile")}
-                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
+                  className="w-full px-4 py-2 text-left text-gray-900 hover:bg-gray-50 hover:scale-105 transition-all duration-300 flex items-center rounded-2xl"
                 >
                   <FaUser size={16} className="mr-2" />
                   Profile
                 </button>
                 <button
                   onClick={() => handleProfileAction("settings")}
-                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
+                  className="w-full px-4 py-2 text-left text-gray-900 hover:bg-gray-50 hover:scale-105 transition-all duration-300 flex items-center rounded-2xl"
                 >
                   <FaCog size={16} className="mr-2" />
                   Settings
                 </button>
-                <div className="border-t border-gray-200 my-1"></div>
+                <div className="border-t border-gray-100 my-1"></div>
                 <button
                   onClick={() => handleProfileAction("logout")}
-                  className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100 flex items-center"
+                  className="w-full px-4 py-2 text-left text-[#be4c1d] hover:bg-gray-50 hover:scale-105 transition-all duration-300 flex items-center rounded-2xl"
                 >
                   <FaSignOutAlt size={16} className="mr-2" />
                   Logout
@@ -1549,46 +1583,62 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-1 relative">
-        <div className="w-1/4 p-4 flex flex-col space-y-4">
-          <div className="bg-[#005524] rounded-lg shadow-md p-4">
-            <h2 className="text-xl font-bold text-white mb-4">Welcome</h2>
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-white text-xl">
-                {userProfile?.avatar ? (
-                  <img
-                    src={userProfile.avatar}
-                    className="w-full h-full rounded-full"
-                    alt="Profile"
-                  />
-                ) : (
-                  <span>👤</span>
-                )}
-              </div>
-              <div>
-                <span className="text-white text-lg font-medium">
-                  {isLoading ? "Loading..." : activeUser || "User"}
-                </span>
-                {userProfile && (
-                  <p className="text-sm text-white/80">
-                    Role: {userProfile.role}
-                  </p>
-                )}
+      {/* Main Content */}
+      <div className="flex flex-col lg:flex-row flex-1 relative px-4 sm:px-6 gap-4 sm:gap-6">
+        {/* Left Sidebar */}
+        <div className="w-full lg:w-1/4 flex flex-col space-y-4 sm:space-y-6">
+          <div className="bg-gradient-to-br from-[#005524] to-[#005524] rounded-2xl shadow-xl p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-white">Your Device</h2>
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                <span className="text-2xl">📱</span>
               </div>
             </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
+                <span className="text-white/90 font-medium">Device ID:</span>
+                <span className="text-white font-bold">01-JD-C24</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
+                <span className="text-white/90 font-medium">Status:</span>
+                <span
+                  className={`font-bold px-3 py-1 rounded-full text-sm ${
+                    deviceStatus === "Active"
+                      ? "bg-green-500 text-white"
+                      : "bg-red-500 text-white"
+                  }`}
+                >
+                  {deviceStatus}
+                </span>
+              </div>
+              <button
+                className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all duration-300 transform hover:scale-105 shadow-lg ${
+                  deviceStatus === "Active"
+                    ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+                    : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                }`}
+                onClick={() =>
+                  setDeviceStatus(deviceStatus === "Active" ? "Inactive" : "Active")
+                }
+              >
+                {deviceStatus === "Active" ? "Deactivate Device" : "Activate Device"}
+              </button>
+            </div>
           </div>
-          <div className="bg-[#005524] rounded-lg shadow-md p-4">
-            <h2 className="text-xl font-bold text-white mb-4">Connections</h2>
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 transition-all duration-300 hover:shadow-2xl border border-gray-100 hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+              Connections
+            </h2>
             {isLoading ? (
-              <p className="text-white/80">Loading connections...</p>
+              <p className="text-gray-600">Loading connections...</p>
             ) : connections.length > 0 ? (
               connections.map((connection) => (
                 <div
                   key={connection.id}
-                  className="flex items-center space-x-4 mb-2 cursor-pointer hover:bg-[#004015] p-2 rounded"
+                  className="flex items-center space-x-4 mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded-2xl hover:scale-105 transition-all duration-300"
                   onClick={() => handleSelectConnection(connection)}
                 >
-                  <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-white">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
                     {connection.avatar ? (
                       <img
                         src={connection.avatar}
@@ -1599,19 +1649,20 @@ const Dashboard: React.FC = () => {
                       <span>👤</span>
                     )}
                   </div>
-                  <span className="text-white">{connection.name}</span>
+                  <span className="text-gray-900 font-bold">{connection.name}</span>
                 </div>
               ))
             ) : (
-              <p className="text-white/80">No connections found.</p>
+              <p className="text-gray-600">No connections found.</p>
             )}
           </div>
         </div>
 
-        <div className="w-2/4 p-4">
-          <div className="bg-[#005524] border border-gray-300 rounded-lg p-4 mb-4 flex items-center justify-center">
+        {/* Main Content Area */}
+        <div className="w-full lg:w-2/4 p-4 sm:p-6">
+          <div className="bg-gradient-to-br from-[#005524] to-[#005524] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-center shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20 border border-gray-100">
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-white text-xl">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white text-xl">
                 {userProfile?.avatar ? (
                   <img
                     src={userProfile.avatar}
@@ -1623,156 +1674,213 @@ const Dashboard: React.FC = () => {
                 )}
               </div>
               <div>
-                <span className="text-white text-lg font-medium">
+                <span className="text-white text-lg sm:text-xl font-bold">
                   Welcome, {isLoading ? "Loading..." : activeUser || "User"}!
                 </span>
                 {userProfile && (
-                  <p className="text-sm text-white/80">
-                    Role: {userProfile.role}
-                  </p>
+                  <p className="text-sm text-white/90">Role: {userProfile.role}</p>
                 )}
               </div>
             </div>
           </div>
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-2xl mb-4 sm:mb-6 shadow-xl transition-all duration-300">
               {error}
             </div>
           )}
           {activeTab === "home" && (
-            <div className="bg-[#f8eed4] border border-gray-800 rounded-lg p-4">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-[#005524]">
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+              <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-[#005524]">
                   Recent Emergencies
                 </h2>
-                <div className="flex space-x-2">
+                <div className="flex flex-wrap space-x-2 mt-2 sm:mt-0">
                   <button
                     onClick={() => setEmergencyFilter("nearby")}
-                    className={`px-3 py-1 rounded-lg ${
+                    className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
                       emergencyFilter === "nearby"
-                        ? "bg-[#005524] text-white"
-                        : "bg-gray-200 text-gray-700"
+                        ? "bg-[#005524] hover:bg-[#004015] text-white"
+                        : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                     }`}
                   >
                     Nearby (5km)
                   </button>
                   <button
                     onClick={() => setEmergencyFilter("all")}
-                    className={`px-3 py-1 rounded-lg ${
+                    className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
                       emergencyFilter === "all"
-                        ? "bg-[#005524] text-white"
-                        : "bg-gray-200 text-gray-700"
+                        ? "bg-[#005524] hover:bg-[#004015] text-white"
+                        : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                     }`}
                   >
                     All
                   </button>
                   <button
                     onClick={refreshFeed}
-                    className="bg-[#f69f00] text-white px-3 py-1 rounded-lg hover:bg-[#d88e00]"
+                    className="bg-[#f69f00] hover:bg-[#d88e00] text-white px-3 py-1 rounded-lg hover:scale-105 transition-all duration-300"
                   >
                     Refresh
                   </button>
                 </div>
               </div>
               {isLoading ? (
-                <p>Loading emergencies...</p>
+                <p className="text-gray-600">Loading emergencies...</p>
               ) : emergencies.length > 0 ? (
-                emergencies.map((emergency) => (
-                  <div
-                    key={emergency.id}
-                    className="bg-white rounded-lg p-3 mb-2 shadow-sm"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-white">
-                        {emergency.avatar ? (
-                          <img
-                            src={emergency.avatar}
-                            className="w-full h-full rounded-full"
-                            alt={emergency.name}
-                          />
-                        ) : (
-                          <span>🚨</span>
+                <div>
+                  {(() => {
+                    const emergenciesPerPage = 4;
+                    const totalEmergencyPages = Math.ceil(
+                      emergencies.length / emergenciesPerPage
+                    );
+                    const indexOfLastEmergency = currentPage * emergenciesPerPage;
+                    const indexOfFirstEmergency = indexOfLastEmergency - emergenciesPerPage;
+                    const currentEmergencies = emergencies.slice(
+                      indexOfFirstEmergency,
+                      indexOfLastEmergency
+                    );
+
+                    return (
+                      <>
+                        {currentEmergencies.map((emergency) => (
+                          <div
+                            key={emergency.id}
+                            className="bg-white rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#005524]/20"
+                          >
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                                {emergency.avatar ? (
+                                  <img
+                                    src={emergency.avatar}
+                                    className="w-full h-full rounded-full"
+                                    alt={emergency.name}
+                                  />
+                                ) : (
+                                  <span>🚨</span>
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-bold text-[#005524]">
+                                  {emergency.emergency_type}
+                                </p>
+                                <p className="text-sm text-gray-900">
+                                  {emergency.message}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Reported by {emergency.name} at Lat:{" "}
+                                  {emergency.location.lat}, Lng: {emergency.location.lng}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  {new Date(emergency.created_at).toLocaleString()}
+                                </p>
+                              </div>
+                              <div className="flex flex-col space-y-2 w-full sm:w-auto">
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    onClick={() => handleViewLocation(emergency)}
+                                    className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
+                                  >
+                                    <FaMapMarkerAlt className="inline mr-1" /> View
+                                  </button>
+                                  <button
+                                    onClick={() => handleCallAssistance(emergency)}
+                                    className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
+                                  >
+                                    <FaPhoneAlt className="inline mr-1" /> Call Assistance
+                                  </button>
+                                </div>
+                                <div className="border-t border-gray-100 my-1"></div>
+                                <button
+                                  onClick={() => handleReport(emergency)}
+                                  className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                                >
+                                  <FaExclamationTriangle className="inline mr-1" /> Report
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {totalEmergencyPages > 1 && (
+                          <div className="flex justify-center items-center space-x-2 mt-4">
+                            <button
+                              onClick={() => handlePageChange(currentPage - 1)}
+                              disabled={currentPage === 1}
+                              className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                                currentPage === 1
+                                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                  : "bg-[#005524] hover:bg-[#004015] text-white"
+                              }`}
+                            >
+                              Previous
+                            </button>
+                            {[...Array(totalEmergencyPages)].map((_, index) => (
+                              <button
+                                key={index + 1}
+                                onClick={() => handlePageChange(index + 1)}
+                                className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                                  currentPage === index + 1
+                                    ? "bg-[#005524] text-white"
+                                    : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                                }`}
+                              >
+                                {index + 1}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => handlePageChange(currentPage + 1)}
+                              disabled={currentPage === totalEmergencyPages}
+                              className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                                currentPage === totalEmergencyPages
+                                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                  : "bg-[#005524] hover:bg-[#004015] text-white"
+                              }`}
+                            >
+                              Next
+                            </button>
+                          </div>
                         )}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-800">
-                          {emergency.emergency_type}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {emergency.message}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Reported by {emergency.name} at Lat:{" "}
-                          {emergency.location.lat}, Lng:{" "}
-                          {emergency.location.lng}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {new Date(emergency.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleViewLocation(emergency)}
-                          className="bg-[#005524] text-white px-3 py-1 rounded-lg text-sm hover:bg-[#004015]"
-                        >
-                          <FaMapMarkerAlt className="inline mr-1" /> View
-                        </button>
-                        <button
-                          onClick={() => handleCallAssistance(emergency)}
-                          className="bg-[#f69f00] text-white px-3 py-1 rounded-lg text-sm hover:bg-[#d88e00]"
-                        >
-                          <FaPhoneAlt className="inline mr-1" /> Call
-                        </button>
-                        <button
-                          onClick={() => handleReport(emergency)}
-                          className="bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600"
-                        >
-                          <FaExclamationTriangle className="inline mr-1" />{" "}
-                          Report
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))
+                      </>
+                    );
+                  })()}
+                </div>
               ) : (
-                <p>No emergencies found.</p>
+                <p className="text-gray-600">No emergencies found.</p>
               )}
             </div>
           )}
           {activeTab === "report" && (
-            <div className="bg-[#f8eed4] border border-gray-800 rounded-lg p-4">
-              <h2 className="text-xl font-bold text-[#005524] mb-4">
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+              <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4 sm:mb-6">
                 SOS Help
               </h2>
-              <div className="flex space-x-4 mb-4">
+              <div className="flex flex-wrap gap-2 sm:gap-4 mb-4 sm:mb-6">
                 <button
                   onClick={() => handleEmergencyAlert("Fire")}
-                  className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                  className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
                 >
                   <FaFire className="inline mr-2" /> Fire
                 </button>
                 <button
                   onClick={() => handleEmergencyAlert("Medical")}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+                  className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
                 >
                   <FaAmbulance className="inline mr-2" /> Medical
                 </button>
                 <button
                   onClick={() => handleEmergencyAlert("Crime")}
-                  className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+                  className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
                 >
                   <FaShieldAlt className="inline mr-2" /> Crime
                 </button>
                 <button
                   onClick={() => handleEmergencyAlert("Accident")}
-                  className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600"
+                  className="bg-[#f69f00] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
                 >
                   <FaCarCrash className="inline mr-2" /> Accident
                 </button>
               </div>
               {crisisAlert && (
-                <div className="mt-4 p-3 bg-white rounded-lg shadow-sm mb-4">
-                  <p className="text-gray-800">
+                <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-[#005524]/20">
+                  <p className="text-gray-900 font-bold">
                     Your Active Alert: {crisisAlert.type}
                   </p>
                   <p className="text-sm text-gray-600">
@@ -1782,326 +1890,281 @@ const Dashboard: React.FC = () => {
                   {!isSafe && (
                     <button
                       onClick={() => handleMarkSafe()}
-                      className="mt-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
+                      className="mt-2 bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
                     >
                       <FaCheck className="inline mr-2" /> Mark Safe
                     </button>
                   )}
                   <button
                     onClick={resetCrisisAlert}
-                    className="mt-2 ml-2 text-sm text-red-500 hover:text-red-600"
+                    className="mt-2 ml-2 text-sm text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
                   >
                     Clear Alert
                   </button>
                 </div>
               )}
-              <h2 className="text-xl font-bold text-[#005524] mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4 sm:mb-6">
                 Your Safe Alerts
               </h2>
               {isLoading ? (
-                <p>Loading your safe alerts...</p>
+                <p className="text-gray-600">Loading your safe alerts...</p>
               ) : userSafeAlerts.length > 0 ? (
-                userSafeAlerts.map((crisis) => (
-                  <div
-                    key={crisis.id}
-                    className="bg-white rounded-lg p-3 mb-2 shadow-sm"
-                  >
-                    <p className="font-semibold text-gray-800">{crisis.type}</p>
-                    <p className="text-sm text-gray-600">
-                      Reported by {crisis.reporter}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      At Lat: {crisis.location.lat}, Lng: {crisis.location.lng}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(crisis.created_at).toLocaleString()}
-                    </p>
-                    {crisis.related_crisis_id && (
-                      <p className="text-sm text-gray-500">
-                        In response to crisis #{crisis.related_crisis_id}
+                <div>
+                  {currentAlerts.map((crisis) => (
+                    <div
+                      key={crisis.id}
+                      className="bg-white rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#005524]/20"
+                    >
+                      <p className="font-bold text-[#005524]">{crisis.type}</p>
+                      <p className="text-sm text-gray-900">
+                        Reported by {crisis.reporter}
                       </p>
+                      <p className="text-sm text-gray-600">
+                        At Lat: {crisis.location.lat}, Lng: {crisis.location.lng}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {new Date(crisis.created_at).toLocaleString()}
+                      </p>
+                      {crisis.related_crisis_id && (
+                        <p className="text-sm text-gray-600">
+                          In response to crisis #{crisis.related_crisis_id}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                  {totalPages > 1 && (
+                    <div className="flex justify-center items-center space-x-2 mt-4">
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                          currentPage === 1
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-[#005524] hover:bg-[#004015] text-white"
+                        }`}
+                      >
+                        Previous
+                      </button>
+                      {[...Array(totalPages)].map((_, index) => (
+                        <button
+                          key={index + 1}
+                          onClick={() => handlePageChange(index + 1)}
+                          className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                            currentPage=== index + 1
+                            ? "bg-[#005524] text-white"
+                            : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                          }`}
+                        >
+                          {index + 1}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                          currentPage === totalPages
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-[#005524] hover:bg-[#004015] text-white"
+                        }`}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-600">No safe alerts found.</p>
+              )}
+            </div>
+          )}
+          {activeTab === "message" && (
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+              <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4 sm:mb-6">
+                Messages
+              </h2>
+              {showChatList ? (
+                <div>
+                  {isLoading ? (
+                    <p className="text-gray-600">Loading connections...</p>
+                  ) : connections.length > 0 ? (
+                    connections.map((connection) => (
+                      <div
+                        key={connection.id}
+                        className="flex items-center justify-between space-x-4 mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded-2xl hover:scale-105 transition-all duration-300"
+                        onClick={() => handleSelectConnection(connection)}
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                            {connection.avatar ? (
+                              <img
+                                src={connection.avatar}
+                                className="w-full h-full rounded-full"
+                                alt={connection.name}
+                              />
+                            ) : (
+                              <span>👤</span>
+                            )}
+                          </div>
+                          <span className="text-gray-900 font-bold">{connection.name}</span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedConnection(connection);
+                            setShowConnectionOptions(true);
+                          }}
+                          className="text-gray-600 hover:text-[#005524] transition-colors duration-200"
+                        >
+                          <FaCog size={16} />
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-600">No connections to message.</p>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <button
+                    onClick={() => setShowChatList(true)}
+                    className="mb-4 text-[#005524] hover:text-[#004015] transition-colors duration-200"
+                  >
+                    ← Back to Chat List
+                  </button>
+                  <h3 className="text-lg font-bold text-[#005524] mb-4">
+                    Chat with {currentChatRecipient}
+                  </h3>
+                  <div
+                    ref={chatContainerRef}
+                    className="max-h-96 overflow-y-auto mb-4 p-4 bg-gray-50 rounded-2xl border border-gray-100"
+                  >
+                    {getMessagesForRecipient(selectedConnection?.connected_user_id || "").map(
+                      (msg) => (
+                        <div
+                          key={msg.id}
+                          className={`mb-2 p-3 rounded-lg max-w-[75%] ${
+                            msg.sender_id === userProfile?.id
+                              ? "bg-[#005524] text-white ml-auto"
+                              : "bg-gray-200 text-gray-900 mr-auto"
+                          }`}
+                        >
+                          <p className="text-sm">{msg.content}</p>
+                          <p
+                            className={`text-xs ${
+                              msg.sender_id === userProfile?.id
+                                ? "text-white/80"
+                                : "text-gray-600"
+                            }`}
+                          >
+                            {new Date(msg.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                      )
                     )}
                   </div>
-                ))
-              ) : (
-                <p>No safe alerts found.</p>
+                  <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
+                    <input
+                      type="text"
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
+                      placeholder="Type your message..."
+                      className="flex-1 bg-white rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                    >
+                      Send
+                    </button>
+                  </div>
+                  {messageSent && (
+                    <p className="text-green-600 text-sm mt-2 animate-in fade-in duration-300">
+                      Message sent!
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}
         </div>
 
-        <div className="w-1/4 p-4 flex flex-col space-y-4">
-          <div className="bg-[#005524] rounded-lg shadow-md p-4">
-            <h2 className="text-xl font-bold text-white mb-4">Safety Tips</h2>
+        {/* Right Sidebar */}
+        <div className="w-full lg:w-1/4 flex flex-col space-y-4 sm:space-y-6">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+              Safety Tips
+            </h2>
             {isLoading ? (
-              <p className="text-white/80">Loading safety tips...</p>
+              <p className="text-gray-600">Loading safety tips...</p>
             ) : safetyTips.length > 0 ? (
               safetyTips.map((tip) => {
-                const IconComponent = iconMap[tip.icon] || FaShieldAlt;
+                const IconComponent = iconMap[tip.icon] || FaInfoCircle;
                 return (
                   <div
                     key={tip.id}
-                    className="flex items-center space-x-4 mb-2 cursor-pointer hover:bg-[#004015] p-2 rounded"
+                    className="flex items-center space-x-4 mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded-2xl hover:scale-105 transition-all duration-300"
                     onClick={() => {
                       setSelectedSafetyTip(tip);
                       setShowSafetyTipModal(true);
                     }}
                   >
-                    <IconComponent size={24} className="text-white" />
-                    <div>
-                      <p className="text-white font-semibold">{tip.name}</p>
-                      <p className="text-white/80 text-sm">{tip.content}</p>
-                    </div>
+                    <IconComponent size={20} className="text-[#005524]" />
+                    <span className="text-gray-900">{tip.name}</span>
                   </div>
                 );
               })
             ) : (
-              <p className="text-white/80">No safety tips available.</p>
+              <p className="text-gray-600">No safety tips available.</p>
             )}
           </div>
-          <div className="bg-[#005524] rounded-lg shadow-md p-4">
-            <h2 className="text-xl font-bold text-white mb-4">Crisis Alerts</h2>
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+              Nearby Alerts
+            </h2>
             {isLoading ? (
-              <p className="text-white/80">Loading alerts...</p>
+              <p className="text-gray-600">Loading nearby alerts...</p>
             ) : crisisAlerts.length > 0 ? (
-              <div className="max-h-80 overflow-y-auto">
-                {crisisAlerts
-                  .slice()
-                  .reverse()
-                  .map((crisis) => {
-                    const hasUserMarkedSafe = userSafeAlerts.some(
-                      (safeAlert) => safeAlert.related_crisis_id === crisis.id
-                    );
-                    return (
-                      <div key={crisis.id} className="mb-4">
-                        <p className="text-white font-semibold">
-                          {crisis.type} by {crisis.reporter}
-                        </p>
-                        <p className="text-sm text-white/80">
-                          {new Date(crisis.created_at).toLocaleString()}
-                        </p>
-                        <p className="text-sm text-white/80">
-                          At Lat: {crisis.location.lat}, Lng:{" "}
-                          {crisis.location.lng}
-                        </p>
-                        {hasUserMarkedSafe || crisis.responded_safe ? (
-                          <p className="text-sm text-green-300">
-                            {crisis.reporter} marked safe
-                          </p>
-                        ) : (
-                          <button
-                            onClick={() => handleMarkSafe(crisis.id)}
-                            className="mt-2 bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600"
-                          >
-                            <FaCheck className="inline mr-1" /> Mark Safe
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
+              crisisAlerts.map((crisis) => (
+                <div
+                  key={crisis.id}
+                  className="bg-white rounded-2xl p-3 sm:p-4 mb-2 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#005524]/20"
+                >
+                  <p className="font-bold text-[#005524]">{crisis.type}</p>
+                  <p className="text-sm text-gray-900">
+                    Reported by {crisis.reporter}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    At Lat: {crisis.location.lat}, Lng: {crisis.location.lng}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {new Date(crisis.created_at).toLocaleString()}
+                  </p>
+                  {!crisis.responded_safe && (
+                    <button
+                      onClick={() => handleMarkSafe(crisis.id)}
+                      className="mt-2 bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                    >
+                      <FaCheck className="inline mr-1" /> Mark Safe
+                    </button>
+                  )}
+                </div>
+              ))
             ) : (
-              <p className="text-white/80">No active alerts.</p>
+              <p className="text-gray-600">No nearby alerts found.</p>
             )}
           </div>
         </div>
       </div>
 
-      {showMessages && showChatList && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#005524]">Messages</h2>
-              <button
-                onClick={() => {
-                  setShowMessages(false);
-                  setActiveTab("home");
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FaTimes />
-              </button>
-            </div>
-            {isLoading ? (
-              <p>Loading messages...</p>
-            ) : connections.length > 0 ? (
-              connections.map((connection) => (
-                <div
-                  key={connection.id}
-                  className="flex items-center space-x-4 mb-2 cursor-pointer hover:bg-gray-100 p-2 rounded"
-                  onClick={() => handleSelectConnection(connection)}
-                >
-                  <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
-                    {connection.avatar ? (
-                      <img
-                        src={connection.avatar}
-                        className="w-full h-full rounded-full"
-                        alt={connection.name}
-                      />
-                    ) : (
-                      <span>👤</span>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-gray-800 font-semibold">
-                      {connection.name}
-                    </p>
-                    <p className="text-gray-600 text-sm">
-                      {getMessagesForRecipient(connection.connected_user_id)[0]
-                        ?.content || "No messages yet"}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-600">No connections to message.</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {showMessages && !showChatList && selectedConnection && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl flex flex-col h-[70vh]">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
-                  {selectedConnection.avatar ? (
-                    <img
-                      src={selectedConnection.avatar}
-                      className="w-full h-full rounded-full"
-                      alt={selectedConnection.name}
-                    />
-                  ) : (
-                    <span>👤</span>
-                  )}
-                </div>
-                <h2 className="text-xl font-bold text-[#005524]">
-                  {selectedConnection.name}
-                </h2>
-              </div>
-              <button
-                onClick={() => {
-                  setShowChatList(true);
-                  setShowMessages(true);
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FaTimes />
-              </button>
-            </div>
-            <div
-              ref={chatContainerRef}
-              className="flex-1 overflow-y-auto p-4 bg-gray-50 rounded-lg border border-gray-200"
-            >
-              {getMessagesForRecipient(
-                selectedConnection.connected_user_id
-              ).map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`mb-4 flex ${
-                    msg.sender_id === userProfile?.id
-                      ? "justify-end"
-                      : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`max-w-[70%] p-3 rounded-lg shadow-sm ${
-                      msg.sender_id === userProfile?.id
-                        ? "bg-[#005524] text-white"
-                        : "bg-gray-200 text-gray-800"
-                    }`}
-                  >
-                    <p className="text-sm font-semibold">
-                      {msg.sender_id === userProfile?.id
-                        ? "You"
-                        : msg.sender_name}
-                    </p>
-                    <p>{msg.content}</p>
-                    <p className="text-xs opacity-70 mt-1 text-right">
-                      {new Date(msg.timestamp).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 flex items-center space-x-2">
-              <textarea
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                placeholder="Type a message..."
-                className="flex-1 p-2 rounded-lg border border-gray-300 resize-none h-16"
-              />
-              <button
-                onClick={handleSendMessage}
-                className="bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015] disabled:opacity-50"
-                disabled={!messageText.trim() || !selectedConnection}
-              >
-                Send
-              </button>
-            </div>
-            {messageSent && (
-              <p className="text-green-500 text-sm mt-2 text-center">
-                Message sent!
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {showConnectionOptions && selectedConnection && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-80 shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#005524]">
-                {selectedConnection.name}
-              </h2>
-              <button
-                onClick={() => setShowConnectionOptions(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FaTimes />
-              </button>
-            </div>
-            <div className="space-y-2">
-              <button
-                onClick={() =>
-                  handleConnectionAction("message", selectedConnection)
-                }
-                className="w-full bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015] flex items-center justify-center"
-              >
-                <FaEnvelope className="mr-2" /> Message
-              </button>
-              <button
-                onClick={() =>
-                  handleConnectionAction("profile", selectedConnection)
-                }
-                className="w-full bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015] flex items-center justify-center"
-              >
-                <FaUser className="mr-2" /> View Profile
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Modals */}
       {showProfile && selectedSearchProfile && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#005524]">User Profile</h2>
-              <button
-                onClick={() => setShowProfile(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FaTimes />
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+              User Profile
+            </h2>
             <div className="flex items-center space-x-4 mb-4">
-              <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center text-white text-2xl">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
                 {selectedSearchProfile.avatar ? (
                   <img
                     src={selectedSearchProfile.avatar}
@@ -2113,238 +2176,215 @@ const Dashboard: React.FC = () => {
                 )}
               </div>
               <div>
-                <p className="text-lg font-semibold text-gray-800">
-                  {selectedSearchProfile.name}
-                </p>
-                <p className="text-sm text-gray-600">
-                  {selectedSearchProfile.email}
-                </p>
+                <p className="text-gray-900 font-bold">{selectedSearchProfile.name}</p>
+                <p className="text-sm text-gray-600">{selectedSearchProfile.email}</p>
               </div>
             </div>
             <button
-              onClick={() =>
-                handleSendConnectionRequest(selectedSearchProfile.id)
-              }
-              className="w-full bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015] flex items-center justify-center"
+              onClick={() => handleSendConnectionRequest(selectedSearchProfile.id)}
+              className="w-full bg-[#005524] hover:bg-[#004015] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300"
             >
-              <FaUserPlus className="mr-2" /> Send Connection Request
+              <FaUserPlus className="inline mr-2" /> Send Connection Request
+            </button>
+            <button
+              onClick={() => setShowProfile(false)}
+              className="w-full mt-2 text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
+            >
+              Close
             </button>
           </div>
         </div>
       )}
-
       {showSettings && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#005524]">Settings</h2>
-              <button
-                onClick={() => setShowSettings(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FaTimes />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Device Status
-                </label>
-                <select
-                  value={deviceStatus}
-                  onChange={(e) =>
-                    setDeviceStatus(e.target.value as "Active" | "Inactive")
-                  }
-                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#005524] focus:ring focus:ring-[#005524] focus:ring-opacity-50"
-                >
-                  <option>Active</option>
-                  <option>Inactive</option>
-                </select>
-              </div>
-            </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+              Settings
+            </h2>
+            <p className="text-gray-600 mb-4">Manage your preferences here.</p>
             <button
               onClick={() => setShowSettings(false)}
-              className="mt-4 w-full bg-[#005524] text-white px-4 py-2 rounded-lg hover:bg-[#004015]"
+              className="w-full bg-[#005524] hover:bg-[#004015] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300"
             >
-              Save Settings
+              Save
+            </button>
+            <button
+              onClick={() => setShowSettings(false)}
+              className="w-full mt-2 text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
+            >
+              Close
             </button>
           </div>
         </div>
       )}
-
       {showLogoutConfirm && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
               Confirm Logout
             </h2>
-            <p className="text-gray-600 mb-4">
-              Are you sure you want to log out?
-            </p>
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
-              >
-                Cancel
-              </button>
+            <p className="text-gray-600 mb-4">Are you sure you want to log out?</p>
+            <div className="flex space-x-2">
               <button
                 onClick={handleLogout}
-                className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                className="flex-1 bg-[#be4c1d] hover:bg-[#a33d16] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
                 Logout
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showLocationView && selectedLocation && selectedEmergency && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#005524]">
-                Emergency Location
-              </h2>
               <button
-                onClick={() => setShowLocationView(false)}
-                className="text-gray-500 hover:text-gray-700"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 text-[#005524] hover:text-[#004015] transition-colors duration-200"
               >
-                <FaTimes />
+                Cancel
               </button>
             </div>
-            <div className="mb-4">
-              <p className="text-gray-800 font-semibold">
-                {selectedEmergency.emergency_type}
-              </p>
-              <p className="text-sm text-gray-600">
-                Reported by {selectedEmergency.name}
-              </p>
-              <p className="text-sm text-gray-600">
-                Lat: {selectedLocation.lat}, Lng: {selectedLocation.lng}
-              </p>
-              <p className="text-sm text-gray-600">
-                {new Date(selectedEmergency.created_at).toLocaleString()}
-              </p>
-            </div>
-            <div className="bg-gray-200 h-48 rounded-lg flex items-center justify-center">
-              <img
-                src={mapImage}
-                className="h-full w-full object-cover rounded-lg"
-                alt="Map placeholder"
-              />
-            </div>
           </div>
         </div>
       )}
-
+      {showLocationView && selectedLocation && selectedEmergency && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-[600px] shadow-2xl border border-gray-100 hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+              Emergency Location
+            </h2>
+            <p className="text-gray-900 font-bold">{selectedEmergency.emergency_type}</p>
+            <p className="text-sm text-gray-600 mb-4">
+              Reported by {selectedEmergency.name} at Lat: {selectedLocation.lat}, Lng: {selectedLocation.lng}
+            </p>
+            <img
+              src={mapImage}
+              alt="Map"
+              className="w-full h-48 sm:h-64 object-cover rounded-lg mb-4"
+            />
+            <button
+              onClick={() => setShowLocationView(false)}
+              className="w-full text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       {showCallConfirm && selectedEmergencyForAction && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
               Call Assistance
             </h2>
             <p className="text-gray-600 mb-4">
-              Call emergency services for{" "}
-              {selectedEmergencyForAction.emergency_type} reported by{" "}
-              {selectedEmergencyForAction.name}?
+              Call emergency services for {selectedEmergencyForAction.emergency_type} reported
+              by {selectedEmergencyForAction.name}?
             </p>
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setShowCallConfirm(false)}
-                className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
-              >
-                Cancel
-              </button>
+            <div className="flex space-x-2">
               <button
                 onClick={initiateCall}
-                className="bg-[#f69f00] text-white px-4 py-2 rounded-lg hover:bg-[#d88e00]"
+                className="flex-1 bg-[#005524] hover:bg-[#004015] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
-                Call 911
+                Call Now
+              </button>
+              <button
+                onClick={() => setShowCallConfirm(false)}
+                className="flex-1 text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
+              >
+                Cancel
               </button>
             </div>
           </div>
         </div>
       )}
-
       {showReportConfirm && selectedEmergencyForAction && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
               Report Emergency
             </h2>
             <p className="text-gray-600 mb-4">
-              Report {selectedEmergencyForAction.emergency_type} by{" "}
-              {selectedEmergencyForAction.name}?
+              Report {selectedEmergencyForAction.emergency_type} by {selectedEmergencyForAction.name}?
             </p>
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setShowReportConfirm(false)}
-                className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
-              >
-                Cancel
-              </button>
+            <div className="flex space-x-2">
               <button
                 onClick={submitReport}
-                className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                className="flex-1 bg-[#be4c1d] hover:bg-[#a33d16] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
                 Report
               </button>
+              <button
+                onClick={() => setShowReportConfirm(false)}
+                className="flex-1 text-[#005524] hover:text-[#004015] transition-colors duration-200"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
       )}
-
+      {showSafetyTipModal && selectedSafetyTip && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+              {selectedSafetyTip.name}
+            </h2>
+            <p className="text-gray-600 mb-4">{selectedSafetyTip.content}</p>
+            <button
+              onClick={() => setShowSafetyTipModal(false)}
+              className="w-full text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+      {showConnectionOptions && selectedConnection && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+              Connection Options
+            </h2>
+            <button
+              onClick={() => handleConnectionAction("message", selectedConnection)}
+              className="w-full bg-[#005524] hover:bg-[#004015] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300 mb-2"
+            >
+              <FaEnvelope className="inline mr-2" /> Message
+            </button>
+            <button
+              onClick={() => handleConnectionAction("profile", selectedConnection)}
+              className="w-full bg-[#005524] hover:bg-[#004015] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300 mb-2"
+            >
+              <FaUser className="inline mr-2" /> View Profile
+            </button>
+            <button
+              onClick={() => setShowConnectionOptions(false)}
+              className="w-full text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       {showAlertConfirm && selectedAlertType && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
               Alert Sent
             </h2>
             <p className="text-gray-600 mb-4">
-              Your {selectedAlertType} alert has been sent to all users.
+              Your {selectedAlertType} alert has been sent successfully!
             </p>
-            <div className="flex justify-end space-x-2">
+            <div className="flex space-x-2">
+              {selectedAlertType !== "Safe" && (
+                <button
+                  onClick={() => handleMarkSafe()}
+                  className="flex-1 bg-[#005524] hover:bg-[#004015] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                >
+                  <FaCheck className="inline mr-2" /> Mark Safe
+                </button>
+              )}
               <button
                 onClick={() => setShowAlertConfirm(false)}
-                className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                className="flex-1 text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
               >
                 Close
               </button>
-              {!isSafe && (
-                <button
-                  onClick={() => handleMarkSafe()}
-                  className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
-                >
-                  Mark Safe
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showSafetyTipModal && selectedSafetyTip && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#005524]">
-                {selectedSafetyTip.name}
-              </h2>
-              <button
-                onClick={() => setShowSafetyTipModal(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FaTimes />
-              </button>
-            </div>
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="text-[#005524]">
-                {(iconMap[selectedSafetyTip.icon] || FaShieldAlt)({
-                  size: 24,
-                })}
-              </div>
-              <p className="text-gray-600">{selectedSafetyTip.content}</p>
             </div>
           </div>
         </div>

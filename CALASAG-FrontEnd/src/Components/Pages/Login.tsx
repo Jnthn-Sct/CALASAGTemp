@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import logo from "../Images/no-bg-logo.png";
-import { createClient } from "@supabase/supabase-js";
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import logo from '../Images/no-bg-logo.png';
+import { createClient } from '@supabase/supabase-js';
 
-type UserRole = "super_admin" | "admin" | "user";
+type UserRole = 'super_admin' | 'admin' | 'user';
 
-// Initialize Supabase client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -14,14 +13,15 @@ export const Login: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [is2FAStep, setIs2FAStep] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [mobileNumber, setMobileNumber] = useState("");
-  const [otpCode, setOtpCode] = useState("");
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [showResendConfirmation, setShowResendConfirmation] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
@@ -38,216 +38,235 @@ export const Login: React.FC = () => {
     return emailRegex.test(email);
   };
 
+  const resetForm = () => {
+    setEmail('');
+    setUsername('');
+    setPassword('');
+    setConfirmPassword('');
+    setFullName('');
+    setMobileNumber('');
+    setOtpCode('');
+    setError(null);
+    setShowResendConfirmation(false);
+    formRef.current?.reset();
+  };
+
   const handleRegisterSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    console.log('Starting registration for:', email);
 
-    if (!validateEmail(email)) return alert("Invalid email format.");
-    if (password !== confirmPassword) return alert("Passwords do not match.");
+    if (!validateEmail(email)) {
+      setError('Invalid email format.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
 
     try {
-      // Clear any existing session to prevent conflicts
+      console.log('Signing out any existing session');
       await supabase.auth.signOut();
 
-      // Sign up user with Supabase Auth
+      console.log('Attempting signUp with email:', email);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: { name: fullName, role: 'user' },
+        },
       });
 
       if (error) {
-        console.error("SignUp Error:", JSON.stringify(error, null, 2));
-        if (error.message.includes("User already registered")) {
-          throw new Error(
-            "This email is already registered. Please log in or use a different email."
-          );
-        }
+        console.error('SignUp Error:', JSON.stringify(error, null, 2));
         throw error;
       }
-      if (!data.user) throw new Error("No user data returned after signup");
-
-      // Log user data for debugging
-      console.log("SignUp User:", JSON.stringify(data.user, null, 2));
-
-      // Check for active session
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.error("Session Error:", JSON.stringify(sessionError, null, 2));
-        throw sessionError;
+      if (!data.user) {
+        console.error('No user data returned after signup');
+        throw new Error('No user data returned');
       }
 
-      // Log session data for debugging
-      console.log("Session Data:", JSON.stringify(session, null, 2));
+      console.log('SignUp User:', JSON.stringify(data.user, null, 2));
 
-      if (!session) {
-        // No session (likely auto-confirmation disabled)
-        console.warn("No active session; email confirmation may be required");
-        alert(
-          "Registration successful! Please check your Gmail inbox (including Spam/Promotions) for a confirmation email. If not received, try resending after attempting to log in."
-        );
-        setIsRegistering(false);
-        formRef.current?.reset();
-        return;
-      }
-
-      // Insert user profile in "users" table
-      const { error: insertError } = await supabase.from("users").insert([
-        {
-          user_id: data.user.id,
-          name: fullName,
-          email: email,
-          role: "user",
-          device_token: "",
-        },
-      ]);
+      console.log('Inserting user profile into public.users');
+      const { error: insertError } = await supabase.from('users').insert({
+        user_id: data.user.id,
+        email,
+        name: fullName,
+        role: 'user',
+        avatar: null,
+        device_token: mobileNumber || '',
+      });
 
       if (insertError) {
-        console.error(
-          "Insert Error Details:",
-          JSON.stringify(insertError, null, 2)
-        );
+        console.error('Insert Error:', JSON.stringify(insertError, null, 2));
         throw insertError;
       }
 
-      alert("Registration successful!");
+      setError(null);
+      alert('Registration successful! Please check your email (including Spam/Promotions) for a confirmation link.');
       setIsRegistering(false);
-      formRef.current?.reset();
+      resetForm();
     } catch (err: any) {
-      console.error("Registration Error:", JSON.stringify(err, null, 2));
-      alert("Error during registration: " + err.message);
+      console.error('Registration Error:', JSON.stringify(err, null, 2));
+      setError(
+        err.message.includes('User already registered')
+          ? 'This email is already registered. Please log in or use a different email.'
+          : `Error during registration: ${err.message}`
+      );
     }
   };
 
   const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    console.log('Form submitted for login with email:', email);
 
     try {
-      // Sign in with Supabase Auth
+      console.log('Attempting signIn with email:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      console.log('Sign-in response:', { data, error });
+
       if (error) {
-        console.error("SignIn Error:", JSON.stringify(error, null, 2));
-        if (error.message.includes("Email not confirmed")) {
+        console.error('SignIn Error:', JSON.stringify(error, null, 2));
+        if (error.message.includes('Email not confirmed')) {
           setShowResendConfirmation(true);
           throw new Error(
-            "Email not confirmed. Please check your Gmail inbox (including Spam/Promotions) for the confirmation email or resend it."
+            'Email not confirmed. Please check your email (including Spam/Promotions) or resend the confirmation link.'
           );
         }
         throw error;
       }
 
-      if (!data.user) throw new Error("No user returned");
+      if (!data.user) {
+        console.error('No user returned after sign-in');
+        throw new Error('No user returned');
+      }
 
-      // Query user profile from "users" table
+      console.log('Signed-in User:', JSON.stringify(data.user, null, 2));
+
+      console.log('Fetching user profile from public.users for user_id:', data.user.id);
       const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("role")
-        .eq("user_id", data.user.id);
+        .from('users')
+        .select('user_id, email, name, role, status, avatar, device_token')
+        .eq('user_id', data.user.id)
+        .single();
 
       if (userError) {
-        console.error("User Query Error:", JSON.stringify(userError, null, 2));
+        console.error('User Query Error:', JSON.stringify(userError, null, 2));
         throw userError;
       }
 
-      let role: UserRole = "user"; // Default role
-
-      if (userData.length === 0) {
-        // No profile exists; insert one
-        const { error: insertError } = await supabase.from("users").insert([
-          {
-            user_id: data.user.id,
-            name: fullName || "Default Name",
-            email: email,
-            role: "user",
-            device_token: "",
-          },
-        ]);
-        if (insertError) {
-          console.error(
-            "Insert Error Details:",
-            JSON.stringify(insertError, null, 2)
-          );
-          throw insertError;
-        }
-      } else if (userData.length > 1) {
-        // Multiple profiles found; log error and use first role
-        console.error(`Multiple profiles found for user_id: ${data.user.id}`);
-        role = userData[0].role as UserRole;
-      } else {
-        // Single profile found
-        role = userData[0].role as UserRole;
+      if (!userData) {
+        console.error('No user profile found in public.users for user_id:', data.user.id);
+        throw new Error('User profile not found in users table');
       }
 
-      localStorage.setItem("userRole", role);
+      // Check if user is inactive
+      if (userData.status === 'inactive') {
+        console.error('Login attempt by inactive user:', userData.email);
+        throw new Error('Your account is deactivated. Please contact superadmin@gmail.com.');
+      }
 
-      if (role === "user") {
+      console.log('User Profile:', JSON.stringify(userData, null, 2));
+
+      const userProfile = {
+        id: userData.user_id,
+        name: userData.name || 'Default Name',
+        email: userData.email,
+        role: userData.role as UserRole,
+      };
+
+      console.log('Storing user profile in localStorage:', JSON.stringify(userProfile, null, 2));
+      localStorage.setItem('user', JSON.stringify(userProfile));
+      localStorage.setItem('userRole', userData.role);
+
+      setError(null);
+      console.log('User role:', userData.role);
+      if (userData.role === 'user') {
+        console.log('Redirecting to 2FA step');
         setIs2FAStep(true);
         setCooldown(30);
-      } else if (role === "admin") {
-        navigate("/admin-dashboard");
+      } else if (userData.role === 'admin') {
+        console.log('Redirecting to /admin-dashboard');
+        navigate('/admin-dashboard');
+      } else if (userData.role === 'super_admin') {
+        console.log('Redirecting to /super-admin-dashboard');
+        navigate('/super-admin-dashboard');
       } else {
-        navigate("/super-admin-dashboard");
+        console.error('Unknown role:', userData.role);
+        throw new Error('Unknown user role');
       }
 
-      formRef.current?.reset();
+      resetForm();
     } catch (err: any) {
-      console.error("Login Error:", JSON.stringify(err, null, 2));
-      alert("Login failed: " + err.message);
+      console.error('Login Error:', JSON.stringify(err, null, 2));
+      setError(`Login failed: ${err.message}`);
     }
   };
 
   const handleResendConfirmation = async () => {
-    if (!validateEmail(email)) return alert("Please enter a valid email.");
+    console.log('Resending confirmation email for:', email);
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email.');
+      return;
+    }
     try {
       const { error } = await supabase.auth.resend({
-        type: "signup",
+        type: 'signup',
         email,
       });
       if (error) {
-        console.error("Resend Error:", JSON.stringify(error, null, 2));
+        console.error('Resend Error:', JSON.stringify(error, null, 2));
         throw error;
       }
-      alert(
-        "Confirmation email resent! Check your Gmail inbox (including Spam/Promotions)."
-      );
+      setError(null);
+      alert('Confirmation email resent! Check your email (including Spam/Promotions).');
       setCooldown(30);
     } catch (err: any) {
-      console.error("Resend Error:", JSON.stringify(err, null, 2));
-      alert(
-        "Failed to resend confirmation: " +
-          (err.message ||
-            "Unknown error. Please try again or check Supabase settings.")
-      );
+      console.error('Resend Error:', JSON.stringify(err, null, 2));
+      setError(`Failed to resend confirmation: ${err.message}`);
     }
   };
 
   const handle2FASubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!otpCode.trim()) return alert("Enter the OTP code.");
-
-    const role = localStorage.getItem("userRole") as UserRole;
-    switch (role) {
-      case "super_admin":
-        navigate("/super-admin-dashboard");
-        break;
-      case "admin":
-        navigate("/admin-dashboard");
-        break;
-      default:
-        navigate("/dashboard");
+    console.log('Submitting 2FA with OTP:', otpCode);
+    if (!otpCode.trim()) {
+      setError('Enter the OTP code.');
+      return;
     }
 
-    setOtpCode("");
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const role = user.role as UserRole;
+    console.log('2FA User Role:', role);
+
+    setError(null);
+    switch (role) {
+      case 'super_admin':
+        console.log('Redirecting to /super-admin-dashboard after 2FA');
+        navigate('/super-admin-dashboard');
+        break;
+      case 'admin':
+        console.log('Redirecting to /admin-dashboard after 2FA');
+        navigate('/admin-dashboard');
+        break;
+      default:
+        console.log('Redirecting to /dashboard after 2FA');
+        navigate('/dashboard');
+    }
+
+    resetForm();
   };
 
   const handleResendCode = () => {
     if (cooldown === 0) {
-      alert("Code resent!");
+      console.log('Resending OTP code');
+      setError(null);
+      alert('Code resent!');
       setCooldown(30);
     }
   };
@@ -262,34 +281,33 @@ export const Login: React.FC = () => {
         <form
           ref={formRef}
           className="bg-[#f8eed4] p-6 md:p-8 rounded-lg shadow-xl w-full max-w-sm border border-gray-800 text-[#005524] mx-4"
-          onSubmit={
-            is2FAStep
-              ? handle2FASubmit
-              : isRegistering
-              ? handleRegisterSubmit
-              : handleLoginSubmit
-          }
+          onSubmit={(e) => {
+            console.log('Form submitted');
+            is2FAStep ? handle2FASubmit(e) : isRegistering ? handleRegisterSubmit(e) : handleLoginSubmit(e);
+          }}
         >
           <h1 className="text-2xl md:text-3xl font-semibold text-center mb-2 uppercase tracking-widest">
-            {is2FAStep
-              ? "One Time Password"
-              : isRegistering
-              ? "Register"
-              : "Login"}
+            {is2FAStep ? 'One Time Password' : isRegistering ? 'Register' : 'Login'}
           </h1>
           <p className="text-xs text-[#bd4d22] text-center mb-6">
             {is2FAStep
-              ? "Enter the code sent to your mobile number"
+              ? 'Enter the code sent to your mobile number'
               : isRegistering
-              ? "Create your CALASAG account"
-              : "Secure Access to CALASAG"}
+              ? 'Create your CALASAG account'
+              : 'Secure Access to CALASAG'}
           </p>
+
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          )}
 
           {!is2FAStep ? (
             <>
               <div className="mb-4">
                 <input
-                  className="input"
+                  className="input w-full p-2 border border-gray-300 rounded"
                   type="email"
                   placeholder="Email"
                   required
@@ -301,7 +319,7 @@ export const Login: React.FC = () => {
                 <>
                   <div className="mb-4">
                     <input
-                      className="input"
+                      className="input w-full p-2 border border-gray-300 rounded"
                       type="text"
                       placeholder="Username"
                       required
@@ -311,7 +329,7 @@ export const Login: React.FC = () => {
                   </div>
                   <div className="mb-4">
                     <input
-                      className="input"
+                      className="input w-full p-2 border border-gray-300 rounded"
                       type="text"
                       placeholder="Full Name"
                       required
@@ -321,7 +339,7 @@ export const Login: React.FC = () => {
                   </div>
                   <div className="mb-4">
                     <input
-                      className="input"
+                      className="input w-full p-2 border border-gray-300 rounded"
                       type="tel"
                       placeholder="Mobile Number"
                       required
@@ -334,7 +352,7 @@ export const Login: React.FC = () => {
 
               <div className="mb-4">
                 <input
-                  className="input"
+                  className="input w-full p-2 border border-gray-300 rounded"
                   type="password"
                   placeholder="Password"
                   required
@@ -346,7 +364,7 @@ export const Login: React.FC = () => {
               {isRegistering && (
                 <div className="mb-4">
                   <input
-                    className="input"
+                    className="input w-full p-2 border border-gray-300 rounded"
                     type="password"
                     placeholder="Confirm Password"
                     required
@@ -360,7 +378,7 @@ export const Login: React.FC = () => {
             <>
               <div className="mb-4">
                 <input
-                  className="input"
+                  className="input w-full p-2 border border-gray-300 rounded"
                   type="text"
                   placeholder="Enter OTP Code"
                   value={otpCode}
@@ -373,17 +391,16 @@ export const Login: React.FC = () => {
                   type="button"
                   onClick={handleResendCode}
                   disabled={cooldown > 0}
-                  className={`text-sm text-[#005524] hover:underline ${
-                    cooldown > 0 ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  className={`text-sm text-[#005524] hover:underline ${cooldown > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   Resend Code {cooldown > 0 && `(${cooldown}s)`}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
+                    console.log('Returning to login from 2FA');
                     setIs2FAStep(false);
-                    formRef.current?.reset();
+                    resetForm();
                   }}
                   className="text-sm text-[#005524] hover:underline"
                 >
@@ -397,7 +414,7 @@ export const Login: React.FC = () => {
             type="submit"
             className="w-full bg-[#f9a01b] hover:bg-[#F9C835] text-white font-medium py-2 rounded-lg transition"
           >
-            {is2FAStep ? "Verify Code" : isRegistering ? "Register" : "Login"}
+            {is2FAStep ? 'Verify Code' : isRegistering ? 'Register' : 'Login'}
           </button>
 
           {!is2FAStep && (
@@ -408,28 +425,25 @@ export const Login: React.FC = () => {
                     type="button"
                     onClick={handleResendConfirmation}
                     disabled={cooldown > 0}
-                    className={`text-sm text-[#005524] hover:underline ${
-                      cooldown > 0 ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
+                    className={`text-sm text-[#005524] hover:underline ${cooldown > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     Resend Confirmation Email {cooldown > 0 && `(${cooldown}s)`}
                   </button>
                 </div>
               )}
               <p className="text-sm text-center mt-6 text-gray-800">
-                {isRegistering
-                  ? "Already have an account?"
-                  : "Don't have an account?"}
+                {isRegistering ? 'Already have an account?' : "Don't have an account?"}
                 <button
                   type="button"
                   onClick={() => {
+                    console.log('Toggling between login and register');
                     setIsRegistering(!isRegistering);
                     setShowResendConfirmation(false);
-                    formRef.current?.reset();
+                    resetForm();
                   }}
                   className="text-[#f9a01b] hover:text-[#F9C835] hover:underline ml-1"
                 >
-                  {isRegistering ? "Login" : "Register"}
+                  {isRegistering ? 'Login' : 'Register'}
                 </button>
               </p>
             </>

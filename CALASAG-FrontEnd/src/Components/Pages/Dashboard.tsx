@@ -21,12 +21,15 @@ import {
   FaCarCrash,
   FaAmbulance,
   FaUserPlus,
+  FaEdit,
+  FaArrowLeft,
+  FaPaperPlane,
 } from "react-icons/fa";
 import logoImage from "../Images/no-bg-logo.png";
 import mapImage from "../Images/ph-map.png";
 import { supabase } from "../../db";
 
-// Interfaces remain unchanged
+// Interfaces
 interface Location {
   lat: number;
   lng: number;
@@ -48,6 +51,7 @@ interface Connection {
   name: string;
   avatar: string | null;
   connected_user_id: string;
+  is_online?: boolean;
 }
 
 interface ConnectionRequest {
@@ -95,6 +99,8 @@ interface CrisisAlert {
   location: Location;
   responded_safe?: boolean;
   related_crisis_id?: number;
+  user_id?: string;
+  marked_safe_users?: { user_id: string; name: string }[];
 }
 
 interface UserProfile {
@@ -124,21 +130,25 @@ const Dashboard: React.FC = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [showProfile, setShowProfile] = useState<boolean>(false);
+  const [showEditProfile, setShowEditProfile] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showLocationView, setShowLocationView] = useState<boolean>(false);
   const [showConnectionOptions, setShowConnectionOptions] = useState<boolean>(false);
+  const [showCrisisModal, setShowCrisisModal] = useState<boolean>(false);
   const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
-  const [selectedEmergency, setseasonalEmergency] = useState<Emergency | null>(null);
+  const [selectedEmergency, setSelectedEmergency] = useState<Emergency | null>(null);
   const [showCallConfirm, setShowCallConfirm] = useState<boolean>(false);
   const [showReportConfirm, setShowReportConfirm] = useState<boolean>(false);
   const [showAlertConfirm, setShowAlertConfirm] = useState<boolean>(false);
   const [selectedAlertType, setSelectedAlertType] = useState<string | null>(null);
   const [selectedEmergencyForAction, setSelectedEmergencyForAction] = useState<Emergency | null>(null);
+  const [selectedCrisisAlert, setSelectedCrisisAlert] = useState<CrisisAlert | null>(null);
   const [isSafe, setIsSafe] = useState<boolean>(false);
   const [crisisAlert, setCrisisAlert] = useState<CrisisAlert | null>(null);
   const [crisisAlerts, setCrisisAlerts] = useState<CrisisAlert[]>([]);
   const [userSafeAlerts, setUserSafeAlerts] = useState<CrisisAlert[]>([]);
+  const [pendingCrisisAlerts, setPendingCrisisAlerts] = useState<CrisisAlert[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatRecipient, setCurrentChatRecipient] = useState<string>("");
   const [showChatList, setShowChatList] = useState<boolean>(true);
@@ -162,6 +172,7 @@ const Dashboard: React.FC = () => {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
   const [selectedSearchProfile, setSelectedSearchProfile] = useState<SearchResult | null>(null);
+  const [editProfileData, setEditProfileData] = useState<Partial<UserProfile>>({});
   const [currentPage, setCurrentPage] = useState<number>(1);
   const alertsPerPage = 4;
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -180,11 +191,17 @@ const Dashboard: React.FC = () => {
     [notifications]
   );
 
-  // Calculate total pages and current page alerts
-  const totalPages = Math.ceil(userSafeAlerts.length / alertsPerPage);
-  const indexOfLastAlert = currentPage * alertsPerPage;
-  const indexOfFirstAlert = indexOfLastAlert - alertsPerPage;
-  const currentAlerts = userSafeAlerts.slice(indexOfFirstAlert, indexOfLastAlert);
+  // Calculate total pages and current page alerts for safe alerts
+  const totalSafePages = Math.ceil(userSafeAlerts.length / alertsPerPage);
+  const indexOfLastSafeAlert = currentPage * alertsPerPage;
+  const indexOfFirstSafeAlert = indexOfLastSafeAlert - alertsPerPage;
+  const currentSafeAlerts = userSafeAlerts.slice(indexOfFirstSafeAlert, indexOfLastSafeAlert);
+
+  // Calculate total pages and current page alerts for pending alerts
+  const totalPendingPages = Math.ceil(pendingCrisisAlerts.length / alertsPerPage);
+  const indexOfLastPendingAlert = currentPage * alertsPerPage;
+  const indexOfFirstPendingAlert = indexOfLastPendingAlert - alertsPerPage;
+  const currentPendingAlerts = pendingCrisisAlerts.slice(indexOfFirstPendingAlert, indexOfLastPendingAlert);
 
   // Handle page change
   const handlePageChange = (pageNumber: number) => {
@@ -325,18 +342,6 @@ const Dashboard: React.FC = () => {
           created_at: new Date().toISOString(),
         });
       if (notificationError) {
-        const { data: schemaData, error: schemaError } = await supabase
-          .from("notifications")
-          .select("*")
-          .limit(1);
-        if (schemaError) {
-          console.error("Schema fetch error:", schemaError.message);
-        } else {
-          console.log(
-            "Notifications schema:",
-            Object.keys(schemaData[0] || {})
-          );
-        }
         throw new Error(`Notification error: ${notificationError.message}`);
       }
 
@@ -421,7 +426,6 @@ const Dashboard: React.FC = () => {
             .from("connections")
             .insert(newConnection);
           if (connectionError) {
-            console.error("Error inserting connection:", connectionError);
             throw new Error(
               `Connection insertion error: ${connectionError.message}`
             );
@@ -433,7 +437,6 @@ const Dashboard: React.FC = () => {
               .select("id, user1_id, user2_id")
               .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
           if (connectionsError) {
-            console.error("Connections fetch error:", connectionsError.message);
             throw new Error(
               `Connections fetch error: ${connectionsError.message}`
             );
@@ -460,6 +463,7 @@ const Dashboard: React.FC = () => {
               name: connectedUser?.name || "Unknown User",
               avatar: connectedUser?.avatar || null,
               connected_user_id: connectedUserId,
+              is_online: false,
             });
           }
           setConnections(formattedConnections);
@@ -468,6 +472,41 @@ const Dashboard: React.FC = () => {
     } catch (error: any) {
       console.error(`Error ${action} connection request:`, error);
       setError(`Failed to ${action} connection request: ${error.message}`);
+    }
+  };
+
+  const handleEditProfile = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+
+      const { error } = await supabase
+        .from("users")
+        .update({
+          name: editProfileData.name || userProfile?.name,
+          avatar: editProfileData.avatar || userProfile?.avatar,
+        })
+        .eq("user_id", user.id);
+      if (error) throw new Error(`Profile update error: ${error.message}`);
+
+      setUserProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              name: editProfileData.name || prev.name,
+              avatar: editProfileData.avatar || prev.avatar,
+            }
+          : prev
+      );
+      setActiveUser(editProfileData.name || userProfile?.name || "User");
+      setShowEditProfile(false);
+      setEditProfileData({});
+      alert("Profile updated successfully!");
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      setError(`Failed to update profile: ${error.message}`);
     }
   };
 
@@ -480,12 +519,10 @@ const Dashboard: React.FC = () => {
           error: sessionError,
         } = await supabase.auth.getSession();
         if (sessionError) {
-          console.error("Session fetch error:", sessionError.message);
           throw new Error(`Session fetch error: ${sessionError.message}`);
         }
 
         if (!session) {
-          console.warn("No active session found, redirecting to login");
           navigate("/login");
           return;
         }
@@ -495,9 +532,15 @@ const Dashboard: React.FC = () => {
           error: userError,
         } = await supabase.auth.getUser();
         if (userError || !user) {
-          console.error("User fetch error or no user:", userError?.message);
           throw new Error("No authenticated user found");
         }
+
+        // Reset states for new user to prevent stale data
+        setCrisisAlert(null);
+        setIsSafe(false);
+        setCrisisAlerts([]);
+        setUserSafeAlerts([]);
+        setPendingCrisisAlerts([]);
 
         const { data: profileData, error: profileError } = await supabase
           .from("users")
@@ -505,7 +548,6 @@ const Dashboard: React.FC = () => {
           .eq("user_id", user.id)
           .single();
         if (profileError) {
-          console.error("Profile fetch error:", profileError.message);
           throw new Error(`Profile fetch error: ${profileError.message}`);
         }
         if (profileData) {
@@ -525,16 +567,17 @@ const Dashboard: React.FC = () => {
             .select("id, user1_id, user2_id")
             .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
         if (connectionsError) {
-          console.error("Connections fetch error:", connectionsError.message);
           throw new Error(
             `Connections fetch error: ${connectionsError.message}`
           );
         }
 
         const formattedConnections: Connection[] = [];
+        const connectionIds: string[] = [];
         for (const conn of connectionsData || []) {
           const isUser1 = conn.user1_id === user.id;
           const connectedUserId = isUser1 ? conn.user2_id : conn.user1_id;
+          connectionIds.push(connectedUserId);
           const { data: connectedUser, error: userError } = await supabase
             .from("users")
             .select("name, avatar")
@@ -549,6 +592,7 @@ const Dashboard: React.FC = () => {
             name: connectedUser?.name || "Unknown User",
             avatar: connectedUser?.avatar || null,
             connected_user_id: connectedUserId,
+            is_online: false,
           });
         }
         setConnections(formattedConnections);
@@ -559,22 +603,6 @@ const Dashboard: React.FC = () => {
           .eq("recipient_id", user.id)
           .eq("status", "pending");
         if (requestsError) {
-          console.error(
-            "Connection requests fetch error:",
-            requestsError.message
-          );
-          const { data: schemaData, error: schemaError } = await supabase
-            .from("connection_requests")
-            .select("*")
-            .limit(1);
-          if (schemaError) {
-            console.error("Schema fetch error:", schemaError.message);
-          } else {
-            console.log(
-              "Connection requests schema:",
-              Object.keys(schemaData[0] || {})
-            );
-          }
           throw new Error(
             `Connection requests fetch error: ${requestsError.message}`
           );
@@ -612,7 +640,6 @@ const Dashboard: React.FC = () => {
             .select("*")
             .order("created_at", { ascending: false });
         if (emergenciesError) {
-          console.error("Emergencies fetch error:", emergenciesError.message);
           throw new Error(
             `Emergencies fetch error: ${emergenciesError.message}`
           );
@@ -634,7 +661,6 @@ const Dashboard: React.FC = () => {
           .from("safety_tips")
           .select("*");
         if (tipsError) {
-          console.error("Safety tips fetch error:", tipsError.message);
           throw new Error(`Safety tips fetch error: ${tipsError.message}`);
         }
         setSafetyTips(tipsData || []);
@@ -646,10 +672,6 @@ const Dashboard: React.FC = () => {
             .eq("user_id", user.id)
             .order("created_at", { ascending: false });
         if (notificationsError) {
-          console.error(
-            "Notifications fetch error:",
-            notificationsError.message
-          );
           throw new Error(
             `Notifications fetch error: ${notificationsError.message}`
           );
@@ -663,7 +685,6 @@ const Dashboard: React.FC = () => {
           )
           .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
         if (messagesError) {
-          console.error("Messages fetch error:", messagesError.message);
           throw new Error(`Messages fetch error: ${messagesError.message}`);
         }
         setMessages(
@@ -678,34 +699,18 @@ const Dashboard: React.FC = () => {
           })) || []
         );
 
-        const { data: alertsData, error: alertsError } = await supabase
+        const { data: crisisAlertData, error: crisisAlertError } = await supabase
           .from("crisis_alerts")
           .select("*")
           .eq("user_id", user.id)
+          .neq("type", "Safe")
           .order("created_at", { ascending: false })
           .limit(1);
-        if (alertsError) {
-          console.error("Crisis alerts fetch error:", alertsError.message);
-          throw new Error(`Crisis alerts fetch error: ${alertsError.message}`);
+        if (crisisAlertError) {
+          throw new Error(`Crisis alert fetch error: ${crisisAlertError.message}`);
         }
-        setCrisisAlert(alertsData[0] || null);
-        setIsSafe(alertsData[0]?.type === "Safe");
-
-        const { data: crisisAlertsData, error: crisisAlertsError } =
-          await supabase
-            .from("crisis_alerts")
-            .select("*")
-            .neq("user_id", user.id);
-        if (crisisAlertsError) {
-          console.error(
-            "Crisis alerts fetch error:",
-            crisisAlertsError.message
-          );
-          throw new Error(
-            `Crisis alerts fetch error: ${crisisAlertsError.message}`
-          );
-        }
-        setCrisisAlerts(crisisAlertsData || []);
+        setCrisisAlert(crisisAlertData[0] || null);
+        setIsSafe(false);
 
         const { data: userSafeAlertsData, error: userSafeAlertsError } =
           await supabase
@@ -715,15 +720,55 @@ const Dashboard: React.FC = () => {
             .eq("type", "Safe")
             .order("created_at", { ascending: false });
         if (userSafeAlertsError) {
-          console.error(
-            "User safe alerts fetch error:",
-            userSafeAlertsError.message
-          );
           throw new Error(
             `User safe alerts fetch error: ${userSafeAlertsError.message}`
           );
         }
         setUserSafeAlerts(userSafeAlertsData || []);
+
+        // Fetch pending crisis alerts (non-Safe alerts from connections or system, where user has not marked safe)
+        const { data: pendingCrisisData, error: pendingCrisisError } = await supabase
+          .from("crisis_alerts")
+          .select("*")
+          .neq("type", "Safe")
+          .in("user_id", [...connectionIds, user.id])
+          .order("created_at", { ascending: false });
+        if (pendingCrisisError) {
+          throw new Error(`Pending crisis alerts fetch error: ${pendingCrisisError.message}`);
+        }
+
+        // Filter pending: exclude those where user has marked safe
+        const userSafeIds = userSafeAlertsData.map((safe) => safe.related_crisis_id).filter(Boolean);
+        const filteredPending = (pendingCrisisData || []).filter(
+          (alert) => !userSafeIds.includes(alert.id)
+        );
+        setPendingCrisisAlerts(filteredPending);
+
+        // Fetch safe alerts from connections for sidebar
+        const { data: crisisAlertsData, error: crisisAlertsError } = await supabase
+          .from("crisis_alerts")
+          .select("*, users!user_id(name)")
+          .eq("type", "Safe")
+          .in("user_id", connectionIds)
+          .order("created_at", { ascending: false });
+        if (crisisAlertsError) {
+          throw new Error(
+            `Crisis alerts fetch error: ${crisisAlertsError.message}`
+          );
+        }
+
+        const formattedCrisisAlerts: CrisisAlert[] = crisisAlertsData?.map((alert) => ({
+          ...alert,
+          reporter: alert.users?.name || "Unknown User",
+          marked_safe_users: [{ user_id: alert.user_id, name: alert.users?.name || "Unknown User" }],
+          responded_safe: alert.user_id === user.id,
+        })) || [];
+
+        setCrisisAlerts(
+          formattedCrisisAlerts.sort((a, b) => {
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          })
+        );
 
         const notificationSubscription = supabase
           .channel("notifications")
@@ -736,11 +781,8 @@ const Dashboard: React.FC = () => {
               filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
-              console.log("New notification received:", payload.new);
               setNotifications((prev) => {
-                // Check for duplicates by ID
                 if (prev.some((n) => n.id === payload.new.id)) {
-                  console.log(`Duplicate notification ID ${payload.new.id} ignored`);
                   return prev;
                 }
                 return [payload.new as Notification, ...prev].slice(0, 50);
@@ -756,7 +798,6 @@ const Dashboard: React.FC = () => {
               filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
-              console.log("Notification updated:", payload.new);
               setNotifications((prev) =>
                 prev.map((n) =>
                   n.id === payload.new.id ? { ...n, read: payload.new.read } : n
@@ -766,7 +807,6 @@ const Dashboard: React.FC = () => {
           )
           .subscribe((status, err) => {
             if (err) console.error("Notification subscription error:", err);
-            console.log("Notification subscription status:", status);
           });
 
         const connectionRequestSubscription = supabase
@@ -780,7 +820,6 @@ const Dashboard: React.FC = () => {
               filter: `recipient_id=eq.${user.id}`,
             },
             async (payload) => {
-              console.log("New connection request:", payload.new);
               const newRequest = payload.new as any;
               const { data: senderData, error: senderError } = await supabase
                 .from("users")
@@ -832,7 +871,6 @@ const Dashboard: React.FC = () => {
               filter: `recipient_id=eq.${user.id}`,
             },
             (payload) => {
-              console.log("Connection request updated:", payload.new);
               setConnectionRequests((prev) =>
                 prev.map((req) =>
                   req.id === payload.new.id
@@ -858,7 +896,6 @@ const Dashboard: React.FC = () => {
               filter: `receiver_id=eq.${user.id}`,
             },
             async (payload) => {
-              console.log("New message:", payload.new);
               const newMessage = payload.new as any;
               const { data: senderData } = await supabase
                 .from("users")
@@ -888,10 +925,76 @@ const Dashboard: React.FC = () => {
             if (err) console.error("Message subscription error:", err);
           });
 
+        const crisisAlertSubscription = supabase
+          .channel("crisis_alerts")
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "crisis_alerts",
+            },
+            async (payload) => {
+              const newAlert = payload.new as CrisisAlert;
+              if (newAlert.user_id !== user.id) {
+                if (newAlert.type === "Safe" && connectionIds.includes(newAlert.user_id)) {
+                  const { data: userData } = await supabase
+                    .from("users")
+                    .select("name")
+                    .eq("user_id", newAlert.user_id)
+                    .single();
+                  setCrisisAlerts((prev) => [
+                    {
+                      ...newAlert,
+                      reporter: userData?.name || "Unknown User",
+                      marked_safe_users: [{ user_id: newAlert.user_id, name: userData?.name || "Unknown User" }],
+                      responded_safe: newAlert.user_id === user.id,
+                    },
+                    ...prev,
+                  ].sort((a, b) => {
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                  }).slice(0, 50));
+                } else if (newAlert.type !== "Safe") {
+                  // Check if user has already marked safe for this
+                  const { data: safeForThis } = await supabase
+                    .from("crisis_alerts")
+                    .select("id")
+                    .eq("type", "Safe")
+                    .eq("related_crisis_id", newAlert.id)
+                    .eq("user_id", user.id);
+                  if (!safeForThis || safeForThis.length === 0) {
+                    setPendingCrisisAlerts((prev) => [newAlert, ...prev]);
+                  }
+                }
+              } else if (newAlert.type === "Safe") {
+                setUserSafeAlerts((prev) => [newAlert, ...prev]);
+                // Remove from pending if it was there
+                setPendingCrisisAlerts((prev) => prev.filter(p => p.id !== newAlert.related_crisis_id));
+              }
+            }
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "DELETE",
+              schema: "public",
+              table: "crisis_alerts",
+            },
+            (payload) => {
+              // Handle unmark safe: remove from userSafeAlerts and add back to pending if applicable
+              setUserSafeAlerts((prev) => prev.filter(s => s.id !== payload.old.id));
+              // Logic to add back to pending would require knowing the related_crisis_id
+            }
+          )
+          .subscribe((status, err) => {
+            if (err) console.error("Crisis alert subscription error:", err);
+          });
+
         return () => {
           supabase.removeChannel(notificationSubscription);
           supabase.removeChannel(connectionRequestSubscription);
           supabase.removeChannel(messageSubscription);
+          supabase.removeChannel(crisisAlertSubscription);
         };
       } catch (err: any) {
         console.error("Error fetching data:", err);
@@ -912,12 +1015,8 @@ const Dashboard: React.FC = () => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === "SIGNED_OUT") {
-          console.log("Auth state changed: Signed out");
           navigate("/login");
-        } else if (event === "TOKEN_REFRESHED") {
-          console.log("Auth state changed: Token refreshed");
         } else if (!session) {
-          console.warn("No session in auth state change, redirecting to login");
           navigate("/login");
         }
       }
@@ -927,12 +1026,6 @@ const Dashboard: React.FC = () => {
       authListener.subscription.unsubscribe();
     };
   }, [navigate, userLocation, emergencyFilter]);
-
-  // Debug notifications state
-  useEffect(() => {
-    console.log("Current notifications:", notifications);
-    console.log("Unread notification count:", unreadNotificationCount);
-  }, [notifications, unreadNotificationCount]);
 
   const refreshFeed = async () => {
     setIsLoading(true);
@@ -981,6 +1074,7 @@ const Dashboard: React.FC = () => {
         is_self: true,
         created_at: new Date().toISOString(),
         location: userLocation,
+        responded_safe: false,
       };
 
       const newEmergency = {
@@ -993,9 +1087,11 @@ const Dashboard: React.FC = () => {
         created_at: new Date().toISOString(),
       };
 
-      const { error: alertError } = await supabase
+      const { data: insertedAlert, error: alertError } = await supabase
         .from("crisis_alerts")
-        .insert(newAlert);
+        .insert(newAlert)
+        .select()
+        .single();
       if (alertError)
         throw new Error(`Crisis alert insert error: ${alertError.message}`);
 
@@ -1028,13 +1124,12 @@ const Dashboard: React.FC = () => {
           );
       }
 
-      setCrisisAlert(newAlert);
-      setIsSafe(type === "Safe");
-      if (type === "Safe") {
-        setUserSafeAlerts((prev) => [newAlert, ...prev]);
-      }
+      setCrisisAlert(insertedAlert);
+      setIsSafe(false);
       setSelectedAlertType(type);
       setShowAlertConfirm(true);
+      // Add to pending if it's the user's own
+      setPendingCrisisAlerts((prev) => [insertedAlert, ...prev]);
       if (
         emergencyFilter === "all" ||
         (emergencyFilter === "nearby" &&
@@ -1060,30 +1155,158 @@ const Dashboard: React.FC = () => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user");
 
-      const newAlert = {
-        user_id: user.id,
-        type: "Safe",
-        reporter: activeUser || "User",
-        is_self: true,
-        created_at: new Date().toISOString(),
-        location: userLocation,
-        responded_safe: crisisId ? true : false,
-        related_crisis_id: crisisId || null,
-      };
-      const { error } = await supabase.from("crisis_alerts").insert(newAlert);
-      if (error) throw new Error(`Mark safe error: ${error.message}`);
-      setCrisisAlert(newAlert);
-      setIsSafe(true);
-      setUserSafeAlerts((prev) => [newAlert, ...prev]);
-      setShowAlertConfirm(false);
+      const query = supabase
+        .from("crisis_alerts")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("type", "Safe");
       if (crisisId) {
+        query.eq("related_crisis_id", crisisId);
+      }
+      const { data: existingSafeAlert } = await query.limit(1);
+
+      if (existingSafeAlert && existingSafeAlert.length > 0) {
+        // Unmark safe
+        const { error } = await supabase
+          .from("crisis_alerts")
+          .delete()
+          .eq("id", existingSafeAlert[0].id);
+        if (error) throw new Error(`Unmark safe error: ${error.message}`);
+
         setCrisisAlerts((prev) =>
           prev.map((crisis) =>
             crisis.id === crisisId
-              ? { ...crisis, responded_safe: true }
+              ? {
+                  ...crisis,
+                  responded_safe: false,
+                  marked_safe_users: crisis.marked_safe_users?.filter(
+                    (u) => u.user_id !== user.id
+                  ) || [],
+                }
               : crisis
-          )
+          ).sort((a, b) => {
+            if (a.responded_safe === b.responded_safe) {
+              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            }
+            return a.responded_safe ? 1 : -1;
+          })
         );
+
+        setSelectedCrisisAlert((prev) =>
+          prev && prev.id === crisisId
+            ? {
+                ...prev,
+                responded_safe: false,
+                marked_safe_users: prev.marked_safe_users?.filter(
+                  (u) => u.user_id !== user.id
+                ) || [],
+              }
+            : prev
+        );
+
+        if (!crisisId) {
+          setIsSafe(false);
+          setUserSafeAlerts((prev) =>
+            prev.filter((alert) => alert.id !== existingSafeAlert[0].id)
+          );
+        }
+
+        // Add back to pending if it was a crisis
+        if (crisisId) {
+          const { data: crisisData } = await supabase
+            .from("crisis_alerts")
+            .select("*")
+            .eq("id", crisisId)
+            .single();
+          if (crisisData) {
+            setPendingCrisisAlerts((prev) => [...prev, crisisData]);
+          }
+        }
+
+        const allUsers = await fetchAllUsers();
+        const notifications = allUsers
+          .filter((u) => u.id !== user.id)
+          .map((u) => ({
+            user_id: u.id,
+            type: "safe_alert_removed",
+            message: `${
+              activeUser || "User"
+            } unmarked themselves as safe for crisis #${crisisId}`,
+            read: false,
+            created_at: new Date().toISOString(),
+          }));
+
+        if (notifications.length > 0) {
+          const { error: notificationError } = await supabase
+            .from("notifications")
+            .insert(notifications);
+          if (notificationError)
+            throw new Error(
+              `Notification insert error: ${notificationError.message}`
+            );
+        }
+      } else {
+        // Mark safe
+        const newAlert = {
+          user_id: user.id,
+          type: "Safe",
+          reporter: activeUser || "User",
+          is_self: true,
+          created_at: new Date().toISOString(),
+          location: userLocation,
+          responded_safe: true,
+          related_crisis_id: crisisId || null,
+        };
+        const { data: insertedAlert, error } = await supabase
+          .from("crisis_alerts")
+          .insert(newAlert)
+          .select()
+          .single();
+        if (error) throw new Error(`Mark safe error: ${error.message}`);
+
+        setCrisisAlerts((prev) =>
+          prev.map((crisis) =>
+            crisis.id === crisisId
+              ? {
+                  ...crisis,
+                  responded_safe: true,
+                  marked_safe_users: [
+                    ...(crisis.marked_safe_users || []),
+                    { user_id: user.id, name: activeUser || "User" },
+                  ],
+                }
+              : crisis
+          ).sort((a, b) => {
+            if (a.responded_safe === b.responded_safe) {
+              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            }
+            return a.responded_safe ? 1 : -1;
+          })
+        );
+
+        setSelectedCrisisAlert((prev) =>
+          prev && prev.id === crisisId
+            ? {
+                ...prev,
+                responded_safe: true,
+                marked_safe_users: [
+                  ...(prev.marked_safe_users || []),
+                  { user_id: user.id, name: activeUser || "User" },
+                ],
+              }
+            : prev
+        );
+
+        setCrisisAlert(insertedAlert);
+        if (!crisisId) {
+          setIsSafe(true);
+          setUserSafeAlerts((prev) => [insertedAlert, ...prev]);
+        } else {
+          setUserSafeAlerts((prev) => [insertedAlert, ...prev]);
+          // Remove from pending
+          setPendingCrisisAlerts((prev) => prev.filter(p => p.id !== crisisId));
+        }
+
         const allUsers = await fetchAllUsers();
         const notifications = allUsers
           .filter((u) => u.id !== user.id)
@@ -1108,8 +1331,8 @@ const Dashboard: React.FC = () => {
         }
       }
     } catch (error: any) {
-      console.error("Error marking safe:", error);
-      setError(`Failed to mark as safe: ${error.message}`);
+      console.error("Error toggling safe status:", error);
+      setError(`Failed to toggle safe status: ${error.message}`);
     }
   };
 
@@ -1127,7 +1350,6 @@ const Dashboard: React.FC = () => {
       if (error) throw new Error(`Clear notifications error: ${error.message}`);
 
       setNotifications([]);
-      console.log("All notifications cleared successfully");
     } catch (error: any) {
       console.error("Error clearing notifications:", error);
       setError(`Failed to clear notifications: ${error.message}`);
@@ -1135,8 +1357,8 @@ const Dashboard: React.FC = () => {
   };
 
   const resetCrisisAlert = () => {
-    setIsSafe(false);
     setCrisisAlert(null);
+    setIsSafe(false);
     setShowAlertConfirm(false);
   };
 
@@ -1152,6 +1374,7 @@ const Dashboard: React.FC = () => {
     setShowProfileMenu(false);
     switch (action) {
       case "profile":
+        setSelectedSearchProfile(userProfile);
         setShowProfile(true);
         break;
       case "settings":
@@ -1177,7 +1400,6 @@ const Dashboard: React.FC = () => {
 
   const markNotificationAsRead = async (id: number) => {
     try {
-      // Optimistically update the state
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
@@ -1187,14 +1409,11 @@ const Dashboard: React.FC = () => {
         .update({ read: true })
         .eq("id", id);
       if (error) {
-        console.error("Notification update error:", error.message);
-        // Revert optimistic update on error
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: false } : n))
         );
         throw new Error(`Notification update error: ${error.message}`);
       }
-      console.log(`Notification ${id} marked as read successfully`);
     } catch (error: any) {
       console.error("Error marking notification as read:", error);
       setError(`Failed to mark notification as read: ${error.message}`);
@@ -1327,6 +1546,12 @@ const Dashboard: React.FC = () => {
         (a, b) =>
           new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
+  };
+
+  const isConnected = (userId: string) => {
+    return connections.some(
+      (conn) => conn.connected_user_id === userId
+    );
   };
 
   return (
@@ -1625,7 +1850,7 @@ const Dashboard: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 transition-all duration-300 hover:shadow-2xl border border-gray-100 hover:border-[#005524]/20">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
             <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
               Connections
             </h2>
@@ -1635,21 +1860,33 @@ const Dashboard: React.FC = () => {
               connections.map((connection) => (
                 <div
                   key={connection.id}
-                  className="flex items-center space-x-4 mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded-2xl hover:scale-105 transition-all duration-300"
+                  className="flex items-center justify-between space-x-4 mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded-2xl hover:scale-105 transition-all duration-300"
                   onClick={() => handleSelectConnection(connection)}
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
-                    {connection.avatar ? (
-                      <img
-                        src={connection.avatar}
-                        className="w-full h-full rounded-full"
-                        alt={connection.name}
-                      />
-                    ) : (
-                      <span>👤</span>
-                    )}
+                  <div className="flex items-center space-x-4">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                      {connection.avatar ? (
+                        <img
+                          src={connection.avatar}
+                          className="w-full h-full rounded-full"
+                          alt={connection.name}
+                        />
+                      ) : (
+                        <span>👤</span>
+                      )}
+                    </div>
+                    <span className="text-gray-900 font-bold">{connection.name}</span>
                   </div>
-                  <span className="text-gray-900 font-bold">{connection.name}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedConnection(connection);
+                      setShowConnectionOptions(true);
+                    }}
+                    className="text-gray-600 hover:text-[#005524] transition-colors duration-200"
+                  >
+                    <FaCog size={16} />
+                  </button>
                 </div>
               ))
             ) : (
@@ -1878,115 +2115,200 @@ const Dashboard: React.FC = () => {
                   <FaCarCrash className="inline mr-2" /> Accident
                 </button>
               </div>
-              {crisisAlert && (
+              {crisisAlert && crisisAlert.type !== "Safe" && !isSafe && (
                 <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-[#005524]/20">
                   <p className="text-gray-900 font-bold">
                     Your Active Alert: {crisisAlert.type}
                   </p>
                   <p className="text-sm text-gray-600">
-                    Reported at{" "}
-                    {new Date(crisisAlert.created_at).toLocaleString()}
+                    Reported at {new Date(crisisAlert.created_at).toLocaleString()}
                   </p>
-                  {!isSafe && (
+                  <div className="mt-2 flex space-x-2">
                     <button
-                      onClick={() => handleMarkSafe()}
-                      className="mt-2 bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                      onClick={() => handleMarkSafe(crisisAlert.id)}
+                      className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
                     >
                       <FaCheck className="inline mr-2" /> Mark Safe
                     </button>
-                  )}
-                  <button
-                    onClick={resetCrisisAlert}
-                    className="mt-2 ml-2 text-sm text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
-                  >
-                    Clear Alert
-                  </button>
+                    <button
+                      onClick={resetCrisisAlert}
+                      className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
+                    >
+                      <FaTimes className="inline mr-2" /> Clear Alert
+                    </button>
+                  </div>
                 </div>
               )}
-              <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mt-6 mb-4 sm:mb-6">
                 Your Safe Alerts
               </h2>
               {isLoading ? (
-                <p className="text-gray-600">Loading your safe alerts...</p>
-              ) : userSafeAlerts.length > 0 ? (
+                <p className="text-gray-600">Loading safe alerts...</p>
+              ) : (
                 <div>
-                  {currentAlerts.map((crisis) => (
-                    <div
-                      key={crisis.id}
-                      className="bg-white rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#005524]/20"
-                    >
-                      <p className="font-bold text-[#005524]">{crisis.type}</p>
-                      <p className="text-sm text-gray-900">
-                        Reported by {crisis.reporter}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        At Lat: {crisis.location.lat}, Lng: {crisis.location.lng}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {new Date(crisis.created_at).toLocaleString()}
-                      </p>
-                      {crisis.related_crisis_id && (
-                        <p className="text-sm text-gray-600">
-                          In response to crisis #{crisis.related_crisis_id}
-                        </p>
+                  {/* Pending Crisis Alerts */}
+                  {pendingCrisisAlerts.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-bold text-[#005524] mb-4">Pending Incidents</h3>
+                      {currentPendingAlerts.map((alert) => (
+                        <div
+                          key={alert.id}
+                          className="bg-yellow-50 rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-yellow-200 hover:border-[#005524]/20"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-yellow-500 to-yellow-600 flex items-center justify-center text-white">
+                                <FaExclamationTriangle />
+                              </div>
+                              <div>
+                                <p className="font-bold text-[#005524]">{alert.type} Incident</p>
+                                <p className="text-sm text-gray-600">
+                                  Reported by {alert.reporter} at {new Date(alert.created_at).toLocaleString()}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Location: Lat: {alert.location.lat}, Lng: {alert.location.lng}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleMarkSafe(alert.id)}
+                              className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                            >
+                              <FaCheck className="inline mr-2" /> Mark Safe
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {totalPendingPages > 1 && (
+                        <div className="flex justify-center items-center space-x-2 mt-4">
+                          <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                              currentPage === 1
+                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                : "bg-[#005524] hover:bg-[#004015] text-white"
+                            }`}
+                          >
+                            Previous
+                          </button>
+                          {[...Array(totalPendingPages)].map((_, index) => (
+                            <button
+                              key={index + 1}
+                              onClick={() => handlePageChange(index + 1)}
+                              className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                                currentPage === index + 1
+                                  ? "bg-[#005524] text-white"
+                                  : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                              }`}
+                            >
+                              {index + 1}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPendingPages}
+                            className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                              currentPage === totalPendingPages
+                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                : "bg-[#005524] hover:bg-[#004015] text-white"
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
                       )}
                     </div>
-                  ))}
-                  {totalPages > 1 && (
-                    <div className="flex justify-center items-center space-x-2 mt-4">
-                      <button
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                          currentPage === 1
-                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                            : "bg-[#005524] hover:bg-[#004015] text-white"
-                        }`}
-                      >
-                        Previous
-                      </button>
-                      {[...Array(totalPages)].map((_, index) => (
-                        <button
-                          key={index + 1}
-                          onClick={() => handlePageChange(index + 1)}
-                          className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                            currentPage=== index + 1
-                            ? "bg-[#005524] text-white"
-                            : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                          }`}
-                        >
-                          {index + 1}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                          currentPage === totalPages
-                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                            : "bg-[#005524] hover:bg-[#004015] text-white"
-                        }`}
-                      >
-                        Next
-                      </button>
+                  )}
+                  {/* Safe History */}
+                  {userSafeAlerts.length > 0 ? (
+                    <div>
+                      <h3 className="text-lg font-bold text-green-600 mb-4">Safe History</h3>
+                      {currentSafeAlerts.map((alert) => {
+                        // Find related crisis
+                        const relatedCrisis = pendingCrisisAlerts.find(c => c.id === alert.related_crisis_id) || crisisAlert || { type: 'General', reporter: 'System' };
+                        return (
+                          <div
+                            key={alert.id}
+                            className="bg-green-50 rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-green-200 hover:border-[#005524]/20"
+                          >
+                            <div className="flex items-center space-x-4">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center text-white">
+                                <FaCheck />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-gray-900 font-bold text-green-500">
+                                  You marked yourself safe
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Incident: {relatedCrisis.type}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Reported by: {relatedCrisis.reporter} at {new Date(alert.created_at).toLocaleString()}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Location: Lat: {alert.location.lat}, Lng: {alert.location.lng}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {totalSafePages > 1 && (
+                        <div className="flex justify-center items-center space-x-2 mt-4">
+                          <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                              currentPage === 1
+                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                : "bg-[#005524] hover:bg-[#004015] text-white"
+                            }`}
+                          >
+                            Previous
+                          </button>
+                          {[...Array(totalSafePages)].map((_, index) => (
+                            <button
+                              key={index + 1}
+                              onClick={() => handlePageChange(index + 1)}
+                              className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                                currentPage === index + 1
+                                  ? "bg-[#005524] text-white"
+                                  : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                              }`}
+                            >
+                              {index + 1}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalSafePages}
+                            className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                              currentPage === totalSafePages
+                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                : "bg-[#005524] hover:bg-[#004015] text-white"
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
                     </div>
+                  ) : (
+                    <p className="text-gray-600">No safe alerts found.</p>
                   )}
                 </div>
-              ) : (
-                <p className="text-gray-600">No safe alerts found.</p>
               )}
             </div>
           )}
           {activeTab === "message" && (
             <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
-              <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4 sm:mb-6">
-                Messages
-              </h2>
               {showChatList ? (
-                <div>
-                  {isLoading ? (
-                    <p className="text-gray-600">Loading connections...</p>
-                  ) : connections.length > 0 ? (
+                <>
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4 sm:mb-6">
+                    Messages
+                  </h2>
+                  {connections.length > 0 ? (
                     connections.map((connection) => (
                       <div
                         key={connection.id}
@@ -2007,80 +2329,75 @@ const Dashboard: React.FC = () => {
                           </div>
                           <span className="text-gray-900 font-bold">{connection.name}</span>
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedConnection(connection);
-                            setShowConnectionOptions(true);
-                          }}
-                          className="text-gray-600 hover:text-[#005524] transition-colors duration-200"
-                        >
-                          <FaCog size={16} />
-                        </button>
+                        <span
+                          className={`h-3 w-3 rounded-full ${
+                            connection.is_online ? "bg-green-500" : "bg-gray-400"
+                          }`}
+                        ></span>
                       </div>
                     ))
                   ) : (
                     <p className="text-gray-600">No connections to message.</p>
                   )}
-                </div>
+                </>
               ) : (
                 <div>
-                  <button
-                    onClick={() => setShowChatList(true)}
-                    className="mb-4 text-[#005524] hover:text-[#004015] transition-colors duration-200"
-                  >
-                    ← Back to Chat List
-                  </button>
-                  <h3 className="text-lg font-bold text-[#005524] mb-4">
-                    Chat with {currentChatRecipient}
-                  </h3>
+                  <div className="flex items-center mb-4 sm:mb-6">
+                    <button
+                      onClick={() => setShowChatList(true)}
+                      className="text-[#005524] hover:text-[#004015] mr-4 hover:scale-105 transition-all duration-300"
+                    >
+                      <FaArrowLeft size={20} />
+                    </button>
+                    <h2 className="text-xl sm:text-2xl font-bold text-[#005524]">
+                      Chat with {currentChatRecipient}
+                    </h2>
+                  </div>
                   <div
+                    className="h-96 overflow-y-auto mb-4 sm:mb-6 p-4 bg-gray-50 rounded-2xl"
                     ref={chatContainerRef}
-                    className="max-h-96 overflow-y-auto mb-4 p-4 bg-gray-50 rounded-2xl border border-gray-100"
                   >
                     {getMessagesForRecipient(selectedConnection?.connected_user_id || "").map(
                       (msg) => (
                         <div
                           key={msg.id}
-                          className={`mb-2 p-3 rounded-lg max-w-[75%] ${
-                            msg.sender_id === userProfile?.id
-                              ? "bg-[#005524] text-white ml-auto"
-                              : "bg-gray-200 text-gray-900 mr-auto"
+                          className={`mb-4 flex ${
+                            msg.sender_id === userProfile?.id ? "justify-end" : "justify-start"
                           }`}
                         >
-                          <p className="text-sm">{msg.content}</p>
-                          <p
-                            className={`text-xs ${
+                          <div
+                            className={`max-w-xs sm:max-w-md p-3 rounded-2xl ${
                               msg.sender_id === userProfile?.id
-                                ? "text-white/80"
-                                : "text-gray-600"
+                                ? "bg-[#005524] text-white"
+                                : "bg-gray-200 text-gray-900"
                             }`}
                           >
-                            {new Date(msg.timestamp).toLocaleString()}
-                          </p>
+                            <p className="text-sm">{msg.content}</p>
+                            <p className="text-xs opacity-70">
+                              {new Date(msg.timestamp).toLocaleTimeString()}
+                            </p>
+                          </div>
                         </div>
                       )
                     )}
                   </div>
-                  <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
+                  <div className="flex items-center space-x-2">
                     <input
                       type="text"
                       value={messageText}
                       onChange={(e) => setMessageText(e.target.value)}
-                      placeholder="Type your message..."
-                      className="flex-1 bg-white rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
+                      placeholder="Type a message..."
+                      className="flex-1 bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
                     />
                     <button
                       onClick={handleSendMessage}
                       className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
                     >
-                      Send
+                      <FaPaperPlane />
                     </button>
                   </div>
                   {messageSent && (
-                    <p className="text-green-600 text-sm mt-2 animate-in fade-in duration-300">
-                      Message sent!
-                    </p>
+                    <p className="text-green-500 text-sm mt-2">Message sent!</p>
                   )}
                 </div>
               )}
@@ -2089,80 +2406,230 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-full lg:w-1/4 flex flex-col space-y-4 sm:space-y-6">
+        <div className="w-full lg:w-1/4 p-4 sm:p-6">
           <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4 sm:mb-6">
+              Crisis Alerts
+            </h2>
+            {isLoading ? (
+              <p className="text-gray-600">Loading crisis alerts...</p>
+            ) : crisisAlerts.length > 0 ? (
+              <>
+                {crisisAlerts.slice((currentPage - 1) * alertsPerPage, currentPage * alertsPerPage).map((alert) => (
+                  <div
+                    key={alert.id}
+                    className="bg-white rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#005524]/20 cursor-pointer"
+                    onClick={() => {
+                      setSelectedCrisisAlert(alert);
+                      setShowCrisisModal(true);
+                    }}
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center text-white">
+                        <FaCheck />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-green-500">
+                          {alert.reporter} Marked Safe
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Incident: {alert.related_crisis_id ? `Crisis #${alert.related_crisis_id}` : 'General Safety'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Location: Lat: {alert.location.lat}, Lng: {alert.location.lng}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(alert.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {Math.ceil(crisisAlerts.length / alertsPerPage) > 1 && (
+                  <div className="flex justify-center items-center space-x-2 mt-4">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                        currentPage === 1
+                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                          : "bg-[#005524] hover:bg-[#004015] text-white"
+                      }`}
+                    >
+                      Previous
+                    </button>
+                    {[...Array(Math.ceil(crisisAlerts.length / alertsPerPage))].map((_, index) => (
+                      <button
+                        key={index + 1}
+                        onClick={() => handlePageChange(index + 1)}
+                        className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                          currentPage === index + 1
+                            ? "bg-[#005524] text-white"
+                            : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                        }`}
+                      >
+                        {index + 1}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === Math.ceil(crisisAlerts.length / alertsPerPage)}
+                      className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                        currentPage === Math.ceil(crisisAlerts.length / alertsPerPage)
+                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                          : "bg-[#005524] hover:bg-[#004015] text-white"
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-gray-600">No safe alerts from connections found.</p>
+            )}
+          </div>
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 mt-4 sm:mt-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4 sm:mb-6">
               Safety Tips
             </h2>
             {isLoading ? (
               <p className="text-gray-600">Loading safety tips...</p>
             ) : safetyTips.length > 0 ? (
-              safetyTips.map((tip) => {
-                const IconComponent = iconMap[tip.icon] || FaInfoCircle;
-                return (
-                  <div
-                    key={tip.id}
-                    className="flex items-center space-x-4 mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded-2xl hover:scale-105 transition-all duration-300"
-                    onClick={() => {
-                      setSelectedSafetyTip(tip);
-                      setShowSafetyTipModal(true);
-                    }}
-                  >
-                    <IconComponent size={20} className="text-[#005524]" />
-                    <span className="text-gray-900">{tip.name}</span>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-gray-600">No safety tips available.</p>
-            )}
-          </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
-              Nearby Alerts
-            </h2>
-            {isLoading ? (
-              <p className="text-gray-600">Loading nearby alerts...</p>
-            ) : crisisAlerts.length > 0 ? (
-              crisisAlerts.map((crisis) => (
+              safetyTips.map((tip) => (
                 <div
-                  key={crisis.id}
-                  className="bg-white rounded-2xl p-3 sm:p-4 mb-2 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#005524]/20"
+                  key={tip.id}
+                  className="bg-white rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 cursor-pointer hover:bg-gray-50 hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#005524]/20"
+                  onClick={() => {
+                    setSelectedSafetyTip(tip);
+                    setShowSafetyTipModal(true);
+                  }}
                 >
-                  <p className="font-bold text-[#005524]">{crisis.type}</p>
-                  <p className="text-sm text-gray-900">
-                    Reported by {crisis.reporter}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    At Lat: {crisis.location.lat}, Lng: {crisis.location.lng}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {new Date(crisis.created_at).toLocaleString()}
-                  </p>
-                  {!crisis.responded_safe && (
-                    <button
-                      onClick={() => handleMarkSafe(crisis.id)}
-                      className="mt-2 bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
-                    >
-                      <FaCheck className="inline mr-1" /> Mark Safe
-                    </button>
-                  )}
+                  <div className="flex items-center space-x-4">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                      {iconMap[tip.icon] ? (
+                        React.createElement(iconMap[tip.icon])
+                      ) : (
+                        <FaInfoCircle />
+                      )}
+                    </div>
+                    <p className="text-gray-900 font-bold">{tip.name}</p>
+                  </div>
                 </div>
               ))
             ) : (
-              <p className="text-gray-600">No nearby alerts found.</p>
+              <p className="text-gray-600">No safety tips available.</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Modals */}
+      {showCrisisModal && selectedCrisisAlert && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg sm:text-xl font-bold text-[#005524]">
+                Crisis Details
+              </h3>
+              <button
+                onClick={() => setShowCrisisModal(false)}
+                className="text-gray-600 hover:text-[#005524] transition-colors duration-200"
+              >
+                <FaTimes size={20} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <p className="text-gray-900 font-bold">
+                Reporter: {selectedCrisisAlert.reporter}
+              </p>
+              <p className="text-sm text-gray-600">
+                Type: {selectedCrisisAlert.type}
+              </p>
+              <p className="text-sm text-gray-600">
+                Location: Lat: {selectedCrisisAlert.location.lat}, Lng: {selectedCrisisAlert.location.lng}
+              </p>
+              <p className="text-sm text-gray-600">
+                Time: {new Date(selectedCrisisAlert.created_at).toLocaleString()}
+              </p>
+              <div className="mt-4">
+                <p className="text-sm font-bold text-[#005524]">
+                  Who has already marked safe:
+                </p>
+                {selectedCrisisAlert.marked_safe_users && selectedCrisisAlert.marked_safe_users.length > 0 ? (
+                  <ul className="mt-2 space-y-1">
+                    {selectedCrisisAlert.marked_safe_users.map((user) => (
+                      <li key={user.user_id} className="text-sm text-gray-600">
+                        - {user.name} ✅
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-600">
+                    No connections have marked safe yet.
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex space-x-2 mt-6">
+              {!selectedCrisisAlert.responded_safe && (
+                <button
+                  onClick={() => handleMarkSafe(selectedCrisisAlert.id)}
+                  className="flex-1 bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                >
+                  <FaCheck className="inline mr-2" /> Mark Safe
+                </button>
+              )}
+              {selectedCrisisAlert.responded_safe && (
+                <p className="flex-1 text-center text-green-600 font-bold py-2">You are safe ✅</p>
+              )}
+              <button
+                onClick={() => setShowCrisisModal(false)}
+                className="flex-1 bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                <FaTimes className="inline mr-2" /> Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showConnectionOptions && selectedConnection && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
+            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
+              Connection Options
+            </h3>
+            <div className="space-y-2">
+              <button
+                onClick={() => handleConnectionAction("message", selectedConnection)}
+                className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                <FaEnvelope className="inline mr-2" /> Message
+              </button>
+              <button
+                onClick={() => handleConnectionAction("profile", selectedConnection)}
+                className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                <FaUser className="inline mr-2" /> View Profile
+              </button>
+              <button
+                onClick={() => setShowConnectionOptions(false)}
+                className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                <FaTimes className="inline mr-2" /> Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showProfile && selectedSearchProfile && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
+            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
               User Profile
-            </h2>
+            </h3>
             <div className="flex items-center space-x-4 mb-4">
               <div className="w-16 h-16 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
                 {selectedSearchProfile.avatar ? (
@@ -2180,212 +2647,252 @@ const Dashboard: React.FC = () => {
                 <p className="text-sm text-gray-600">{selectedSearchProfile.email}</p>
               </div>
             </div>
-            <button
-              onClick={() => handleSendConnectionRequest(selectedSearchProfile.id)}
-              className="w-full bg-[#005524] hover:bg-[#004015] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300"
-            >
-              <FaUserPlus className="inline mr-2" /> Send Connection Request
-            </button>
+            {selectedSearchProfile.id !== userProfile?.id && (
+              <button
+                onClick={() => handleSendConnectionRequest(selectedSearchProfile.id)}
+                className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                disabled={isConnected(selectedSearchProfile.id)}
+              >
+                <FaUserPlus className="inline mr-2" />
+                {isConnected(selectedSearchProfile.id)
+                  ? "Connected"
+                  : "Send Connection Request"}
+              </button>
+            )}
+            {selectedSearchProfile.id === userProfile?.id && (
+              <button
+                onClick={() => {
+                  setShowProfile(false);
+                  setShowEditProfile(true);
+                  setEditProfileData({
+                    name: userProfile?.name,
+                    avatar: userProfile?.avatar,
+                  });
+                }}
+                className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                <FaEdit className="inline mr-2" /> Edit Profile
+              </button>
+            )}
             <button
               onClick={() => setShowProfile(false)}
-              className="w-full mt-2 text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
+              className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg mt-2 hover:scale-105 transition-all duration-300"
             >
-              Close
+              <FaTimes className="inline mr-2" /> Close
             </button>
           </div>
         </div>
       )}
+
+      {showEditProfile && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
+            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
+              Edit Profile
+            </h3>
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Name"
+                value={editProfileData.name || ""}
+                onChange={(e) =>
+                  setEditProfileData({ ...editProfileData, name: e.target.value })
+                }
+                className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
+              />
+              <input
+                type="text"
+                placeholder="Avatar URL"
+                value={editProfileData.avatar || ""}
+                onChange={(e) =>
+                  setEditProfileData({ ...editProfileData, avatar: e.target.value })
+                }
+                className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
+              />
+              <button
+                onClick={handleEditProfile}
+                className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={() => setShowEditProfile(false)}
+                className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                <FaTimes className="inline mr-2" /> Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
+            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
               Settings
-            </h2>
-            <p className="text-gray-600 mb-4">Manage your preferences here.</p>
-            <button
-              onClick={() => setShowSettings(false)}
-              className="w-full bg-[#005524] hover:bg-[#004015] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300"
-            >
-              Save
-            </button>
-            <button
-              onClick={() => setShowSettings(false)}
-              className="w-full mt-2 text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
-            >
-              Close
-            </button>
+            </h3>
+            <div className="space-y-4">
+              <p className="text-gray-600">Settings options coming soon!</p>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                <FaTimes className="inline mr-2" /> Close
+              </button>
+            </div>
           </div>
         </div>
       )}
+
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
+            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
               Confirm Logout
-            </h2>
+            </h3>
             <p className="text-gray-600 mb-4">Are you sure you want to log out?</p>
             <div className="flex space-x-2">
               <button
                 onClick={handleLogout}
-                className="flex-1 bg-[#be4c1d] hover:bg-[#a33d16] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className="flex-1 bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
-                Logout
+                <FaSignOutAlt className="inline mr-2" /> Logout
               </button>
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 text-[#005524] hover:text-[#004015] transition-colors duration-200"
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
-                Cancel
+                <FaTimes className="inline mr-2" /> Cancel
               </button>
             </div>
           </div>
         </div>
       )}
-      {showLocationView && selectedLocation && selectedEmergency && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-[600px] shadow-2xl border border-gray-100 hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+
+      {showLocationView && selectedEmergency && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
+            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
               Emergency Location
-            </h2>
-            <p className="text-gray-900 font-bold">{selectedEmergency.emergency_type}</p>
-            <p className="text-sm text-gray-600 mb-4">
-              Reported by {selectedEmergency.name} at Lat: {selectedLocation.lat}, Lng: {selectedLocation.lng}
-            </p>
+            </h3>
             <img
               src={mapImage}
+              className="w-full h-48 rounded-lg mb-4"
               alt="Map"
-              className="w-full h-48 sm:h-64 object-cover rounded-lg mb-4"
             />
+            <p className="text-gray-900 font-bold">{selectedEmergency.emergency_type}</p>
+            <p className="text-sm text-gray-600">
+              Reported by {selectedEmergency.name} at Lat: {selectedLocation?.lat}, Lng:{" "}
+              {selectedLocation?.lng}
+            </p>
             <button
               onClick={() => setShowLocationView(false)}
-              className="w-full text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
+              className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg mt-4 hover:scale-105 transition-all duration-300"
             >
-              Close
+              <FaTimes className="inline mr-2" /> Close
             </button>
           </div>
         </div>
       )}
+
       {showCallConfirm && selectedEmergencyForAction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
-              Call Assistance
-            </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
+            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
+              Confirm Call
+            </h3>
             <p className="text-gray-600 mb-4">
-              Call emergency services for {selectedEmergencyForAction.emergency_type} reported
-              by {selectedEmergencyForAction.name}?
+              Call emergency services for {selectedEmergencyForAction.emergency_type} reported by{" "}
+              {selectedEmergencyForAction.name}?
             </p>
             <div className="flex space-x-2">
               <button
                 onClick={initiateCall}
-                className="flex-1 bg-[#005524] hover:bg-[#004015] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className="flex-1 bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
-                Call Now
+                <FaPhoneAlt className="inline mr-2" /> Call
               </button>
               <button
                 onClick={() => setShowCallConfirm(false)}
-                className="flex-1 text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
-                Cancel
+                <FaTimes className="inline mr-2" /> Cancel
               </button>
             </div>
           </div>
         </div>
       )}
+
       {showReportConfirm && selectedEmergencyForAction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
-              Report Emergency
-            </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
+            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
+              Confirm Report
+            </h3>
             <p className="text-gray-600 mb-4">
-              Report {selectedEmergencyForAction.emergency_type} by {selectedEmergencyForAction.name}?
+              Report {selectedEmergencyForAction.emergency_type} by{" "}
+              {selectedEmergencyForAction.name}?
             </p>
             <div className="flex space-x-2">
               <button
                 onClick={submitReport}
-                className="flex-1 bg-[#be4c1d] hover:bg-[#a33d16] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className="flex-1 bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
-                Report
+                <FaExclamationTriangle className="inline mr-2" /> Report
               </button>
               <button
                 onClick={() => setShowReportConfirm(false)}
-                className="flex-1 text-[#005524] hover:text-[#004015] transition-colors duration-200"
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
-                Cancel
+                <FaTimes className="inline mr-2" /> Cancel
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {showAlertConfirm && selectedAlertType && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
+            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
+              Alert Sent
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Your {selectedAlertType} alert has been sent to your connections.
+            </p>
+            <button
+              onClick={() => setShowAlertConfirm(false)}
+              className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+            >
+              <FaCheck className="inline mr-2" /> OK
+            </button>
+          </div>
+        </div>
+      )}
+
       {showSafetyTipModal && selectedSafetyTip && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
+            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
               {selectedSafetyTip.name}
-            </h2>
-            <p className="text-gray-600 mb-4">{selectedSafetyTip.content}</p>
+            </h3>
+            <div className="flex items-center space-x-4 mb-4">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                {iconMap[selectedSafetyTip.icon] ? (
+                  React.createElement(iconMap[selectedSafetyTip.icon])
+                ) : (
+                  <FaInfoCircle />
+                )}
+              </div>
+              <p className="text-gray-600">{selectedSafetyTip.content}</p>
+            </div>
             <button
               onClick={() => setShowSafetyTipModal(false)}
-              className="w-full text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
+              className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
             >
-              Close
+              <FaTimes className="inline mr-2" /> Close
             </button>
-          </div>
-        </div>
-      )}
-      {showConnectionOptions && selectedConnection && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
-              Connection Options
-            </h2>
-            <button
-              onClick={() => handleConnectionAction("message", selectedConnection)}
-              className="w-full bg-[#005524] hover:bg-[#004015] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300 mb-2"
-            >
-              <FaEnvelope className="inline mr-2" /> Message
-            </button>
-            <button
-              onClick={() => handleConnectionAction("profile", selectedConnection)}
-              className="w-full bg-[#005524] hover:bg-[#004015] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300 mb-2"
-            >
-              <FaUser className="inline mr-2" /> View Profile
-            </button>
-            <button
-              onClick={() => setShowConnectionOptions(false)}
-              className="w-full text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-      {showAlertConfirm && selectedAlertType && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full sm:w-96 shadow-2xl border border-gray-100 hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
-              Alert Sent
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Your {selectedAlertType} alert has been sent successfully!
-            </p>
-            <div className="flex space-x-2">
-              {selectedAlertType !== "Safe" && (
-                <button
-                  onClick={() => handleMarkSafe()}
-                  className="flex-1 bg-[#005524] hover:bg-[#004015] text-white py-2 rounded-lg hover:scale-105 transition-all duration-300"
-                >
-                  <FaCheck className="inline mr-2" /> Mark Safe
-                </button>
-              )}
-              <button
-                onClick={() => setShowAlertConfirm(false)}
-                className="flex-1 text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
-              >
-                Close
-              </button>
-            </div>
           </div>
         </div>
       )}

@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../Images/no-bg-logo.png';
-import { createClient } from '@supabase/supabase-js';
+import { supabase, testSupabaseConnection } from '../../db'; // Adjust to './db' if db.ts is in src/Components/Pages/
+import { AuthError } from '@supabase/supabase-js';
 
 type UserRole = 'super_admin' | 'admin' | 'user';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-export const Login: React.FC = () => {
+const Login: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [is2FAStep, setIs2FAStep] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -22,11 +19,13 @@ export const Login: React.FC = () => {
   const [otpCode, setOtpCode] = useState('');
   const [showResendConfirmation, setShowResendConfirmation] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
+    console.log('Login component mounted');
     if (cooldown > 0) {
       const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
       return () => clearTimeout(timer);
@@ -48,19 +47,24 @@ export const Login: React.FC = () => {
     setOtpCode('');
     setError(null);
     setShowResendConfirmation(false);
+    setIsSubmitting(false);
     formRef.current?.reset();
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     console.log('Starting registration for:', email);
 
     if (!validateEmail(email)) {
       setError('Invalid email format.');
+      setIsSubmitting(false);
       return;
     }
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
+      setIsSubmitting(false);
       return;
     }
 
@@ -78,8 +82,8 @@ export const Login: React.FC = () => {
       });
 
       if (error) {
-        console.error('SignUp Error:', JSON.stringify(error, null, 2));
-        throw error;
+        console.error('SignUp Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+        throw new Error(`Registration failed: ${error.message || 'Unknown error'}`);
       }
       if (!data.user) {
         console.error('No user data returned after signup');
@@ -94,32 +98,46 @@ export const Login: React.FC = () => {
         email,
         name: fullName,
         role: 'user',
+        status: 'active',
         avatar: null,
         device_token: mobileNumber || '',
+        notifications_enabled: true,
+        email_notifications_enabled: true,
+        notification_preferences: { system_reports: true, feature_updates: true },
+        temp_notifications_enabled: null,
+        temp_email_notifications_enabled: null,
       });
 
       if (insertError) {
-        console.error('Insert Error:', JSON.stringify(insertError, null, 2));
-        throw insertError;
+        console.error('Insert Error:', JSON.stringify(insertError, Object.getOwnPropertyNames(insertError), 2));
+        throw new Error(`Insert failed: ${insertError.message || 'Unknown error'}`);
       }
 
       setError(null);
       alert('Registration successful! Please check your email (including Spam/Promotions) for a confirmation link.');
       setIsRegistering(false);
       resetForm();
-    } catch (err: any) {
-      console.error('Registration Error:', JSON.stringify(err, null, 2));
+    } catch (err: unknown) {
+      const error = err as AuthError;
+      console.error('Registration Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
       setError(
-        err.message.includes('User already registered')
+        error.message.includes('User already registered')
           ? 'This email is already registered. Please log in or use a different email.'
-          : `Error during registration: ${err.message}`
+          : `Error during registration: ${error.message || 'Unknown error'}`
       );
+      setIsSubmitting(false);
     }
   };
 
   const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     console.log('Form submitted for login with email:', email);
+    console.log('Environment Variables:', {
+      VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || 'undefined',
+      VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'present (length: ' + import.meta.env.VITE_SUPABASE_ANON_KEY.length + ')' : 'undefined',
+    });
 
     try {
       console.log('Attempting signIn with email:', email);
@@ -131,14 +149,14 @@ export const Login: React.FC = () => {
       console.log('Sign-in response:', { data, error });
 
       if (error) {
-        console.error('SignIn Error:', JSON.stringify(error, null, 2));
+        console.error('SignIn Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
         if (error.message.includes('Email not confirmed')) {
           setShowResendConfirmation(true);
           throw new Error(
             'Email not confirmed. Please check your email (including Spam/Promotions) or resend the confirmation link.'
           );
         }
-        throw error;
+        throw new Error(`Login failed: ${error.message || 'Unknown error'}`);
       }
 
       if (!data.user) {
@@ -156,8 +174,8 @@ export const Login: React.FC = () => {
         .single();
 
       if (userError) {
-        console.error('User Query Error:', JSON.stringify(userError, null, 2));
-        throw userError;
+        console.error('User Query Error:', JSON.stringify(userError, Object.getOwnPropertyNames(userError), 2));
+        throw new Error(`User query failed: ${userError.message || 'Unknown error'}`);
       }
 
       if (!userData) {
@@ -165,7 +183,6 @@ export const Login: React.FC = () => {
         throw new Error('User profile not found in users table');
       }
 
-      // Check if user is inactive
       if (userData.status === 'inactive') {
         console.error('Login attempt by inactive user:', userData.email);
         throw new Error('Your account is deactivated. Please contact superadmin@gmail.com.');
@@ -186,6 +203,7 @@ export const Login: React.FC = () => {
 
       setError(null);
       console.log('User role:', userData.role);
+      await testSupabaseConnection();
       if (userData.role === 'user') {
         console.log('Redirecting to 2FA step');
         setIs2FAStep(true);
@@ -202,9 +220,11 @@ export const Login: React.FC = () => {
       }
 
       resetForm();
-    } catch (err: any) {
-      console.error('Login Error:', JSON.stringify(err, null, 2));
-      setError(`Login failed: ${err.message}`);
+    } catch (err: unknown) {
+      const error = err as AuthError;
+      console.error('Login Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      setError(`Login failed: ${error.message || 'Unknown error'}`, { cause: error });
+      setIsSubmitting(false);
     }
   };
 
@@ -220,23 +240,27 @@ export const Login: React.FC = () => {
         email,
       });
       if (error) {
-        console.error('Resend Error:', JSON.stringify(error, null, 2));
-        throw error;
+        console.error('Resend Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+        throw new Error(`Resend failed: ${error.message || 'Unknown error'}`);
       }
       setError(null);
       alert('Confirmation email resent! Check your email (including Spam/Promotions).');
       setCooldown(30);
-    } catch (err: any) {
-      console.error('Resend Error:', JSON.stringify(err, null, 2));
-      setError(`Failed to resend confirmation: ${err.message}`);
+    } catch (err: unknown) {
+      const error = err as AuthError;
+      console.error('Resend Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      setError(`Failed to resend confirmation: ${error.message || 'Unknown error'}`);
     }
   };
 
   const handle2FASubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     console.log('Submitting 2FA with OTP:', otpCode);
     if (!otpCode.trim()) {
       setError('Enter the OTP code.');
+      setIsSubmitting(false);
       return;
     }
 
@@ -413,6 +437,7 @@ export const Login: React.FC = () => {
           <button
             type="submit"
             className="w-full bg-[#f9a01b] hover:bg-[#F9C835] text-white font-medium py-2 rounded-lg transition"
+            disabled={isSubmitting}
           >
             {is2FAStep ? 'Verify Code' : isRegistering ? 'Register' : 'Login'}
           </button>

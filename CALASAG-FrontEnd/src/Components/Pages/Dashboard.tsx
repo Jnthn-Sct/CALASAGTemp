@@ -269,6 +269,15 @@ const Dashboard: React.FC = () => {
       setError(`Failed to search users: ${error.message}`);
     }
   };
+  const getConnectedSafeUsers = (markedSafeUsers: { user_id: string; name: string }[] | undefined): string[] => {
+  if (!markedSafeUsers || !connections) return [];
+  return markedSafeUsers
+    .filter((safeUser) =>
+      connections.some((connection) => connection.connected_user_id === safeUser.user_id)
+    )
+    .map((safeUser) => safeUser.name)
+    .filter((name, index, self) => self.indexOf(name) === index); // Remove duplicates
+};
 
   const handleSendConnectionRequest = async (recipientId: string) => {
     try {
@@ -560,6 +569,63 @@ const Dashboard: React.FC = () => {
             avatar: profileData.avatar,
           });
         }
+
+        const fetchCrisisAlerts = async (user: any, connectionIds: string[]): Promise<CrisisAlert[]> => {
+  try {
+    const { data: crisisAlertsData, error: crisisAlertsError } = await supabase
+      .from("crisis_alerts")
+      .select("*, users!user_id(name)")
+      .neq("type", "Safe")
+      .in("user_id", [...connectionIds, user.id])
+      .order("created_at", { ascending: false });
+
+    if (crisisAlertsError) {
+      console.error("Crisis alerts fetch error:", crisisAlertsError);
+      throw new Error(`Crisis alerts fetch error: ${crisisAlertsError.message}`);
+    }
+
+    console.log("Fetched crisis alerts:", crisisAlertsData);
+
+    const formattedCrisisAlerts: CrisisAlert[] = [];
+    for (const alert of crisisAlertsData || []) {
+      const { data: markedSafeData, error: markedSafeError } = await supabase
+        .from("crisis_alerts")
+        .select("user_id, users!user_id(name)")
+        .eq("type", "Safe")
+        .eq("related_crisis_id", alert.id);
+
+      if (markedSafeError) {
+        console.error(`Error fetching safe users for crisis ${alert.id}:`, markedSafeError);
+        continue;
+      }
+
+      console.log(`Safe users for crisis ${alert.id}:`, markedSafeData);
+
+      const markedSafeUsers: { user_id: string; name: string }[] = (markedSafeData || []).map(
+        (safeEntry) => ({
+          user_id: safeEntry.user_id || "unknown",
+          name: safeEntry.users?.name || "Unknown User",
+        })
+      );
+
+      formattedCrisisAlerts.push({
+        ...alert,
+        reporter: alert.users?.name || "Unknown User",
+        marked_safe_users: markedSafeUsers,
+        responded_safe: markedSafeUsers.some((u) => u.user_id === user.id),
+      });
+    }
+
+    const sortedAlerts = formattedCrisisAlerts.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    console.log("Formatted crisis alerts:", sortedAlerts);
+    return sortedAlerts;
+  } catch (error: any) {
+    console.error("Error in fetchCrisisAlerts:", error);
+    return [];
+  }
+};
 
         const { data: connectionsData, error: connectionsError } =
           await supabase
@@ -926,69 +992,193 @@ const Dashboard: React.FC = () => {
           });
 
         const crisisAlertSubscription = supabase
-          .channel("crisis_alerts")
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              schema: "public",
-              table: "crisis_alerts",
-            },
-            async (payload) => {
-              const newAlert = payload.new as CrisisAlert;
-              if (newAlert.user_id !== user.id) {
-                if (newAlert.type === "Safe" && connectionIds.includes(newAlert.user_id)) {
-                  const { data: userData } = await supabase
-                    .from("users")
-                    .select("name")
-                    .eq("user_id", newAlert.user_id)
-                    .single();
-                  setCrisisAlerts((prev) => [
-                    {
-                      ...newAlert,
-                      reporter: userData?.name || "Unknown User",
-                      marked_safe_users: [{ user_id: newAlert.user_id, name: userData?.name || "Unknown User" }],
-                      responded_safe: newAlert.user_id === user.id,
-                    },
-                    ...prev,
-                  ].sort((a, b) => {
-                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                  }).slice(0, 50));
-                } else if (newAlert.type !== "Safe") {
-                  // Check if user has already marked safe for this
-                  const { data: safeForThis } = await supabase
-                    .from("crisis_alerts")
-                    .select("id")
-                    .eq("type", "Safe")
-                    .eq("related_crisis_id", newAlert.id)
-                    .eq("user_id", user.id);
-                  if (!safeForThis || safeForThis.length === 0) {
-                    setPendingCrisisAlerts((prev) => [newAlert, ...prev]);
-                  }
+  .channel("crisis_alerts")
+  .on(
+    "postgres_changes",
+    {
+      event: "INSERT",
+      schema: "public",
+      table: "crisis_alerts",
+    },
+    async (payload) => {
+      const newAlert = payload.new as CrisisAlert;
+      console.log("New alert received:", newAlert);
+
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("name")
+        .eq("user_id", newAlert.user_id)
+        .single();
+
+      if (userError) {
+        console.error("Error fetching user data for alert:", userError);
+      }
+
+      const safeUser: { user_id: string; name: string } = {
+        user_id: newAlert.user_id || "unknown",
+        name: userData?.name || "Unknown User",
+      };
+
+      console.log("Safe user for alert:", safeUser);
+
+      if (newAlert.user_id !== user.id) {
+        if (newAlert.type === "Safe" && connectionIds.includes(newAlert.user_id)) {
+          setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
+            prev
+              .map((crisis) =>
+                crisis.id === newAlert.related_crisis_id
+                  ? {
+                      ...crisis,
+                      marked_safe_users: [
+                        ...(crisis.marked_safe_users || []),
+                        safeUser,
+                      ],
+                    }
+                  : crisis
+              )
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+              .slice(0, 6)
+          );
+
+          setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
+            prev && prev.id === newAlert.related_crisis_id
+              ? {
+                  ...prev,
+                  marked_safe_users: [
+                    ...(prev.marked_safe_users || []),
+                    safeUser,
+                  ],
                 }
-              } else if (newAlert.type === "Safe") {
-                setUserSafeAlerts((prev) => [newAlert, ...prev]);
-                // Remove from pending if it was there
-                setPendingCrisisAlerts((prev) => prev.filter(p => p.id !== newAlert.related_crisis_id));
+              : prev
+          );
+          console.log("Updated crisisAlerts and selectedCrisisAlert with safe user:", safeUser);
+        } else if (newAlert.type !== "Safe") {
+          const { data: safeForThis, error: safeError } = await supabase
+            .from("crisis_alerts")
+            .select("id")
+            .eq("type", "Safe")
+            .eq("related_crisis_id", newAlert.id)
+            .eq("user_id", user.id);
+          if (safeError) {
+            console.error("Error checking safe status:", safeError);
+          }
+          if (!safeForThis || safeForThis.length === 0) {
+            setPendingCrisisAlerts((prev) => [
+              { ...newAlert, reporter: safeUser.name },
+              ...prev,
+            ]);
+            console.log("Added to pendingCrisisAlerts:", newAlert);
+          }
+        }
+      } else if (newAlert.type === "Safe") {
+        setUserSafeAlerts((prev) => {
+          if (prev.some((alert) => alert.id === newAlert.id)) {
+            return prev;
+          }
+          return [newAlert, ...prev];
+        });
+
+        setPendingCrisisAlerts((prev) => prev.filter((p) => p.id !== newAlert.related_crisis_id));
+
+        setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
+          prev
+            .map((crisis) =>
+              crisis.id === newAlert.related_crisis_id
+                ? {
+                    ...crisis,
+                    responded_safe: true,
+                    marked_safe_users: [
+                      ...(crisis.marked_safe_users || []),
+                      safeUser,
+                    ],
+                  }
+                : crisis
+            )
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, 6)
+        );
+
+        setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
+          prev && prev.id === newAlert.related_crisis_id
+            ? {
+                ...prev,
+                responded_safe: true,
+                marked_safe_users: [
+                  ...(prev.marked_safe_users || []),
+                  safeUser,
+                ],
               }
+            : prev
+        );
+        console.log("User marked safe, updated states:", safeUser);
+      }
+    }
+  )
+  .on(
+    "postgres_changes",
+    {
+      event: "DELETE",
+      schema: "public",
+      table: "crisis_alerts",
+    },
+    async (payload) => {
+      const deletedAlert = payload.old as CrisisAlert;
+      console.log("Deleted alert:", deletedAlert);
+
+      setUserSafeAlerts((prev) => prev.filter((s) => s.id !== deletedAlert.id));
+      if (deletedAlert.related_crisis_id) {
+        const { data: crisisData, error: crisisError } = await supabase
+          .from("crisis_alerts")
+          .select("*")
+          .eq("id", deletedAlert.related_crisis_id)
+          .single();
+        if (crisisError) {
+          console.error("Error fetching crisis data for deletion:", crisisError);
+        }
+        if (crisisData) {
+          setPendingCrisisAlerts((prev) => {
+            if (!prev.some((p) => p.id === crisisData.id)) {
+              return [...prev, crisisData];
             }
-          )
-          .on(
-            "postgres_changes",
-            {
-              event: "DELETE",
-              schema: "public",
-              table: "crisis_alerts",
-            },
-            (payload) => {
-              // Handle unmark safe: remove from userSafeAlerts and add back to pending if applicable
-              setUserSafeAlerts((prev) => prev.filter(s => s.id !== payload.old.id));
-              // Logic to add back to pending would require knowing the related_crisis_id
-            }
-          )
-          .subscribe((status, err) => {
-            if (err) console.error("Crisis alert subscription error:", err);
+            return prev;
           });
+        }
+
+        setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
+          prev
+            .map((crisis) =>
+              crisis.id === deletedAlert.related_crisis_id
+                ? {
+                    ...crisis,
+                    marked_safe_users: crisis.marked_safe_users?.filter(
+                      (u) => u.user_id !== deletedAlert.user_id
+                    ) || [],
+                    responded_safe: crisis.user_id === user.id ? false : crisis.responded_safe,
+                  }
+                : crisis
+            )
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        );
+
+        setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
+          prev && prev.id === deletedAlert.related_crisis_id
+            ? {
+                ...prev,
+                marked_safe_users: prev.marked_safe_users?.filter(
+                  (u) => u.user_id !== deletedAlert.user_id
+                ) || [],
+                responded_safe: prev.user_id === user.id ? false : prev.responded_safe,
+              }
+            : prev
+        );
+        console.log("Updated states after deletion:", deletedAlert.user_id);
+      }
+    }
+  )
+  .subscribe((status, err) => {
+    if (err) console.error("Crisis alert subscription error:", err);
+    console.log("Subscription status:", status);
+  });
 
         return () => {
           supabase.removeChannel(notificationSubscription);
@@ -1149,192 +1339,180 @@ const Dashboard: React.FC = () => {
   };
 
   const handleMarkSafe = async (crisisId?: number) => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("No authenticated user");
 
-      const query = supabase
+    const query = supabase
+      .from("crisis_alerts")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("type", "Safe");
+    if (crisisId) {
+      query.eq("related_crisis_id", crisisId);
+    } else {
+      query.is("related_crisis_id", null);
+    }
+    const { data: existingSafeAlert } = await query.limit(1);
+
+    if (existingSafeAlert && existingSafeAlert.length > 0) {
+      const { error } = await supabase
         .from("crisis_alerts")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("type", "Safe");
-      if (crisisId) {
-        query.eq("related_crisis_id", crisisId);
-      }
-      const { data: existingSafeAlert } = await query.limit(1);
+        .delete()
+        .eq("id", existingSafeAlert[0].id);
+      if (error) throw new Error(`Unmark safe error: ${error.message}`);
 
-      if (existingSafeAlert && existingSafeAlert.length > 0) {
-        // Unmark safe
-        const { error } = await supabase
-          .from("crisis_alerts")
-          .delete()
-          .eq("id", existingSafeAlert[0].id);
-        if (error) throw new Error(`Unmark safe error: ${error.message}`);
-
-        setCrisisAlerts((prev) =>
-          prev.map((crisis) =>
+      setUserSafeAlerts((prev) => prev.filter((alert) => alert.id !== existingSafeAlert[0].id));
+      setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
+        prev
+          .map((crisis) =>
             crisis.id === crisisId
               ? {
                   ...crisis,
-                  responded_safe: false,
-                  marked_safe_users: crisis.marked_safe_users?.filter(
-                    (u) => u.user_id !== user.id
-                  ) || [],
+                  responded_safe: crisis.user_id === user.id ? false : crisis.responded_safe,
+                  marked_safe_users: crisis.marked_safe_users?.filter((u) => u.user_id !== user.id) || [],
                 }
               : crisis
-          ).sort((a, b) => {
-            if (a.responded_safe === b.responded_safe) {
-              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          )
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      );
+      setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
+        prev && prev.id === crisisId
+          ? {
+              ...prev,
+              responded_safe: prev.user_id === user.id ? false : prev.responded_safe,
+              marked_safe_users: prev.marked_safe_users?.filter((u) => u.user_id !== user.id) || [],
             }
-            return a.responded_safe ? 1 : -1;
-          })
-        );
+          : prev
+      );
 
-        setSelectedCrisisAlert((prev) =>
-          prev && prev.id === crisisId
-            ? {
-                ...prev,
-                responded_safe: false,
-                marked_safe_users: prev.marked_safe_users?.filter(
-                  (u) => u.user_id !== user.id
-                ) || [],
-              }
-            : prev
-        );
-
-        if (!crisisId) {
-          setIsSafe(false);
-          setUserSafeAlerts((prev) =>
-            prev.filter((alert) => alert.id !== existingSafeAlert[0].id)
-          );
-        }
-
-        // Add back to pending if it was a crisis
-        if (crisisId) {
-          const { data: crisisData } = await supabase
-            .from("crisis_alerts")
-            .select("*")
-            .eq("id", crisisId)
-            .single();
-          if (crisisData) {
-            setPendingCrisisAlerts((prev) => [...prev, crisisData]);
-          }
-        }
-
-        const allUsers = await fetchAllUsers();
-        const notifications = allUsers
-          .filter((u) => u.id !== user.id)
-          .map((u) => ({
-            user_id: u.id,
-            type: "safe_alert_removed",
-            message: `${
-              activeUser || "User"
-            } unmarked themselves as safe for crisis #${crisisId}`,
-            read: false,
-            created_at: new Date().toISOString(),
-          }));
-
-        if (notifications.length > 0) {
-          const { error: notificationError } = await supabase
-            .from("notifications")
-            .insert(notifications);
-          if (notificationError)
-            throw new Error(
-              `Notification insert error: ${notificationError.message}`
-            );
-        }
+      if (!crisisId) {
+        setIsSafe(false);
       } else {
-        // Mark safe
-        const newAlert = {
-          user_id: user.id,
-          type: "Safe",
-          reporter: activeUser || "User",
-          is_self: true,
-          created_at: new Date().toISOString(),
-          location: userLocation,
-          responded_safe: true,
-          related_crisis_id: crisisId || null,
-        };
-        const { data: insertedAlert, error } = await supabase
+        const { data: crisisData } = await supabase
           .from("crisis_alerts")
-          .insert(newAlert)
-          .select()
+          .select("*")
+          .eq("id", crisisId)
           .single();
-        if (error) throw new Error(`Mark safe error: ${error.message}`);
+        if (crisisData) {
+          setPendingCrisisAlerts((prev) => {
+            if (!prev.some((p) => p.id === crisisData.id)) {
+              return [...prev, crisisData];
+            }
+            return prev;
+          });
+        }
+      }
 
-        setCrisisAlerts((prev) =>
-          prev.map((crisis) =>
+      const allUsers = await fetchAllUsers();
+      const notifications = allUsers
+        .filter((u) => u.id !== user.id)
+        .map((u) => ({
+          user_id: u.id,
+          type: "safe_alert_removed",
+          message: `${activeUser || "User"} unmarked themselves as safe for crisis #${crisisId || "general"}`,
+          read: false,
+          created_at: new Date().toISOString(),
+        }));
+
+      if (notifications.length > 0) {
+        const { error: notificationError } = await supabase
+          .from("notifications")
+          .insert(notifications);
+        if (notificationError) throw new Error(`Notification insert error: ${notificationError.message}`);
+      }
+    } else {
+      const newAlert = {
+        user_id: user.id,
+        type: "Safe",
+        reporter: activeUser || "User",
+        is_self: true,
+        created_at: new Date().toISOString(),
+        location: userLocation,
+        responded_safe: true,
+        related_crisis_id: crisisId || null,
+      };
+
+      const { data: insertedAlert, error } = await supabase
+        .from("crisis_alerts")
+        .insert(newAlert)
+        .select()
+        .single();
+      if (error) throw new Error(`Mark safe error: ${error.message}`);
+
+      setUserSafeAlerts((prev) => {
+        if (prev.some((alert) => alert.id === insertedAlert.id)) {
+          return prev;
+        }
+        return [insertedAlert, ...prev];
+      });
+
+      const safeUser = {
+        user_id: user.id,
+        name: activeUser || "User",
+      };
+
+      setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
+        prev
+          .map((crisis) =>
             crisis.id === crisisId
               ? {
                   ...crisis,
-                  responded_safe: true,
+                  responded_safe: crisis.user_id === user.id ? true : crisis.responded_safe,
                   marked_safe_users: [
                     ...(crisis.marked_safe_users || []),
-                    { user_id: user.id, name: activeUser || "User" },
+                    safeUser,
                   ],
                 }
               : crisis
-          ).sort((a, b) => {
-            if (a.responded_safe === b.responded_safe) {
-              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          )
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      );
+
+      setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
+        prev && prev.id === crisisId
+          ? {
+              ...prev,
+              responded_safe: prev.user_id === user.id ? true : prev.responded_safe,
+              marked_safe_users: [
+                ...(prev.marked_safe_users || []),
+                safeUser,
+              ],
             }
-            return a.responded_safe ? 1 : -1;
-          })
-        );
+          : prev
+      );
 
-        setSelectedCrisisAlert((prev) =>
-          prev && prev.id === crisisId
-            ? {
-                ...prev,
-                responded_safe: true,
-                marked_safe_users: [
-                  ...(prev.marked_safe_users || []),
-                  { user_id: user.id, name: activeUser || "User" },
-                ],
-              }
-            : prev
-        );
-
-        setCrisisAlert(insertedAlert);
-        if (!crisisId) {
-          setIsSafe(true);
-          setUserSafeAlerts((prev) => [insertedAlert, ...prev]);
-        } else {
-          setUserSafeAlerts((prev) => [insertedAlert, ...prev]);
-          // Remove from pending
-          setPendingCrisisAlerts((prev) => prev.filter(p => p.id !== crisisId));
-        }
-
-        const allUsers = await fetchAllUsers();
-        const notifications = allUsers
-          .filter((u) => u.id !== user.id)
-          .map((u) => ({
-            user_id: u.id,
-            type: "safe_alert",
-            message: `${
-              activeUser || "User"
-            } marked themselves as safe for crisis #${crisisId}`,
-            read: false,
-            created_at: new Date().toISOString(),
-          }));
-
-        if (notifications.length > 0) {
-          const { error: notificationError } = await supabase
-            .from("notifications")
-            .insert(notifications);
-          if (notificationError)
-            throw new Error(
-              `Notification insert error: ${notificationError.message}`
-            );
-        }
+      if (!crisisId) {
+        setIsSafe(true);
+      } else {
+        setPendingCrisisAlerts((prev) => prev.filter((p) => p.id !== crisisId));
       }
-    } catch (error: any) {
-      console.error("Error toggling safe status:", error);
-      setError(`Failed to toggle safe status: ${error.message}`);
+
+      const allUsers = await fetchAllUsers();
+      const notifications = allUsers
+        .filter((u) => u.id !== user.id)
+        .map((u) => ({
+          user_id: u.id,
+          type: "safe_alert",
+          message: `${activeUser || "User"} marked themselves as safe for crisis #${crisisId || "general"}`,
+          read: false,
+          created_at: new Date().toISOString(),
+        }));
+
+      if (notifications.length > 0) {
+        const { error: notificationError } = await supabase
+          .from("notifications")
+          .insert(notifications);
+        if (notificationError) throw new Error(`Notification insert error: ${notificationError.message}`);
+      }
     }
-  };
+  } catch (error: any) {
+    console.error("Error toggling safe status:", error);
+    setError(`Failed to toggle safe status: ${error.message}`);
+  }
+};
 
   const clearAllNotifications = async () => {
     try {
@@ -1893,6 +2071,36 @@ const Dashboard: React.FC = () => {
               <p className="text-gray-600">No connections found.</p>
             )}
           </div>
+                    <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+              Safety Tips
+            </h2>
+            {isLoading ? (
+              <p className="text-gray-600">Loading safety tips...</p>
+            ) : safetyTips.length > 0 ? (
+              safetyTips.map((tip) => (
+                <div
+                  key={tip.id}
+                  className="flex items-center space-x-4 mb-2 p-2 rounded-2xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer"
+                  onClick={() => {
+                    setSelectedSafetyTip(tip);
+                    setShowSafetyTipModal(true);
+                  }}
+                >
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                    {iconMap[tip.icon] ? (
+                      React.createElement(iconMap[tip.icon])
+                    ) : (
+                      <FaInfoCircle />
+                    )}
+                  </div>
+                  <p className="text-gray-900 font-bold">{tip.name}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-600">No safety tips available.</p>
+            )}
+          </div>
         </div>
 
         {/* Main Content Area */}
@@ -2003,78 +2211,51 @@ const Dashboard: React.FC = () => {
                                   {emergency.message}
                                 </p>
                                 <p className="text-sm text-gray-600">
-                                  Reported by {emergency.name} at Lat:{" "}
-                                  {emergency.location.lat}, Lng: {emergency.location.lng}
-                                </p>
-                                <p className="text-sm text-gray-600">
+                                  Reported by {emergency.name} on{" "}
                                   {new Date(emergency.created_at).toLocaleString()}
                                 </p>
                               </div>
-                              <div className="flex flex-col space-y-2 w-full sm:w-auto">
-                                <div className="flex flex-wrap gap-2">
-                                  <button
-                                    onClick={() => handleViewLocation(emergency)}
-                                    className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
-                                  >
-                                    <FaMapMarkerAlt className="inline mr-1" /> View
-                                  </button>
-                                  <button
-                                    onClick={() => handleCallAssistance(emergency)}
-                                    className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
-                                  >
-                                    <FaPhoneAlt className="inline mr-1" /> Call Assistance
-                                  </button>
-                                </div>
-                                <div className="border-t border-gray-100 my-1"></div>
+                              <div className="flex space-x-2 sm:space-x-3">
+                                <button
+                                  onClick={() => handleViewLocation(emergency)}
+                                  className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                                >
+                                  <FaMapMarkerAlt className="mr-1 sm:mr-2" />
+                                  View
+                                </button>
+                                <button
+                                  onClick={() => handleCallAssistance(emergency)}
+                                  className="bg-[#f69f00] hover:bg-[#d88e00] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                                >
+                                  <FaPhone className="mr-1 sm:mr-2" />
+                                  Call
+                                </button>
                                 <button
                                   onClick={() => handleReport(emergency)}
-                                  className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                                  className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
                                 >
-                                  <FaExclamationTriangle className="inline mr-1" /> Report
+                                  <FaExclamationTriangle className="mr-1 sm:mr-2" />
+                                  Report
                                 </button>
                               </div>
                             </div>
                           </div>
                         ))}
-                        {totalEmergencyPages > 1 && (
-                          <div className="flex justify-center items-center space-x-2 mt-4">
+                        <div className="flex justify-center mt-4 space-x-2">
+                          {Array.from({ length: totalEmergencyPages }, (_, i) => (
                             <button
-                              onClick={() => handlePageChange(currentPage - 1)}
-                              disabled={currentPage === 1}
+                              key={i + 1}
+                              onClick={() => handlePageChange(i + 1)}
                               className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                                currentPage === 1
-                                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                  : "bg-[#005524] hover:bg-[#004015] text-white"
+                                currentPage === i + 1
+                                  ? "bg-[#005524] text-white"
+                                  : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                               }`}
                             >
-                              Previous
+                              {i + 1}
                             </button>
-                            {[...Array(totalEmergencyPages)].map((_, index) => (
-                              <button
-                                key={index + 1}
-                                onClick={() => handlePageChange(index + 1)}
-                                className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                                  currentPage === index + 1
-                                    ? "bg-[#005524] text-white"
-                                    : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                                }`}
-                              >
-                                {index + 1}
-                              </button>
-                            ))}
-                            <button
-                              onClick={() => handlePageChange(currentPage + 1)}
-                              disabled={currentPage === totalEmergencyPages}
-                              className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                                currentPage === totalEmergencyPages
-                                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                  : "bg-[#005524] hover:bg-[#004015] text-white"
-                              }`}
-                            >
-                              Next
-                            </button>
-                          </div>
-                        )}
+                          ))}
+                        </div>
                       </>
                     );
                   })()}
@@ -2084,231 +2265,16 @@ const Dashboard: React.FC = () => {
               )}
             </div>
           )}
-          {activeTab === "report" && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
-              <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4 sm:mb-6">
-                SOS Help
-              </h2>
-              <div className="flex flex-wrap gap-2 sm:gap-4 mb-4 sm:mb-6">
-                <button
-                  onClick={() => handleEmergencyAlert("Fire")}
-                  className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
-                >
-                  <FaFire className="inline mr-2" /> Fire
-                </button>
-                <button
-                  onClick={() => handleEmergencyAlert("Medical")}
-                  className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
-                >
-                  <FaAmbulance className="inline mr-2" /> Medical
-                </button>
-                <button
-                  onClick={() => handleEmergencyAlert("Crime")}
-                  className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
-                >
-                  <FaShieldAlt className="inline mr-2" /> Crime
-                </button>
-                <button
-                  onClick={() => handleEmergencyAlert("Accident")}
-                  className="bg-[#f69f00] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
-                >
-                  <FaCarCrash className="inline mr-2" /> Accident
-                </button>
-              </div>
-              {crisisAlert && crisisAlert.type !== "Safe" && !isSafe && (
-                <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-[#005524]/20">
-                  <p className="text-gray-900 font-bold">
-                    Your Active Alert: {crisisAlert.type}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Reported at {new Date(crisisAlert.created_at).toLocaleString()}
-                  </p>
-                  <div className="mt-2 flex space-x-2">
-                    <button
-                      onClick={() => handleMarkSafe(crisisAlert.id)}
-                      className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
-                    >
-                      <FaCheck className="inline mr-2" /> Mark Safe
-                    </button>
-                    <button
-                      onClick={resetCrisisAlert}
-                      className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
-                    >
-                      <FaTimes className="inline mr-2" /> Clear Alert
-                    </button>
-                  </div>
-                </div>
-              )}
-              <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mt-6 mb-4 sm:mb-6">
-                Your Safe Alerts
-              </h2>
-              {isLoading ? (
-                <p className="text-gray-600">Loading safe alerts...</p>
-              ) : (
-                <div>
-                  {/* Pending Crisis Alerts */}
-                  {pendingCrisisAlerts.length > 0 && (
-                    <div className="mb-6">
-                      <h3 className="text-lg font-bold text-[#005524] mb-4">Pending Incidents</h3>
-                      {currentPendingAlerts.map((alert) => (
-                        <div
-                          key={alert.id}
-                          className="bg-yellow-50 rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-yellow-200 hover:border-[#005524]/20"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-yellow-500 to-yellow-600 flex items-center justify-center text-white">
-                                <FaExclamationTriangle />
-                              </div>
-                              <div>
-                                <p className="font-bold text-[#005524]">{alert.type} Incident</p>
-                                <p className="text-sm text-gray-600">
-                                  Reported by {alert.reporter} at {new Date(alert.created_at).toLocaleString()}
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                  Location: Lat: {alert.location.lat}, Lng: {alert.location.lng}
-                                </p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => handleMarkSafe(alert.id)}
-                              className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-                            >
-                              <FaCheck className="inline mr-2" /> Mark Safe
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      {totalPendingPages > 1 && (
-                        <div className="flex justify-center items-center space-x-2 mt-4">
-                          <button
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                              currentPage === 1
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                : "bg-[#005524] hover:bg-[#004015] text-white"
-                            }`}
-                          >
-                            Previous
-                          </button>
-                          {[...Array(totalPendingPages)].map((_, index) => (
-                            <button
-                              key={index + 1}
-                              onClick={() => handlePageChange(index + 1)}
-                              className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                                currentPage === index + 1
-                                  ? "bg-[#005524] text-white"
-                                  : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                              }`}
-                            >
-                              {index + 1}
-                            </button>
-                          ))}
-                          <button
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPendingPages}
-                            className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                              currentPage === totalPendingPages
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                : "bg-[#005524] hover:bg-[#004015] text-white"
-                            }`}
-                          >
-                            Next
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {/* Safe History */}
-                  {userSafeAlerts.length > 0 ? (
-                    <div>
-                      <h3 className="text-lg font-bold text-green-600 mb-4">Safe History</h3>
-                      {currentSafeAlerts.map((alert) => {
-                        // Find related crisis
-                        const relatedCrisis = pendingCrisisAlerts.find(c => c.id === alert.related_crisis_id) || crisisAlert || { type: 'General', reporter: 'System' };
-                        return (
-                          <div
-                            key={alert.id}
-                            className="bg-green-50 rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-green-200 hover:border-[#005524]/20"
-                          >
-                            <div className="flex items-center space-x-4">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center text-white">
-                                <FaCheck />
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-gray-900 font-bold text-green-500">
-                                  You marked yourself safe
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                  Incident: {relatedCrisis.type}
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                  Reported by: {relatedCrisis.reporter} at {new Date(alert.created_at).toLocaleString()}
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                  Location: Lat: {alert.location.lat}, Lng: {alert.location.lng}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {totalSafePages > 1 && (
-                        <div className="flex justify-center items-center space-x-2 mt-4">
-                          <button
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                              currentPage === 1
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                : "bg-[#005524] hover:bg-[#004015] text-white"
-                            }`}
-                          >
-                            Previous
-                          </button>
-                          {[...Array(totalSafePages)].map((_, index) => (
-                            <button
-                              key={index + 1}
-                              onClick={() => handlePageChange(index + 1)}
-                              className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                                currentPage === index + 1
-                                  ? "bg-[#005524] text-white"
-                                  : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                              }`}
-                            >
-                              {index + 1}
-                            </button>
-                          ))}
-                          <button
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalSafePages}
-                            className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                              currentPage === totalSafePages
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                : "bg-[#005524] hover:bg-[#004015] text-white"
-                            }`}
-                          >
-                            Next
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-gray-600">No safe alerts found.</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
           {activeTab === "message" && (
             <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
               {showChatList ? (
                 <>
-                  <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4 sm:mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
                     Messages
                   </h2>
-                  {connections.length > 0 ? (
+                  {isLoading ? (
+                    <p className="text-gray-600">Loading messages...</p>
+                  ) : connections.length > 0 ? (
                     connections.map((connection) => (
                       <div
                         key={connection.id}
@@ -2342,39 +2308,42 @@ const Dashboard: React.FC = () => {
                 </>
               ) : (
                 <div>
-                  <div className="flex items-center mb-4 sm:mb-6">
+                  <div className="flex items-center justify-between mb-4">
                     <button
                       onClick={() => setShowChatList(true)}
-                      className="text-[#005524] hover:text-[#004015] mr-4 hover:scale-105 transition-all duration-300"
+                      className="text-[#005524] hover:text-[#004015] flex items-center transition-all duration-300 hover:scale-105"
                     >
-                      <FaArrowLeft size={20} />
+                      <FaArrowLeft className="mr-2" />
+                      Back to Chats
                     </button>
                     <h2 className="text-xl sm:text-2xl font-bold text-[#005524]">
                       Chat with {currentChatRecipient}
                     </h2>
                   </div>
                   <div
-                    className="h-96 overflow-y-auto mb-4 sm:mb-6 p-4 bg-gray-50 rounded-2xl"
                     ref={chatContainerRef}
+                    className="h-96 overflow-y-auto bg-gray-50 rounded-2xl p-4 mb-4"
                   >
                     {getMessagesForRecipient(selectedConnection?.connected_user_id || "").map(
-                      (msg) => (
+                      (message) => (
                         <div
-                          key={msg.id}
-                          className={`mb-4 flex ${
-                            msg.sender_id === userProfile?.id ? "justify-end" : "justify-start"
-                          }`}
+                          key={message.id}
+                          className={`flex ${
+                            message.sender_id === userProfile?.id
+                              ? "justify-end"
+                              : "justify-start"
+                          } mb-2`}
                         >
                           <div
                             className={`max-w-xs sm:max-w-md p-3 rounded-2xl ${
-                              msg.sender_id === userProfile?.id
+                              message.sender_id === userProfile?.id
                                 ? "bg-[#005524] text-white"
                                 : "bg-gray-200 text-gray-900"
                             }`}
                           >
-                            <p className="text-sm">{msg.content}</p>
-                            <p className="text-xs opacity-70">
-                              {new Date(msg.timestamp).toLocaleTimeString()}
+                            <p className="text-sm">{message.content}</p>
+                            <p className="text-xs text-gray-400">
+                              {new Date(message.timestamp).toLocaleTimeString()}
                             </p>
                           </div>
                         </div>
@@ -2384,252 +2353,215 @@ const Dashboard: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     <input
                       type="text"
+                      placeholder="Type a message..."
                       value={messageText}
                       onChange={(e) => setMessageText(e.target.value)}
-                      placeholder="Type a message..."
+                      onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                       className="flex-1 bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
                     />
                     <button
                       onClick={handleSendMessage}
-                      className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                      className="bg-[#005524] hover:bg-[#004015] text-white p-2 rounded-full hover:scale-105 transition-all duration-300"
                     >
-                      <FaPaperPlane />
+                      <FaPaperPlane size={16} />
                     </button>
                   </div>
                   {messageSent && (
-                    <p className="text-green-500 text-sm mt-2">Message sent!</p>
+                    <p className="text-green-500 text-sm mt-2 animate-in fade-in duration-300">
+                      Message sent!
+                    </p>
                   )}
                 </div>
               )}
             </div>
           )}
+          {activeTab === "report" && (
+    <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+      <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+        Report an Emergency
+      </h2>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {[
+          { type: "Medical", icon: FaAmbulance },
+          { type: "General", icon: FaInfoCircle },
+          { type: "Fire", icon: FaFire },
+          { type: "Accident", icon: FaCarCrash },
+          { type: "Crime", icon: FaShieldAlt },
+        ].map(({ type, icon: Icon }) => (
+          <button
+            key={type}
+            onClick={() => {
+              setSelectedAlertType(type);
+              setSelectedCrisisAlert(null); // Reset to ensure new report
+              setShowCrisisModal(true);
+            }}
+            className="bg-gradient-to-r from-[#005524] to-[#f69f00] hover:from-[#004015] hover:to-[#d88e00] text-white p-4 rounded-2xl flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 shadow-lg"
+          >
+            <Icon size={24} className="mb-2" />
+            <span className="text-sm font-bold">{type}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-full lg:w-1/4 p-4 sm:p-6">
+        <div className="w-full lg:w-1/4 flex flex-col space-y-4 sm:space-y-6">
           <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4 sm:mb-6">
-              Crisis Alerts
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+              Safe Alerts
             </h2>
             {isLoading ? (
-              <p className="text-gray-600">Loading crisis alerts...</p>
-            ) : crisisAlerts.length > 0 ? (
+              <p className="text-gray-600">Loading safe alerts...</p>
+            ) : userSafeAlerts.length > 0 ? (
               <>
-                {crisisAlerts.slice((currentPage - 1) * alertsPerPage, currentPage * alertsPerPage).map((alert) => (
+                {currentSafeAlerts.map((alert) => (
                   <div
                     key={alert.id}
-                    className="bg-white rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#005524]/20 cursor-pointer"
+                    className="flex items-center justify-between space-x-4 mb-2 p-2 rounded-2xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer"
                     onClick={() => {
                       setSelectedCrisisAlert(alert);
                       setShowCrisisModal(true);
                     }}
                   >
                     <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center text-white">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
                         <FaCheck />
                       </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-green-500">
-                          {alert.reporter} Marked Safe
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Incident: {alert.related_crisis_id ? `Crisis #${alert.related_crisis_id}` : 'General Safety'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Location: Lat: {alert.location.lat}, Lng: {alert.location.lng}
+                      <div>
+                        <p className="text-gray-900 font-bold">
+                          {alert.reporter} marked safe
                         </p>
                         <p className="text-sm text-gray-600">
                           {new Date(alert.created_at).toLocaleString()}
                         </p>
                       </div>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMarkSafe(alert.related_crisis_id);
+                      }}
+                      className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                    >
+                      Unmark Safe
+                    </button>
                   </div>
                 ))}
-                {Math.ceil(crisisAlerts.length / alertsPerPage) > 1 && (
-                  <div className="flex justify-center items-center space-x-2 mt-4">
+                <div className="flex justify-center mt-4 space-x-2">
+                  {Array.from({ length: totalSafePages }, (_, i) => (
                     <button
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
+                      key={i + 1}
+                      onClick={() => handlePageChange(i + 1)}
                       className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                        currentPage === 1
-                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                          : "bg-[#005524] hover:bg-[#004015] text-white"
+                        currentPage === i + 1
+                          ? "bg-[#005524] text-white"
+                          : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                       }`}
                     >
-                      Previous
+                      {i + 1}
                     </button>
-                    {[...Array(Math.ceil(crisisAlerts.length / alertsPerPage))].map((_, index) => (
-                      <button
-                        key={index + 1}
-                        onClick={() => handlePageChange(index + 1)}
-                        className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                          currentPage === index + 1
-                            ? "bg-[#005524] text-white"
-                            : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                        }`}
-                      >
-                        {index + 1}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === Math.ceil(crisisAlerts.length / alertsPerPage)}
-                      className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                        currentPage === Math.ceil(crisisAlerts.length / alertsPerPage)
-                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                          : "bg-[#005524] hover:bg-[#004015] text-white"
-                      }`}
-                    >
-                      Next
-                    </button>
-                  </div>
-                )}
+                  ))}
+                </div>
               </>
             ) : (
-              <p className="text-gray-600">No safe alerts from connections found.</p>
+              <p className="text-gray-600">No safe alerts.</p>
             )}
           </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 mt-4 sm:mt-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4 sm:mb-6">
-              Safety Tips
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+              Pending Crisis Alerts
             </h2>
             {isLoading ? (
-              <p className="text-gray-600">Loading safety tips...</p>
-            ) : safetyTips.length > 0 ? (
-              safetyTips.map((tip) => (
-                <div
-                  key={tip.id}
-                  className="bg-white rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 cursor-pointer hover:bg-gray-50 hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#005524]/20"
-                  onClick={() => {
-                    setSelectedSafetyTip(tip);
-                    setShowSafetyTipModal(true);
-                  }}
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
-                      {iconMap[tip.icon] ? (
-                        React.createElement(iconMap[tip.icon])
-                      ) : (
-                        <FaInfoCircle />
-                      )}
+              <p className="text-gray-600">Loading pending alerts...</p>
+            ) : pendingCrisisAlerts.length > 0 ? (
+              <>
+                {currentPendingAlerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className="flex items-center justify-between space-x-4 mb-2 p-2 rounded-2xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer"
+                    onClick={() => {
+                      setSelectedCrisisAlert(alert);
+                      setShowCrisisModal(true);
+                    }}
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                        {iconMap[alert.type] ? (
+                          React.createElement(iconMap[alert.type])
+                        ) : (
+                          <FaExclamationTriangle />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-gray-900 font-bold">{alert.type} Alert</p>
+                        <p className="text-sm text-gray-600">
+                          Reported by {alert.reporter} on{" "}
+                          {new Date(alert.created_at).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-gray-900 font-bold">{tip.name}</p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMarkSafe(alert.id);
+                      }}
+                      className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                    >
+                      Mark Safe
+                    </button>
                   </div>
+                ))}
+                <div className="flex justify-center mt-4 space-x-2">
+                  {Array.from({ length: totalPendingPages }, (_, i) => (
+                    <button
+                      key={i + 1}
+                      onClick={() => handlePageChange(i + 1)}
+                      className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
+                        currentPage === i + 1
+                          ? "bg-[#005524] text-white"
+                          : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
                 </div>
-              ))
+              </>
             ) : (
-              <p className="text-gray-600">No safety tips available.</p>
+              <p className="text-gray-600">No pending crisis alerts.</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Modals */}
-      {showCrisisModal && selectedCrisisAlert && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg sm:text-xl font-bold text-[#005524]">
-                Crisis Details
-              </h3>
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">Confirm Logout</h2>
+            <p className="text-gray-600 mb-6">Are you sure you want to log out?</p>
+            <div className="flex justify-end space-x-4">
               <button
-                onClick={() => setShowCrisisModal(false)}
-                className="text-gray-600 hover:text-[#005524] transition-colors duration-200"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
-                <FaTimes size={20} />
+                Cancel
               </button>
-            </div>
-            <div className="space-y-2">
-              <p className="text-gray-900 font-bold">
-                Reporter: {selectedCrisisAlert.reporter}
-              </p>
-              <p className="text-sm text-gray-600">
-                Type: {selectedCrisisAlert.type}
-              </p>
-              <p className="text-sm text-gray-600">
-                Location: Lat: {selectedCrisisAlert.location.lat}, Lng: {selectedCrisisAlert.location.lng}
-              </p>
-              <p className="text-sm text-gray-600">
-                Time: {new Date(selectedCrisisAlert.created_at).toLocaleString()}
-              </p>
-              <div className="mt-4">
-                <p className="text-sm font-bold text-[#005524]">
-                  Who has already marked safe:
-                </p>
-                {selectedCrisisAlert.marked_safe_users && selectedCrisisAlert.marked_safe_users.length > 0 ? (
-                  <ul className="mt-2 space-y-1">
-                    {selectedCrisisAlert.marked_safe_users.map((user) => (
-                      <li key={user.user_id} className="text-sm text-gray-600">
-                        - {user.name} ✅
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-600">
-                    No connections have marked safe yet.
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex space-x-2 mt-6">
-              {!selectedCrisisAlert.responded_safe && (
-                <button
-                  onClick={() => handleMarkSafe(selectedCrisisAlert.id)}
-                  className="flex-1 bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-                >
-                  <FaCheck className="inline mr-2" /> Mark Safe
-                </button>
-              )}
-              {selectedCrisisAlert.responded_safe && (
-                <p className="flex-1 text-center text-green-600 font-bold py-2">You are safe ✅</p>
-              )}
               <button
-                onClick={() => setShowCrisisModal(false)}
-                className="flex-1 bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                onClick={handleLogout}
+                className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
-                <FaTimes className="inline mr-2" /> Cancel
+                Logout
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {showConnectionOptions && selectedConnection && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
-            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
-              Connection Options
-            </h3>
-            <div className="space-y-2">
-              <button
-                onClick={() => handleConnectionAction("message", selectedConnection)}
-                className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-              >
-                <FaEnvelope className="inline mr-2" /> Message
-              </button>
-              <button
-                onClick={() => handleConnectionAction("profile", selectedConnection)}
-                className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-              >
-                <FaUser className="inline mr-2" /> View Profile
-              </button>
-              <button
-                onClick={() => setShowConnectionOptions(false)}
-                className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-              >
-                <FaTimes className="inline mr-2" /> Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showProfile && selectedSearchProfile && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
-            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
-              User Profile
-            </h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
             <div className="flex items-center space-x-4 mb-4">
               <div className="w-16 h-16 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
                 {selectedSearchProfile.avatar ? (
@@ -2639,24 +2571,23 @@ const Dashboard: React.FC = () => {
                     alt={selectedSearchProfile.name}
                   />
                 ) : (
-                  <span>👤</span>
+                  <span className="text-2xl">👤</span>
                 )}
               </div>
               <div>
-                <p className="text-gray-900 font-bold">{selectedSearchProfile.name}</p>
-                <p className="text-sm text-gray-600">{selectedSearchProfile.email}</p>
+                <h2 className="text-xl font-bold text-[#005524]">
+                  {selectedSearchProfile.name}
+                </h2>
+                <p className="text-gray-600">{selectedSearchProfile.email}</p>
               </div>
             </div>
-            {selectedSearchProfile.id !== userProfile?.id && (
+            {selectedSearchProfile.id !== userProfile?.id && !isConnected(selectedSearchProfile.id) && (
               <button
                 onClick={() => handleSendConnectionRequest(selectedSearchProfile.id)}
-                className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-                disabled={isConnected(selectedSearchProfile.id)}
+                className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex items-center justify-center"
               >
-                <FaUserPlus className="inline mr-2" />
-                {isConnected(selectedSearchProfile.id)
-                  ? "Connected"
-                  : "Send Connection Request"}
+                <FaUserPlus className="mr-2" />
+                Send Connection Request
               </button>
             )}
             {selectedSearchProfile.id === userProfile?.id && (
@@ -2669,229 +2600,339 @@ const Dashboard: React.FC = () => {
                     avatar: userProfile?.avatar,
                   });
                 }}
-                className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className="w-full bg-[#f69f00] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex items-center justify-center"
               >
-                <FaEdit className="inline mr-2" /> Edit Profile
+                <FaEdit className="mr-2" />
+                Edit Profile
               </button>
             )}
             <button
               onClick={() => setShowProfile(false)}
-              className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg mt-2 hover:scale-105 transition-all duration-300"
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg mt-4 hover:scale-105 transition-all duration-300"
             >
-              <FaTimes className="inline mr-2" /> Close
+              Close
             </button>
           </div>
         </div>
       )}
-
       {showEditProfile && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
-            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
-              Edit Profile
-            </h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">Edit Profile</h2>
             <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Name"
-                value={editProfileData.name || ""}
-                onChange={(e) =>
-                  setEditProfileData({ ...editProfileData, name: e.target.value })
-                }
-                className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
-              />
-              <input
-                type="text"
-                placeholder="Avatar URL"
-                value={editProfileData.avatar || ""}
-                onChange={(e) =>
-                  setEditProfileData({ ...editProfileData, avatar: e.target.value })
-                }
-                className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
-              />
-              <button
-                onClick={handleEditProfile}
-                className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-              >
-                Save Changes
-              </button>
+              <div>
+                <label className="block text-gray-600 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={editProfileData.name || userProfile?.name || ""}
+                  onChange={(e) =>
+                    setEditProfileData({ ...editProfileData, name: e.target.value })
+                  }
+                  className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-600 mb-1">Avatar URL</label>
+                <input
+                  type="text"
+                  value={editProfileData.avatar || userProfile?.avatar || ""}
+                  onChange={(e) =>
+                    setEditProfileData({ ...editProfileData, avatar: e.target.value })
+                  }
+                  className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-4 mt-6">
               <button
                 onClick={() => setShowEditProfile(false)}
-                className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
-                <FaTimes className="inline mr-2" /> Cancel
+                Cancel
+              </button>
+              <button
+                onClick={handleEditProfile}
+                className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                Save
               </button>
             </div>
           </div>
         </div>
       )}
-
       {showSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
-            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
-              Settings
-            </h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">Settings</h2>
             <div className="space-y-4">
-              <p className="text-gray-600">Settings options coming soon!</p>
-              <button
-                onClick={() => setShowSettings(false)}
-                className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-              >
-                <FaTimes className="inline mr-2" /> Close
-              </button>
+              <div>
+                <label className="block text-gray-600 mb-1">Notifications</label>
+                <select className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300">
+                  <option>Enabled</option>
+                  <option>Disabled</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-gray-600 mb-1">Theme</label>
+                <select className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300">
+                  <option>Light</option>
+                  <option>Dark</option>
+                </select>
+              </div>
             </div>
+            <button
+              onClick={() => setShowSettings(false)}
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg mt-6 hover:scale-105 transition-all duration-300"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
-
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
-            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
-              Confirm Logout
-            </h3>
-            <p className="text-gray-600 mb-4">Are you sure you want to log out?</p>
-            <div className="flex space-x-2">
-              <button
-                onClick={handleLogout}
-                className="flex-1 bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-              >
-                <FaSignOutAlt className="inline mr-2" /> Logout
-              </button>
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-              >
-                <FaTimes className="inline mr-2" /> Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showLocationView && selectedEmergency && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
-            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">
               Emergency Location
-            </h3>
-            <img
-              src={mapImage}
-              className="w-full h-48 rounded-lg mb-4"
-              alt="Map"
-            />
-            <p className="text-gray-900 font-bold">{selectedEmergency.emergency_type}</p>
-            <p className="text-sm text-gray-600">
-              Reported by {selectedEmergency.name} at Lat: {selectedLocation?.lat}, Lng:{" "}
-              {selectedLocation?.lng}
+            </h2>
+            <p className="text-gray-600 mb-4">
+              {selectedEmergency.emergency_type} reported by {selectedEmergency.name}
             </p>
+            <div className="bg-gray-100 rounded-2xl p-4 mb-4">
+              <img
+                src={mapImage}
+                alt="Map"
+                className="w-full h-48 object-cover rounded-2xl"
+              />
+              <p className="text-sm text-gray-600 mt-2">
+                Lat: {selectedLocation?.lat.toFixed(4)}, Lng: {selectedLocation?.lng.toFixed(4)}
+              </p>
+            </div>
             <button
               onClick={() => setShowLocationView(false)}
-              className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg mt-4 hover:scale-105 transition-all duration-300"
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
             >
-              <FaTimes className="inline mr-2" /> Close
+              Close
             </button>
           </div>
         </div>
       )}
-
       {showCallConfirm && selectedEmergencyForAction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
-            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">
               Confirm Call
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Call emergency services for {selectedEmergencyForAction.emergency_type} reported by{" "}
-              {selectedEmergencyForAction.name}?
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Call assistance for {selectedEmergencyForAction.emergency_type} reported by {selectedEmergencyForAction.name}?
             </p>
-            <div className="flex space-x-2">
-              <button
-                onClick={initiateCall}
-                className="flex-1 bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-              >
-                <FaPhoneAlt className="inline mr-2" /> Call
-              </button>
+            <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowCallConfirm(false)}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
-                <FaTimes className="inline mr-2" /> Cancel
+                Cancel
+              </button>
+              <button
+                onClick={initiateCall}
+                className="bg-[#f69f00] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                Call
               </button>
             </div>
           </div>
         </div>
       )}
-
       {showReportConfirm && selectedEmergencyForAction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
-            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">
               Confirm Report
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Report {selectedEmergencyForAction.emergency_type} by{" "}
-              {selectedEmergencyForAction.name}?
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Report {selectedEmergencyForAction.emergency_type} by {selectedEmergencyForAction.name}?
             </p>
-            <div className="flex space-x-2">
-              <button
-                onClick={submitReport}
-                className="flex-1 bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-              >
-                <FaExclamationTriangle className="inline mr-2" /> Report
-              </button>
+            <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowReportConfirm(false)}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
-                <FaTimes className="inline mr-2" /> Cancel
+                Cancel
+              </button>
+              <button
+                onClick={submitReport}
+                className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                Report
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {showAlertConfirm && selectedAlertType && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
-            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
-              Alert Sent
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Your {selectedAlertType} alert has been sent to your connections.
-            </p>
+      {showCrisisModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+      {selectedCrisisAlert ? (
+        <>
+          <h2 className="text-xl font-bold text-[#005524] mb-4">
+            Crisis Details
+          </h2>
+          <p className="text-gray-600 mb-2">
+            <strong>Type:</strong> {selectedCrisisAlert.type}
+          </p>
+          <p className="text-gray-600 mb-2">
+            <strong>Reported by:</strong> {selectedCrisisAlert.reporter}
+          </p>
+          <p className="text-gray-600 mb-2">
+            <strong>Time:</strong>{" "}
+            {new Date(selectedCrisisAlert.created_at).toLocaleString()}
+          </p>
+          <p className="text-gray-600 mb-2">
+            <strong>Location:</strong> Lat: {selectedCrisisAlert.location.lat.toFixed(4)}, Lng: {selectedCrisisAlert.location.lng.toFixed(4)}
+          </p>
+          <div className="text-gray-600 mb-4">
+  <strong>Connections Marked Safe:</strong>
+  {getConnectedSafeUsers(selectedCrisisAlert.marked_safe_users).length > 0 ? (
+    <ul className="list-disc list-inside mt-2">
+      {getConnectedSafeUsers(selectedCrisisAlert.marked_safe_users).map((name, index) => (
+        <li key={index} className="text-sm text-gray-900">{name}</li>
+      ))}
+    </ul>
+  ) : (
+    <p className="text-sm text-gray-600 mt-2">No connections have marked themselves safe.</p>
+  )}
+</div>
+          <div className="flex justify-end space-x-4">
             <button
-              onClick={() => setShowAlertConfirm(false)}
-              className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              onClick={() => {
+                setShowCrisisModal(false);
+                setSelectedCrisisAlert(null); // Reset to prevent accidental state retention
+              }}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
             >
-              <FaCheck className="inline mr-2" /> OK
+              Close
+            </button>
+            {!selectedCrisisAlert.responded_safe && (
+              <button
+                onClick={() => handleMarkSafe(selectedCrisisAlert.id)}
+                className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                Mark Safe
+              </button>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <h2 className="text-xl font-bold text-[#005524] mb-4">
+            Confirm Emergency
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Are you sure you want to trigger a {selectedAlertType} emergency alert at your location (Lat: {userLocation.lat.toFixed(4)}, Lng: {userLocation.lng.toFixed(4)})?
+          </p>
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={() => {
+                setShowCrisisModal(false);
+                setSelectedAlertType(null); // Reset to prevent state retention
+              }}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (selectedAlertType) {
+                  handleEmergencyAlert(selectedAlertType);
+                  setShowCrisisModal(false);
+                  setSelectedAlertType(null);
+                }
+              }}
+              className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+            >
+              Confirm
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  </div>
+)}
+      {showAlertConfirm && crisisAlert && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">
+              Emergency Alert Triggered
+            </h2>
+            <p className="text-gray-600 mb-2">
+              <strong>Type:</strong> {crisisAlert.type}
+            </p>
+            <p className="text-gray-600 mb-2">
+              <strong>Location:</strong> Lat: {crisisAlert.location.lat.toFixed(4)}, Lng: {crisisAlert.location.lng.toFixed(4)}
+            </p>
+            <p className="text-gray-600 mb-6">
+              {isSafe
+                ? "You have marked yourself as safe."
+                : "You can mark yourself as safe when the situation is resolved."}
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={resetCrisisAlert}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              >
+                Close
+              </button>
+              {!isSafe && (
+                <button
+                  onClick={() => handleMarkSafe(crisisAlert.id)}
+                  className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                >
+                  Mark Safe
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {showSafetyTipModal && selectedSafetyTip && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">{selectedSafetyTip.name}</h2>
+            <p className="text-gray-600 mb-6">{selectedSafetyTip.content}</p>
+            <button
+              onClick={() => setShowSafetyTipModal(false)}
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+            >
+              Close
             </button>
           </div>
         </div>
       )}
-
-      {showSafetyTipModal && selectedSafetyTip && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl">
-            <h3 className="text-lg sm:text-xl font-bold text-[#005524] mb-4">
-              {selectedSafetyTip.name}
-            </h3>
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
-                {iconMap[selectedSafetyTip.icon] ? (
-                  React.createElement(iconMap[selectedSafetyTip.icon])
-                ) : (
-                  <FaInfoCircle />
-                )}
-              </div>
-              <p className="text-gray-600">{selectedSafetyTip.content}</p>
-            </div>
+      {showConnectionOptions && selectedConnection && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+            <h2 className="text-xl font-bold text-[#005524] mb-4">
+              Connection Options
+            </h2>
             <button
-              onClick={() => setShowSafetyTipModal(false)}
-              className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              onClick={() => handleConnectionAction("message", selectedConnection)}
+              className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg mb-2 hover:scale-105 transition-all duration-300 flex items-center"
             >
-              <FaTimes className="inline mr-2" /> Close
+              <FaEnvelope className="mr-2" />
+              Message
+            </button>
+            <button
+              onClick={() => handleConnectionAction("profile", selectedConnection)}
+              className="w-full bg-[#f69f00] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg mb-2 hover:scale-105 transition-all duration-300 flex items-center"
+            >
+              <FaUser className="mr-2" />
+              View Profile
+            </button>
+            <button
+              onClick={() => setShowConnectionOptions(false)}
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+            >
+              Cancel
             </button>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logoImage from "../Images/no-bg-logo.png";
-import { FaUserCircle, FaBell, FaMoon, FaSun, FaChevronDown, FaChevronLeft, FaChevronRight, FaTable, FaChartBar, FaKey, FaCalendarAlt, FaFileAlt, FaCubes, FaLock, FaUser, FaHome, FaCog, FaDownload, FaPlus, FaEye, FaKey as FaPermissions } from 'react-icons/fa';
+import { FaUserCircle, FaBell, FaChevronDown, FaChevronLeft, FaChevronRight, FaTable, FaChartBar, FaKey, FaFileAlt, FaCubes, FaLock, FaUser, FaHome, FaCog, FaDownload, FaPlus, FaEye, FaShieldAlt, FaKey as FaPermissions } from 'react-icons/fa';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { supabase } from "../../db"; // Adjust path to your Supabase client
@@ -16,6 +16,7 @@ interface Admin {
   email: string;
   status: 'active' | 'inactive';
   lastLogin: string;
+  last_login?: string; // Database field
   permissions: string[];
 }
 
@@ -43,6 +44,7 @@ interface SystemReport {
 
 interface UserProfile {
   id: string;
+  user_id: string;
   name: string;
   email: string;
   role: string;
@@ -179,6 +181,7 @@ const SuperAdminDashboard: React.FC = () => {
 
         setUserProfile({
           id: profileData.user_id,
+          user_id: profileData.user_id,
           name: profileData.name || 'Super Admin',
           email: profileData.email,
           role: profileData.role,
@@ -196,7 +199,7 @@ const SuperAdminDashboard: React.FC = () => {
     fetchUserData();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (event) => {
         if (event === 'SIGNED_OUT') {
           navigate('/login');
         }
@@ -231,13 +234,14 @@ const SuperAdminDashboard: React.FC = () => {
         }
       }
 
-      const adminsData = data.map((user, index) => ({
+      const adminsData = (data || []).map((user, index) => ({
         id: index + 1,
         user_id: user.user_id,
         name: user.name || 'Unknown',
         email: user.email,
         status: user.status || 'inactive',
         lastLogin: user.last_login ? new Date(user.last_login).toLocaleString() : 'N/A',
+        last_login: user.last_login,
         permissions: user.permissions || [],
       }));
       setAdmins(adminsData);
@@ -267,8 +271,8 @@ const SuperAdminDashboard: React.FC = () => {
         }
       }
 
-      const activeCount = data.filter(user => user.status === 'active').length;
-      const inactiveCount = data.filter(user => user.status === 'inactive').length;
+      const activeCount = (data || []).filter(user => user.status === 'active').length;
+      const inactiveCount = (data || []).filter(user => user.status === 'inactive').length;
 
       setAdminActivityData({
         labels: ['Active Admins', 'Inactive Admins'],
@@ -458,6 +462,25 @@ const SuperAdminDashboard: React.FC = () => {
         .eq('id', reportId);
       if (error) throw error;
 
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Create notification for the report action
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: user.id,
+            message: `System report has been ${action}ed`,
+            type: 'system_report',
+            notification_type: 'general',
+            read: false
+          });
+        
+        if (notificationError) {
+          console.error('Notification creation failed:', notificationError);
+        }
+      }
+
       setReports(prev =>
         prev.map(report =>
           report.id === reportId ? { ...report, status: newStatus } : report
@@ -494,20 +517,24 @@ const SuperAdminDashboard: React.FC = () => {
     e.preventDefault();
     setIsSubmittingAdmin(true);
     try {
+      // Frontend guard: only super_admins can create admins
+      if (!userProfile || userProfile.role !== 'super_admin') {
+        throw new Error('Only super admins can create admin accounts');
+      }
+
       const formData = new FormData(e.currentTarget);
       const adminName = formData.get('adminName') as string;
       const adminEmail = formData.get('adminEmail') as string;
       const adminPassword = formData.get('adminPassword') as string;
 
-      const { error } = await supabase.auth.signUp({
-        email: adminEmail,
-        password: adminPassword,
-        options: {
-          data: { name: adminName, role: 'admin' },
-        },
+      // Call Edge Function (must be deployed as `create_admin` in Supabase)
+      const { error } = await supabase.functions.invoke('create_admin', {
+        body: { name: adminName, email: adminEmail, password: adminPassword },
       });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || 'Failed to create admin (backend)');
+      }
 
       await fetchAllUsers();
       setShowAddAdmin(false);
@@ -527,6 +554,25 @@ const SuperAdminDashboard: React.FC = () => {
         .update({ status, updated_at: new Date().toISOString() })
         .eq('id', updateId);
       if (error) throw error;
+
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Create notification for the feature update
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: user.id,
+            message: `Feature update has been ${status}`,
+            type: 'feature_update',
+            notification_type: 'general',
+            read: false
+          });
+        
+        if (notificationError) {
+          console.error('Notification creation failed:', notificationError);
+        }
+      }
 
       setFeatureUpdates(prev =>
         prev.map(update =>
@@ -558,6 +604,25 @@ const SuperAdminDashboard: React.FC = () => {
         });
 
       if (error) throw error;
+
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Create notification for the new feature update
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: user.id,
+            message: `New feature update "${updateName}" has been added`,
+            type: 'feature_update',
+            notification_type: 'general',
+            read: false
+          });
+        
+        if (notificationError) {
+          console.error('Notification creation failed:', notificationError);
+        }
+      }
 
       await fetchFeatureUpdates();
       setShowFeatureUpdateModal(false);
@@ -595,6 +660,25 @@ const SuperAdminDashboard: React.FC = () => {
         });
 
       if (error) throw error;
+
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Create notification for the generated report
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: user.id,
+            message: `System report "${reportTitle}" has been generated`,
+            type: 'system_report',
+            notification_type: 'general',
+            read: false
+          });
+        
+        if (notificationError) {
+          console.error('Notification creation failed:', notificationError);
+        }
+      }
 
       await fetchReports();
       setShowGenerateReportModal(false);
@@ -711,6 +795,25 @@ const SuperAdminDashboard: React.FC = () => {
 
       if (error) throw error;
 
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Create notification for the generated report
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: user.id,
+            message: `Report from notification has been generated`,
+            type: 'system_report',
+            notification_type: 'general',
+            read: false
+          });
+        
+        if (notificationError) {
+          console.error('Notification creation failed:', notificationError);
+        }
+      }
+
       await fetchReports();
       setSuccessMessage('Report generated from notification successfully');
       await markNotificationAsRead(notificationId); // Mark as read after action
@@ -732,10 +835,10 @@ const SuperAdminDashboard: React.FC = () => {
 
     const featureSubscription = supabase
       .channel('feature_updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'feature_updates' }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'feature_updates' }, () => {
         fetchFeatureUpdates();
       })
-      .subscribe((status, err) => {
+      .subscribe((_status, err) => {
         if (err) {
           console.error('Feature subscription error:', err);
           setError(`Feature subscription error: ${err.message}`);
@@ -744,11 +847,11 @@ const SuperAdminDashboard: React.FC = () => {
 
     const reportSubscription = supabase
       .channel('system_reports')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_reports' }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_reports' }, () => {
         fetchReports();
         fetchPerformanceData();
       })
-      .subscribe((status, err) => {
+      .subscribe((_status, err) => {
         if (err) {
           console.error('Report subscription error:', err);
           setError(`Report subscription error: ${err.message}`);
@@ -757,11 +860,11 @@ const SuperAdminDashboard: React.FC = () => {
 
     const userSubscription = supabase
       .channel('users')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users', filter: "role=eq.admin" }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users', filter: "role=eq.admin" }, () => {
         fetchAllUsers();
         fetchAdminActivityData();
       })
-      .subscribe((status, err) => {
+      .subscribe((_status, err) => {
         if (err) {
           console.error('User subscription error:', err);
           setError(`User subscription error: ${err.message}`);
@@ -770,10 +873,10 @@ const SuperAdminDashboard: React.FC = () => {
 
     const notificationSubscription = supabase
       .channel('notifications')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userProfile?.id}` }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userProfile?.id}` }, () => {
         fetchNotifications();
       })
-      .subscribe((status, err) => {
+      .subscribe((_status, err) => {
         if (err) {
           console.error('Notification subscription error:', err);
           setError(`Notification subscription error: ${err.message}`);
@@ -800,7 +903,9 @@ const SuperAdminDashboard: React.FC = () => {
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">TOTAL ADMINS</p>
                     <p className="text-3xl font-bold text-gray-900">{admins.length}</p>
-                    <p className="text-sm text-green-600 mt-1">+12% since last month</p>
+                    <p className="text-sm text-green-600 mt-1">
+                      {admins.filter(a => a.status === 'active').length} active
+                    </p>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-br from-[#005524] to-[#004015] rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <FaUser size={20} />
@@ -812,7 +917,9 @@ const SuperAdminDashboard: React.FC = () => {
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">PENDING UPDATES</p>
                     <p className="text-3xl font-bold text-gray-900">{featureUpdates.filter(fu => fu.status === 'pending').length}</p>
-                    <p className="text-sm text-blue-600 mt-1">+15% this quarter</p>
+                    <p className="text-sm text-blue-600 mt-1">
+                      {featureUpdates.filter(fu => fu.status === 'approved').length} approved
+                    </p>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <FaCog size={20} />
@@ -822,12 +929,26 @@ const SuperAdminDashboard: React.FC = () => {
               <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-500/20">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">SYSTEM PERFORMANCE</p>
-                    <p className="text-3xl font-bold text-gray-900">{reports.filter(r => r.type === 'performance').length}</p>
-                    <p className="text-sm text-red-600 mt-1">+5% since last week</p>
+                    <p className="text-sm font-medium text-gray-600 mb-1">SYSTEM REPORTS</p>
+                    <p className="text-3xl font-bold text-gray-900">{reports.length}</p>
+                    <p className="text-sm text-red-600 mt-1">
+                      {reports.filter(r => r.status === 'generated').length} generated
+                    </p>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <FaChartBar size={20} />
+                  </div>
+                </div>
+              </div>
+              <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-green-500/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">SYSTEM UPTIME</p>
+                    <p className="text-3xl font-bold text-gray-900">99.8%</p>
+                    <p className="text-sm text-green-600 mt-1">All systems operational</p>
+                  </div>
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <FaShieldAlt size={20} />
                   </div>
                 </div>
               </div>
@@ -1046,7 +1167,12 @@ const SuperAdminDashboard: React.FC = () => {
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">System Status</h3>
-                  <button className="text-[#005524] hover:text-[#004015] text-sm font-medium"> Details </button>
+                  <button 
+                    onClick={() => setActiveTab('system-reports')}
+                    className="text-[#005524] hover:text-[#004015] text-sm font-medium"
+                  > 
+                    View Details 
+                  </button>
                 </div>
                 <div className="space-y-4">
                   <div className="space-y-3">
@@ -1057,7 +1183,10 @@ const SuperAdminDashboard: React.FC = () => {
                         </div>
                         <span className="text-sm font-medium text-gray-900">Security System</span>
                       </div>
-                      <span className="text-sm font-semibold text-green-600">98%</span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-semibold text-green-600">98%</span>
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      </div>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div className="bg-blue-500 h-2 rounded-full" style={{ width: '98%' }}></div>
@@ -1071,7 +1200,10 @@ const SuperAdminDashboard: React.FC = () => {
                         </div>
                         <span className="text-sm font-medium text-gray-900">User Management</span>
                       </div>
-                      <span className="text-sm font-semibold text-green-600">95%</span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-semibold text-green-600">95%</span>
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      </div>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div className="bg-green-500 h-2 rounded-full" style={{ width: '95%' }}></div>
@@ -1085,10 +1217,30 @@ const SuperAdminDashboard: React.FC = () => {
                         </div>
                         <span className="text-sm font-medium text-gray-900">Alert System</span>
                       </div>
-                      <span className="text-sm font-semibold text-green-600">92%</span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-semibold text-green-600">92%</span>
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      </div>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div className="bg-purple-500 h-2 rounded-full" style={{ width: '92%' }}></div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                          <FaChartBar size={12} className="text-orange-600" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">Database Performance</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-semibold text-green-600">99%</span>
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-orange-500 h-2 rounded-full" style={{ width: '99%' }}></div>
                     </div>
                   </div>
                 </div>
@@ -1098,281 +1250,538 @@ const SuperAdminDashboard: React.FC = () => {
         );
       case "admin-management":
         return (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">All Admins (Table View)</h2>
-              <button
-                onClick={() => setShowAddAdmin(true)}
-                className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
-              >
-                <FaPlus size={14} /> Add New Admin
-              </button>
+          <div className="space-y-6">
+            {/* Header with Stats */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Admin Management</h2>
+                  <p className="text-sm text-gray-600 mt-1">Manage admin accounts and permissions</p>
+                </div>
+                <button
+                  onClick={() => setShowAddAdmin(true)}
+                  className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
+                >
+                  <FaPlus size={14} /> Add New Admin
+                </button>
+              </div>
+              
+              {/* Quick Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Admins</p>
+                      <p className="text-2xl font-bold text-gray-900">{admins.length}</p>
+                    </div>
+                    <FaUser className="text-gray-400" size={20} />
+                  </div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Active</p>
+                      <p className="text-2xl font-bold text-green-600">{admins.filter(a => a.status === 'active').length}</p>
+                    </div>
+                    <FaShieldAlt className="text-green-400" size={20} />
+                  </div>
+                </div>
+                <div className="bg-red-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Inactive</p>
+                      <p className="text-2xl font-bold text-red-600">{admins.filter(a => a.status === 'inactive').length}</p>
+                    </div>
+                    <FaLock className="text-red-400" size={20} />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Last Login</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Permissions</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {admins.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
-                        No admins created yet. Use the "Add New Admin" button to create one.
-                      </td>
+
+            {/* Admin Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Admin</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Last Login</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Permissions</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
-                  ) : (
-                    admins.map((admin) => (
-                      <tr key={admin.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{admin.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{admin.email}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{admin.status}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{admin.lastLogin}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                          {admin.permissions.length > 0 ? (
-                            admin.permissions.map((perm, index) => (
-                              <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full mr-1">{perm}</span>
-                            ))
-                          ) : (
-                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">None</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 space-x-2">
-                          <button
-                            onClick={() => handleToggleAdminStatus(admin.id)}
-                            className={`px-3 py-1 rounded-lg transition-colors ${admin.status === 'active' ? 'bg-red-100 text-red-800 hover:bg-red-200' : 'bg-green-100 text-green-800 hover:bg-green-200'}`}
-                          >
-                            <FaLock size={12} className="inline mr-1" /> {admin.status === 'active' ? 'Deactivate' : 'Activate'}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedAdmin(admin);
-                              setShowPermissionsModal(true);
-                            }}
-                            className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors"
-                          >
-                            <FaPermissions size={12} className="inline mr-1" /> Permissions
-                          </button>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {admins.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center">
+                          <div className="flex flex-col items-center">
+                            <FaUser className="text-gray-300 mb-4" size={48} />
+                            <p className="text-sm text-gray-500 mb-2">No admins created yet</p>
+                            <p className="text-xs text-gray-400">Use the "Add New Admin" button to create one</p>
+                          </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      admins.map((admin) => (
+                        <tr key={admin.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 bg-gradient-to-br from-[#005524] to-[#f69f00] rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3">
+                                {admin.name.charAt(0)}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{admin.name}</p>
+                                <p className="text-sm text-gray-500">{admin.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              admin.status === 'active' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                admin.status === 'active' ? 'bg-green-400' : 'bg-red-400'
+                              }`}></div>
+                              {admin.status.charAt(0).toUpperCase() + admin.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {admin.lastLogin}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex flex-wrap gap-1">
+                              {admin.permissions.length > 0 ? (
+                                admin.permissions.map((perm, index) => (
+                                  <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                    {perm.replace('_', ' ')}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">No permissions</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                            <button
+                              onClick={() => handleToggleAdminStatus(admin.id)}
+                              className={`px-3 py-1.5 rounded-lg transition-colors text-xs font-medium ${
+                                admin.status === 'active' 
+                                  ? 'bg-red-100 text-red-800 hover:bg-red-200' 
+                                  : 'bg-green-100 text-green-800 hover:bg-green-200'
+                              }`}
+                            >
+                              <FaLock size={10} className="inline mr-1" /> 
+                              {admin.status === 'active' ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedAdmin(admin);
+                                setShowPermissionsModal(true);
+                              }}
+                              className="px-3 py-1.5 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors text-xs font-medium"
+                            >
+                              <FaPermissions size={10} className="inline mr-1" /> 
+                              Permissions
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         );
       case "feature-updates":
         return (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Feature Updates</h2>
-              <button
-                onClick={() => setShowFeatureUpdateModal(true)}
-                className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
-              >
-                <FaPlus size={14} /> Add New Update
-              </button>
+          <div className="space-y-6">
+            {/* Header with Stats */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Feature Updates</h2>
+                  <p className="text-sm text-gray-600 mt-1">Manage and approve feature updates</p>
+                </div>
+                <button
+                  onClick={() => setShowFeatureUpdateModal(true)}
+                  className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
+                >
+                  <FaPlus size={14} /> Add New Update
+                </button>
+              </div>
+              
+              {/* Quick Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-yellow-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Pending</p>
+                      <p className="text-2xl font-bold text-yellow-600">{featureUpdates.filter(fu => fu.status === 'pending').length}</p>
+                    </div>
+                    <FaCog className="text-yellow-400" size={20} />
+                  </div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Approved</p>
+                      <p className="text-2xl font-bold text-green-600">{featureUpdates.filter(fu => fu.status === 'approved').length}</p>
+                    </div>
+                    <FaShieldAlt className="text-green-400" size={20} />
+                  </div>
+                </div>
+                <div className="bg-red-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Rejected</p>
+                      <p className="text-2xl font-bold text-red-600">{featureUpdates.filter(fu => fu.status === 'rejected').length}</p>
+                    </div>
+                    <FaLock className="text-red-400" size={20} />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Description</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {featureUpdates.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
-                        No feature updates available. Use the "Add New Update" button to create one.
-                      </td>
+
+            {/* Feature Updates Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Feature</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Description</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
-                  ) : (
-                    featureUpdates.map((update) => (
-                      <tr key={update.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{update.name}</td>
-                        <td className="px-6 py-4 text-sm text-gray-800">{update.description}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {featureUpdates.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center">
+                          <div className="flex flex-col items-center">
+                            <FaCog className="text-gray-300 mb-4" size={48} />
+                            <p className="text-sm text-gray-500 mb-2">No feature updates available</p>
+                            <p className="text-xs text-gray-400">Use the "Add New Update" button to create one</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      featureUpdates.map((update) => (
+                        <tr key={update.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm mr-3">
+                                <FaCubes size={16} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{update.name}</p>
+                                <p className="text-xs text-gray-500">ID: #{update.id}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-sm text-gray-800 max-w-xs truncate">{update.description}</p>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               update.status === 'approved'
                                 ? 'bg-green-100 text-green-800'
                                 : update.status === 'rejected'
                                 ? 'bg-red-100 text-red-800'
                                 : 'bg-yellow-100 text-yellow-800'
-                            }`}
-                          >
-                            {update.status.charAt(0).toUpperCase() + update.status.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                          {new Date(update.date).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 space-x-2">
-                          {update.status === 'pending' && (
-                            <>
-                              <button
-                                onClick={() => handleFeatureUpdate(update.id, 'approved')}
-                                className="px-3 py-1 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleFeatureUpdate(update.id, 'rejected')}
-                                className="px-3 py-1 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-colors"
-                              >
-                                Reject
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                            }`}>
+                              <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                update.status === 'approved' ? 'bg-green-400' :
+                                update.status === 'rejected' ? 'bg-red-400' : 'bg-yellow-400'
+                              }`}></div>
+                              {update.status.charAt(0).toUpperCase() + update.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(update.date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            {update.status === 'pending' ? (
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleFeatureUpdate(update.id, 'approved')}
+                                  className="px-3 py-1.5 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors text-xs font-medium flex items-center"
+                                >
+                                  <FaShieldAlt size={10} className="mr-1" />
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleFeatureUpdate(update.id, 'rejected')}
+                                  className="px-3 py-1.5 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-colors text-xs font-medium flex items-center"
+                                >
+                                  <FaLock size={10} className="mr-1" />
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-400">
+                                {update.status === 'approved' ? 'Approved' : 'Rejected'}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         );
       case "system-reports":
         return (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">System Reports</h2>
-              <button
-                onClick={() => setShowGenerateReportModal(true)}
-                className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
-              >
-                <FaPlus size={14} /> Generate Report
-              </button>
+          <div className="space-y-6">
+            {/* Header with Stats */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">System Reports</h2>
+                  <p className="text-sm text-gray-600 mt-1">Generate and manage system reports</p>
+                </div>
+                <button
+                  onClick={() => setShowGenerateReportModal(true)}
+                  className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
+                >
+                  <FaPlus size={14} /> Generate Report
+                </button>
+              </div>
+              
+              {/* Quick Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Reports</p>
+                      <p className="text-2xl font-bold text-gray-900">{reports.length}</p>
+                    </div>
+                    <FaFileAlt className="text-gray-400" size={20} />
+                  </div>
+                </div>
+                <div className="bg-yellow-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Generated</p>
+                      <p className="text-2xl font-bold text-yellow-600">{reports.filter(r => r.status === 'generated').length}</p>
+                    </div>
+                    <FaChartBar className="text-yellow-400" size={20} />
+                  </div>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Reviewed</p>
+                      <p className="text-2xl font-bold text-blue-600">{reports.filter(r => r.status === 'reviewed').length}</p>
+                    </div>
+                    <FaEye className="text-blue-400" size={20} />
+                  </div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Archived</p>
+                      <p className="text-2xl font-bold text-green-600">{reports.filter(r => r.status === 'archived').length}</p>
+                    </div>
+                    <FaShieldAlt className="text-green-400" size={20} />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Title</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {reports.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
-                        No reports available. Use the "Generate Report" button to create one.
-                      </td>
+
+            {/* Reports Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Report</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
-                  ) : (
-                    reports.map((report) => (
-                      <tr key={report.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{report.title}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                          {report.type.charAt(0).toUpperCase() + report.type.slice(1)}
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {reports.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center">
+                          <div className="flex flex-col items-center">
+                            <FaFileAlt className="text-gray-300 mb-4" size={48} />
+                            <p className="text-sm text-gray-500 mb-2">No reports available</p>
+                            <p className="text-xs text-gray-400">Use the "Generate Report" button to create one</p>
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      </tr>
+                    ) : (
+                      reports.map((report) => (
+                        <tr key={report.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm mr-3 ${
+                                report.type === 'performance' ? 'bg-gradient-to-br from-green-500 to-green-600' :
+                                report.type === 'usage' ? 'bg-gradient-to-br from-blue-500 to-blue-600' :
+                                'bg-gradient-to-br from-red-500 to-red-600'
+                              }`}>
+                                <FaChartBar size={16} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{report.title}</p>
+                                <p className="text-xs text-gray-500">ID: #{report.id}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              report.type === 'performance' ? 'bg-green-100 text-green-800' :
+                              report.type === 'usage' ? 'bg-blue-100 text-blue-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {report.type.charAt(0).toUpperCase() + report.type.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               report.status === 'archived'
                                 ? 'bg-green-100 text-green-800'
                                 : report.status === 'reviewed'
                                 ? 'bg-blue-100 text-blue-800'
                                 : 'bg-yellow-100 text-yellow-800'
-                            }`}
-                          >
-                            {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                          {new Date(report.date).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 space-x-2">
-                          <button
-                            onClick={() => handleReportAction(report.id, 'review')}
-                            className={`px-3 py-1 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors ${isSubmittingReportAction ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            disabled={isSubmittingReportAction}
-                          >
-                            Review
-                          </button>
-                          <button
-                            onClick={() => handleReportAction(report.id, 'archive')}
-                            className={`px-3 py-1 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors ${isSubmittingReportAction ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            disabled={isSubmittingReportAction}
-                          >
-                            Archive
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowReportDetails(true);
-                              setSelectedReport(report);
-                            }}
-                            className="px-3 py-1 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors"
-                          >
-                            Details
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                            }`}>
+                              <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                report.status === 'archived' ? 'bg-green-400' :
+                                report.status === 'reviewed' ? 'bg-blue-400' : 'bg-yellow-400'
+                              }`}></div>
+                              {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(report.date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => {
+                                  setShowReportDetails(true);
+                                  setSelectedReport(report);
+                                }}
+                                className="px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-xs font-medium flex items-center"
+                              >
+                                <FaEye size={10} className="mr-1" />
+                                Details
+                              </button>
+                              {report.status === 'generated' && (
+                                <>
+                                  <button
+                                    onClick={() => handleReportAction(report.id, 'review')}
+                                    className={`px-3 py-1.5 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors text-xs font-medium flex items-center ${isSubmittingReportAction ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={isSubmittingReportAction}
+                                  >
+                                    <FaChartBar size={10} className="mr-1" />
+                                    Review
+                                  </button>
+                                  <button
+                                    onClick={() => handleReportAction(report.id, 'archive')}
+                                    className={`px-3 py-1.5 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors text-xs font-medium flex items-center ${isSubmittingReportAction ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={isSubmittingReportAction}
+                                  >
+                                    <FaShieldAlt size={10} className="mr-1" />
+                                    Archive
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         );
       case "settings":
         return (
           <div className="space-y-6">
+            {/* Profile Header */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center space-x-4 mb-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-[#005524] to-[#f69f00] rounded-full flex items-center justify-center text-white font-bold text-xl">
+                  {userProfile?.name?.charAt(0) || 'S'}
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">{userProfile?.name || 'Super Admin'}</h2>
+                  <p className="text-sm text-gray-600">{userProfile?.email}</p>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
+                    <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></div>
+                    Super Administrator
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Personal Information */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Personal Information</h3>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Personal Information</h3>
+                  <p className="text-sm text-gray-600 mt-1">Update your personal details</p>
+                </div>
                 <button
                   onClick={() => setIsEditingPersonal(!isEditingPersonal)}
-                  className="text-sm font-medium text-[#005524] hover:text-[#004d20]"
+                  className="px-4 py-2 text-sm font-medium text-[#005524] hover:text-[#004d20] hover:bg-green-50 rounded-lg transition-colors"
                 >
-                  {isEditingPersonal ? 'Cancel' : 'Edit'}
+                  {isEditingPersonal ? 'Cancel' : 'Edit Profile'}
                 </button>
               </div>
-              <form className="space-y-4">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
-                  <input
-                    type="text"
-                    id="name"
-                    value={personalInfo.name}
-                    onChange={(e) => setPersonalInfo({ ...personalInfo, name: e.target.value })}
-                    disabled={!isEditingPersonal}
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2 ${!isEditingPersonal ? 'bg-gray-100' : 'bg-white'}`}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email Address</label>
-                  <input
-                    type="email"
-                    id="email"
-                    value={personalInfo.email}
-                    onChange={(e) => setPersonalInfo({ ...personalInfo, email: e.target.value })}
-                    disabled={!isEditingPersonal}
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2 ${!isEditingPersonal ? 'bg-gray-100' : 'bg-white'}`}
-                  />
+              <form className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                    <input
+                      type="text"
+                      id="name"
+                      value={personalInfo.name}
+                      onChange={(e) => setPersonalInfo({ ...personalInfo, name: e.target.value })}
+                      disabled={!isEditingPersonal}
+                      className={`w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 transition-colors ${
+                        !isEditingPersonal 
+                          ? 'bg-gray-50 text-gray-500 cursor-not-allowed' 
+                          : 'bg-white border-gray-300 focus:border-[#005524] focus:ring-1 focus:ring-[#005524]'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                    <input
+                      type="email"
+                      id="email"
+                      value={personalInfo.email}
+                      onChange={(e) => setPersonalInfo({ ...personalInfo, email: e.target.value })}
+                      disabled={!isEditingPersonal}
+                      className={`w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 transition-colors ${
+                        !isEditingPersonal 
+                          ? 'bg-gray-50 text-gray-500 cursor-not-allowed' 
+                          : 'bg-white border-gray-300 focus:border-[#005524] focus:ring-1 focus:ring-[#005524]'
+                      }`}
+                    />
+                  </div>
                 </div>
                 {isEditingPersonal && (
-                  <div className="flex justify-end">
+                  <div className="flex justify-end pt-4 border-t border-gray-200">
                     <button
                       type="button"
                       onClick={handlePersonalInfoUpdate}
-                      className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20]"
+                      className="px-6 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors font-medium"
                     >
                       Save Changes
                     </button>
@@ -1380,92 +1789,167 @@ const SuperAdminDashboard: React.FC = () => {
                 )}
               </form>
             </div>
+
+            {/* Security Settings */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Security</h3>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Security Settings</h3>
+                  <p className="text-sm text-gray-600 mt-1">Manage your account security</p>
+                </div>
                 <button
                   onClick={() => setIsEditingSecurity(!isEditingSecurity)}
-                  className="text-sm font-medium text-[#005524] hover:text-[#004d20]"
+                  className="px-4 py-2 text-sm font-medium text-[#005524] hover:text-[#004d20] hover:bg-red-50 rounded-lg transition-colors"
                 >
                   {isEditingSecurity ? 'Cancel' : 'Change Password'}
                 </button>
               </div>
-              <form className="space-y-4">
-                {isEditingSecurity && (
+              <form className="space-y-6">
+                {isEditingSecurity ? (
                   <>
-                    <div>
-                      <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">Current Password</label>
-                      <input
-                        type="password"
-                        id="currentPassword"
-                        value={securityInfo.currentPassword}
-                        onChange={(e) => setSecurityInfo({ ...securityInfo, currentPassword: e.target.value })}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2"
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+                        <input
+                          type="password"
+                          id="currentPassword"
+                          value={securityInfo.currentPassword}
+                          onChange={(e) => setSecurityInfo({ ...securityInfo, currentPassword: e.target.value })}
+                          className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#005524] focus:ring-1 focus:ring-[#005524]"
+                          placeholder="Enter current password"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                        <input
+                          type="password"
+                          id="newPassword"
+                          value={securityInfo.newPassword}
+                          onChange={(e) => setSecurityInfo({ ...securityInfo, newPassword: e.target.value })}
+                          className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#005524] focus:ring-1 focus:ring-[#005524]"
+                          placeholder="Enter new password"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                        <input
+                          type="password"
+                          id="confirmPassword"
+                          value={securityInfo.confirmPassword}
+                          onChange={(e) => setSecurityInfo({ ...securityInfo, confirmPassword: e.target.value })}
+                          className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#005524] focus:ring-1 focus:ring-[#005524]"
+                          placeholder="Confirm new password"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">New Password</label>
-                      <input
-                        type="password"
-                        id="newPassword"
-                        value={securityInfo.newPassword}
-                        onChange={(e) => setSecurityInfo({ ...securityInfo, newPassword: e.target.value })}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">Confirm New Password</label>
-                      <input
-                        type="password"
-                        id="confirmPassword"
-                        value={securityInfo.confirmPassword}
-                        onChange={(e) => setSecurityInfo({ ...securityInfo, confirmPassword: e.target.value })}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2"
-                      />
-                    </div>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end pt-4 border-t border-gray-200">
                       <button
                         type="button"
                         onClick={handlePasswordUpdate}
-                        className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20]"
+                        className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
                       >
-                        Change Password
+                        Update Password
                       </button>
                     </div>
                   </>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900">Password</h4>
+                        <p className="text-sm text-gray-600">Last updated: Never</p>
+                      </div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                    </div>
+                  </div>
                 )}
               </form>
             </div>
+
+            {/* Notification Settings */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">General Settings</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-6">Notification Preferences</h3>
               <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900">Notifications</h4>
-                    <p className="text-sm text-gray-600">Enable/disable notifications</p>
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <FaBell className="text-blue-600" size={16} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900">Push Notifications</h4>
+                      <p className="text-sm text-gray-600">Receive real-time notifications</p>
+                    </div>
                   </div>
                   <button
                     onClick={() => setNotifications(!notifications)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${notifications ? 'bg-[#005524]' : 'bg-gray-200'}`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
+                      notifications ? 'bg-[#005524]' : 'bg-gray-200'
+                    }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${notifications ? 'translate-x-6' : 'translate-x-1'}`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                        notifications ? 'translate-x-6' : 'translate-x-1'
+                      }`}
                     />
                   </button>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900">Email Notifications</h4>
-                    <p className="text-sm text-gray-600">Receive updates via email</p>
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <FaUser className="text-green-600" size={16} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900">Email Notifications</h4>
+                      <p className="text-sm text-gray-600">Receive updates via email</p>
+                    </div>
                   </div>
                   <button
                     onClick={() => setEmailNotifications(!emailNotifications)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${emailNotifications ? 'bg-[#005524]' : 'bg-gray-200'}`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
+                      emailNotifications ? 'bg-[#005524]' : 'bg-gray-200'
+                    }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${emailNotifications ? 'translate-x-6' : 'translate-x-1'}`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                        emailNotifications ? 'translate-x-6' : 'translate-x-1'
+                      }`}
                     />
                   </button>
+                </div>
+              </div>
+            </div>
+
+            {/* System Information */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h3 className="text-xl font-semibold text-gray-900 mb-6">System Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Role</span>
+                    <span className="text-sm text-gray-900">Super Administrator</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Account Status</span>
+                    <span className="text-sm text-green-600 font-medium">Active</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Last Login</span>
+                    <span className="text-sm text-gray-900">Just now</span>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Permissions</span>
+                    <span className="text-sm text-gray-900">Full Access</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Session Timeout</span>
+                    <span className="text-sm text-gray-900">24 hours</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Two-Factor Auth</span>
+                    <span className="text-sm text-gray-900">Disabled</span>
+                  </div>
                 </div>
               </div>
             </div>

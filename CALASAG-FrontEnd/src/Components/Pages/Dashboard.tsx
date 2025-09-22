@@ -75,6 +75,7 @@ interface Notification {
   id: number;
   user_id: string;
   type: string;
+  notification_type?: string;
   message: string;
   read: boolean;
   created_at: string;
@@ -144,6 +145,7 @@ const Dashboard: React.FC = () => {
   const [selectedAlertType, setSelectedAlertType] = useState<string | null>(null);
   const [selectedEmergencyForAction, setSelectedEmergencyForAction] = useState<Emergency | null>(null);
   const [selectedCrisisAlert, setSelectedCrisisAlert] = useState<CrisisAlert | null>(null);
+  const [originalCrisisType, setOriginalCrisisType] = useState<string>("Emergency");
   const [isSafe, setIsSafe] = useState<boolean>(false);
   const [crisisAlert, setCrisisAlert] = useState<CrisisAlert | null>(null);
   const [crisisAlerts, setCrisisAlerts] = useState<CrisisAlert[]>([]);
@@ -173,8 +175,12 @@ const Dashboard: React.FC = () => {
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
   const [selectedSearchProfile, setSelectedSearchProfile] = useState<SearchResult | null>(null);
   const [editProfileData, setEditProfileData] = useState<Partial<UserProfile>>({});
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  // Separate page states for different sections
+  const [emergencyPage, setEmergencyPage] = useState<number>(1);
+  const [safeAlertsPage, setSafeAlertsPage] = useState<number>(1);
+  const [pendingAlertsPage, setPendingAlertsPage] = useState<number>(1);
   const alertsPerPage = 4;
+  const emergenciesPerPage = 6;
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const iconMap: { [key: string]: React.ElementType } = {
@@ -193,19 +199,27 @@ const Dashboard: React.FC = () => {
 
   // Calculate total pages and current page alerts for safe alerts
   const totalSafePages = Math.ceil(userSafeAlerts.length / alertsPerPage);
-  const indexOfLastSafeAlert = currentPage * alertsPerPage;
+  const indexOfLastSafeAlert = safeAlertsPage * alertsPerPage;
   const indexOfFirstSafeAlert = indexOfLastSafeAlert - alertsPerPage;
   const currentSafeAlerts = userSafeAlerts.slice(indexOfFirstSafeAlert, indexOfLastSafeAlert);
 
   // Calculate total pages and current page alerts for pending alerts
   const totalPendingPages = Math.ceil(pendingCrisisAlerts.length / alertsPerPage);
-  const indexOfLastPendingAlert = currentPage * alertsPerPage;
+  const indexOfLastPendingAlert = pendingAlertsPage * alertsPerPage;
   const indexOfFirstPendingAlert = indexOfLastPendingAlert - alertsPerPage;
   const currentPendingAlerts = pendingCrisisAlerts.slice(indexOfFirstPendingAlert, indexOfLastPendingAlert);
 
-  // Handle page change
-  const handlePageChange = (pageNumber: number) => {
-    setCurrentPage(pageNumber);
+  // Handle page changes for different sections
+  const handleEmergencyPageChange = (pageNumber: number) => {
+    setEmergencyPage(pageNumber);
+  };
+
+  const handleSafeAlertsPageChange = (pageNumber: number) => {
+    setSafeAlertsPage(pageNumber);
+  };
+
+  const handlePendingAlertsPageChange = (pageNumber: number) => {
+    setPendingAlertsPage(pageNumber);
   };
 
   const randomLocation = (centerLat: number, centerLng: number, radiusKm: number): Location => {
@@ -238,6 +252,78 @@ const Dashboard: React.FC = () => {
       console.error("Error fetching users:", error);
       setError(`Failed to fetch users: ${error.message}`);
       return [];
+    }
+  };
+
+  const fetchUserConnections = async (userId: string): Promise<SearchResult[]> => {
+    try {
+      // First, get all connections for the user
+      const { data: connectionsData, error: connectionsError } = await supabase
+        .from("connections")
+        .select("user1_id, user2_id")
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+      
+      if (connectionsError) throw new Error(`Connections fetch error: ${connectionsError.message}`);
+      
+      if (!connectionsData || connectionsData.length === 0) {
+        return [];
+      }
+      
+      // Extract all unique user IDs from connections
+      const connectionUserIds = new Set<string>();
+      connectionsData.forEach((connection) => {
+        if (connection.user1_id !== userId) {
+          connectionUserIds.add(connection.user1_id);
+        }
+        if (connection.user2_id !== userId) {
+          connectionUserIds.add(connection.user2_id);
+        }
+      });
+      
+      // Fetch user details for all connection IDs
+      const { data: usersData, error: usersError } = await supabase
+        .from("users")
+        .select("user_id, name, email, avatar")
+        .in("user_id", Array.from(connectionUserIds));
+      
+      if (usersError) throw new Error(`Users fetch error: ${usersError.message}`);
+      
+      // Convert to SearchResult format
+      const connections: SearchResult[] = (usersData || []).map((user) => ({
+        id: user.user_id,
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+      }));
+      
+      return connections;
+    } catch (error: any) {
+      console.error("Error fetching user connections:", error);
+      setError(`Failed to fetch connections: ${error.message}`);
+      return [];
+    }
+  };
+
+  const getCrisisType = async (crisisId: number | null | undefined): Promise<string> => {
+    if (!crisisId) return "general";
+    
+    try {
+      const { data: crisisData, error } = await supabase
+        .from("crisis_alerts")
+        .select("type")
+        .eq("id", crisisId)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching crisis type:", error);
+        return "general";
+      }
+      
+      return crisisData?.type || "general";
+    } catch (error) {
+      console.error("Error fetching crisis type:", error);
+      return "general";
     }
   };
 
@@ -344,6 +430,7 @@ const Dashboard: React.FC = () => {
         .insert({
           user_id: recipientId,
           type: "connection_request",
+          notification_type: "connection_request",
           message: `${
             senderData?.name || "User"
           } sent a connection request to ${recipientData?.name || "User"}.`,
@@ -415,6 +502,7 @@ const Dashboard: React.FC = () => {
               id: Date.now(),
               user_id: user.id,
               type: "connection_accepted",
+              notification_type: "connection_accepted",
               message: `${
                 recipientData?.name || "User"
               } accepted a connection with ${senderData?.name || "User"}.`,
@@ -734,7 +822,7 @@ const Dashboard: React.FC = () => {
         const { data: notificationsData, error: notificationsError } =
           await supabase
             .from("notifications")
-            .select("*")
+            .select("id, user_id, type, notification_type, message, read, created_at")
             .eq("user_id", user.id)
             .order("created_at", { ascending: false });
         if (notificationsError) {
@@ -916,6 +1004,7 @@ const Dashboard: React.FC = () => {
                   id: newRequest.id,
                   user_id: newRequest.recipient_id,
                   type: "connection_request",
+                  notification_type: "connection_request",
                   message: `${
                     senderData?.name || "User"
                   } sent a connection request to ${
@@ -1022,7 +1111,7 @@ const Dashboard: React.FC = () => {
       console.log("Safe user for alert:", safeUser);
 
       if (newAlert.user_id !== user.id) {
-        if (newAlert.type === "Safe" && connectionIds.includes(newAlert.user_id)) {
+        if (newAlert.type === "Safe" && newAlert.user_id && connectionIds.includes(newAlert.user_id)) {
           setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
             prev
               .map((crisis) =>
@@ -1051,6 +1140,21 @@ const Dashboard: React.FC = () => {
                 }
               : prev
           );
+
+          // Add notification for connection marking themselves safe
+          const crisisType = await getCrisisType(newAlert.related_crisis_id);
+          const connectionSafeNotification = {
+            id: Date.now(),
+            user_id: user.id,
+            type: "connection_safe",
+            notification_type: "connection_safe",
+            message: `${safeUser.name} marked themselves as safe for ${crisisType} crisis`,
+            read: false,
+            created_at: new Date().toISOString(),
+          };
+
+          setNotifications((prev) => [connectionSafeNotification, ...prev]);
+
           console.log("Updated crisisAlerts and selectedCrisisAlert with safe user:", safeUser);
         } else if (newAlert.type !== "Safe") {
           const { data: safeForThis, error: safeError } = await supabase
@@ -1126,6 +1230,31 @@ const Dashboard: React.FC = () => {
       console.log("Deleted alert:", deletedAlert);
 
       setUserSafeAlerts((prev) => prev.filter((s) => s.id !== deletedAlert.id));
+      
+      // Add notification if a connection unmarked themselves as safe
+      if (deletedAlert.type === "Safe" && deletedAlert.user_id !== user.id && deletedAlert.user_id && connectionIds.includes(deletedAlert.user_id)) {
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("name")
+          .eq("user_id", deletedAlert.user_id)
+          .single();
+
+        if (!userError && userData) {
+          const crisisType = await getCrisisType(deletedAlert.related_crisis_id);
+          const connectionUnsafeNotification = {
+            id: Date.now(),
+            user_id: user.id,
+            type: "connection_unsafe",
+            notification_type: "connection_unsafe",
+            message: `${userData.name} unmarked themselves as safe for ${crisisType} crisis`,
+            read: false,
+            created_at: new Date().toISOString(),
+          };
+
+          setNotifications((prev) => [connectionUnsafeNotification, ...prev]);
+        }
+      }
+
       if (deletedAlert.related_crisis_id) {
         const { data: crisisData, error: crisisError } = await supabase
           .from("crisis_alerts")
@@ -1291,12 +1420,12 @@ const Dashboard: React.FC = () => {
       if (emergencyError)
         throw new Error(`Emergency insert error: ${emergencyError.message}`);
 
-      const allUsers = await fetchAllUsers();
-      const notifications = allUsers
-        .filter((u) => u.id !== user.id)
-        .map((u) => ({
-          user_id: u.id,
+      const userConnections = await fetchUserConnections(user.id);
+      const notifications = userConnections
+        .map((connection) => ({
+          user_id: connection.id,
           type: "emergency",
+          notification_type: "emergency",
           message: `${activeUser || "User"} triggered a ${type} alert at Lat: ${
             userLocation.lat
           }, Lng: ${userLocation.lng}!`,
@@ -1406,13 +1535,14 @@ const Dashboard: React.FC = () => {
         }
       }
 
-      const allUsers = await fetchAllUsers();
-      const notifications = allUsers
-        .filter((u) => u.id !== user.id)
-        .map((u) => ({
-          user_id: u.id,
+      const userConnections = await fetchUserConnections(user.id);
+      const crisisType = await getCrisisType(crisisId);
+      const notifications = userConnections
+        .map((connection) => ({
+          user_id: connection.id,
           type: "safe_alert_removed",
-          message: `${activeUser || "User"} unmarked themselves as safe for crisis #${crisisId || "general"}`,
+          notification_type: "safe_alert_removed",
+          message: `${activeUser || "User"} unmarked themselves as safe for ${crisisType} crisis`,
           read: false,
           created_at: new Date().toISOString(),
         }));
@@ -1490,13 +1620,14 @@ const Dashboard: React.FC = () => {
         setPendingCrisisAlerts((prev) => prev.filter((p) => p.id !== crisisId));
       }
 
-      const allUsers = await fetchAllUsers();
-      const notifications = allUsers
-        .filter((u) => u.id !== user.id)
-        .map((u) => ({
-          user_id: u.id,
+      const userConnections = await fetchUserConnections(user.id);
+      const crisisType = await getCrisisType(crisisId);
+      const notifications = userConnections
+        .map((connection) => ({
+          user_id: connection.id,
           type: "safe_alert",
-          message: `${activeUser || "User"} marked themselves as safe for crisis #${crisisId || "general"}`,
+          notification_type: "safe_alert",
+          message: `${activeUser || "User"} marked themselves as safe for ${crisisType} crisis`,
           read: false,
           created_at: new Date().toISOString(),
         }));
@@ -1630,6 +1761,7 @@ const Dashboard: React.FC = () => {
       const newNotification = {
         user_id: user.id,
         type: "report",
+        notification_type: "report",
         message: `Reported ${selectedEmergencyForAction.emergency_type} by ${selectedEmergencyForAction.name}`,
         read: false,
         created_at: new Date().toISOString(),
@@ -2177,7 +2309,7 @@ const Dashboard: React.FC = () => {
                     const totalEmergencyPages = Math.ceil(
                       emergencies.length / emergenciesPerPage
                     );
-                    const indexOfLastEmergency = currentPage * emergenciesPerPage;
+                    const indexOfLastEmergency = emergencyPage * emergenciesPerPage;
                     const indexOfFirstEmergency = indexOfLastEmergency - emergenciesPerPage;
                     const currentEmergencies = emergencies.slice(
                       indexOfFirstEmergency,
@@ -2245,9 +2377,9 @@ const Dashboard: React.FC = () => {
                           {Array.from({ length: totalEmergencyPages }, (_, i) => (
                             <button
                               key={i + 1}
-                              onClick={() => handlePageChange(i + 1)}
+                              onClick={() => handleEmergencyPageChange(i + 1)}
                               className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                                currentPage === i + 1
+                                emergencyPage === i + 1
                                   ? "bg-[#005524] text-white"
                                   : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                               }`}
@@ -2420,8 +2552,14 @@ const Dashboard: React.FC = () => {
                   <div
                     key={alert.id}
                     className="flex items-center justify-between space-x-4 mb-2 p-2 rounded-2xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer"
-                    onClick={() => {
+                    onClick={async () => {
                       setSelectedCrisisAlert(alert);
+                      if (alert.type === "Safe" && alert.related_crisis_id) {
+                        const crisisType = await getCrisisType(alert.related_crisis_id);
+                        setOriginalCrisisType(crisisType);
+                      } else {
+                        setOriginalCrisisType(alert.type);
+                      }
                       setShowCrisisModal(true);
                     }}
                   >
@@ -2453,9 +2591,9 @@ const Dashboard: React.FC = () => {
                   {Array.from({ length: totalSafePages }, (_, i) => (
                     <button
                       key={i + 1}
-                      onClick={() => handlePageChange(i + 1)}
+                      onClick={() => handleSafeAlertsPageChange(i + 1)}
                       className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                        currentPage === i + 1
+                        safeAlertsPage === i + 1
                           ? "bg-[#005524] text-white"
                           : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                       }`}
@@ -2481,8 +2619,14 @@ const Dashboard: React.FC = () => {
                   <div
                     key={alert.id}
                     className="flex items-center justify-between space-x-4 mb-2 p-2 rounded-2xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer"
-                    onClick={() => {
+                    onClick={async () => {
                       setSelectedCrisisAlert(alert);
+                      if (alert.type === "Safe" && alert.related_crisis_id) {
+                        const crisisType = await getCrisisType(alert.related_crisis_id);
+                        setOriginalCrisisType(crisisType);
+                      } else {
+                        setOriginalCrisisType(alert.type);
+                      }
                       setShowCrisisModal(true);
                     }}
                   >
@@ -2517,9 +2661,9 @@ const Dashboard: React.FC = () => {
                   {Array.from({ length: totalPendingPages }, (_, i) => (
                     <button
                       key={i + 1}
-                      onClick={() => handlePageChange(i + 1)}
+                      onClick={() => handlePendingAlertsPageChange(i + 1)}
                       className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                        currentPage === i + 1
+                        pendingAlertsPage === i + 1
                           ? "bg-[#005524] text-white"
                           : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                       }`}
@@ -2778,7 +2922,7 @@ const Dashboard: React.FC = () => {
             Crisis Details
           </h2>
           <p className="text-gray-600 mb-2">
-            <strong>Type:</strong> {selectedCrisisAlert.type}
+            <strong>Type:</strong> {selectedCrisisAlert.type === "Safe" ? originalCrisisType : selectedCrisisAlert.type}
           </p>
           <p className="text-gray-600 mb-2">
             <strong>Reported by:</strong> {selectedCrisisAlert.reporter}

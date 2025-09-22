@@ -168,6 +168,7 @@ const Dashboard: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [deviceStatus, setDeviceStatus] = useState<"Active" | "Inactive">("Active");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<Location>({
     lat: 14.5995,
     lng: 120.9842,
@@ -490,11 +491,34 @@ const Dashboard: React.FC = () => {
       if (!user) throw new Error("No authenticated user");
 
       // Find the connection between the current user and the selected user
-      const { data: connectionData, error: connectionError } = await supabase
+      let connectionData = null;
+      let connectionError = null;
+      
+      // Try first direction (user is user1, selected profile is user2)
+      const { data: firstDirectionData, error: firstDirectionError } = await supabase
         .from("connections")
         .select("id")
-        .or(`user1_id.eq.${user.id}.and.user2_id.eq.${userId},user1_id.eq.${userId}.and.user2_id.eq.${user.id}`)
-        .single();
+        .eq("user1_id", user.id)
+        .eq("user2_id", userId)
+        .maybeSingle();
+        
+      if (firstDirectionData) {
+        connectionData = firstDirectionData;
+        connectionError = firstDirectionError;
+      } else {
+        // Try reverse direction (user is user2, selected profile is user1)
+        const { data: secondDirectionData, error: secondDirectionError } = await supabase
+          .from("connections")
+          .select("id")
+          .eq("user1_id", userId)
+          .eq("user2_id", user.id)
+          .maybeSingle();
+          
+        if (secondDirectionData) {
+          connectionData = secondDirectionData;
+          connectionError = secondDirectionError;
+        }
+      }
 
       if (connectionError || !connectionData) {
         throw new Error(`Connection not found: ${connectionError?.message || "Unknown error"}`);
@@ -512,6 +536,23 @@ const Dashboard: React.FC = () => {
 
       // Update the connections list
       setConnections(connections.filter(conn => conn.connected_user_id !== userId));
+      
+      // Update the search results if the user is in the search results
+      if (searchResults.length > 0) {
+        setSearchResults(searchResults.map(profile => 
+          profile.id === userId 
+            ? { ...profile, connectionStatus: null } 
+            : profile
+        ));
+      }
+      
+      // Update the selected profile if it's the one we're removing connection from
+      if (selectedSearchProfile && selectedSearchProfile.id === userId) {
+        setSelectedSearchProfile({
+          ...selectedSearchProfile,
+          connectionStatus: null
+        });
+      }
       
       // Close the profile view
       setShowProfile(false);

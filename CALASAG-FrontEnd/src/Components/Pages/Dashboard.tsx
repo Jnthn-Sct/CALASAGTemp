@@ -21,6 +21,7 @@ import {
   FaCarCrash,
   FaAmbulance,
   FaUserPlus,
+  FaUserMinus,
   FaEdit,
   FaArrowLeft,
   FaPaperPlane,
@@ -117,6 +118,7 @@ interface SearchResult {
   name: string;
   email: string;
   avatar: string | null;
+  connectionStatus?: "connected" | "request_sent" | "request_received" | null;
 }
 
 const Dashboard: React.FC = () => {
@@ -135,6 +137,7 @@ const Dashboard: React.FC = () => {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showLocationView, setShowLocationView] = useState<boolean>(false);
   const [showConnectionOptions, setShowConnectionOptions] = useState<boolean>(false);
+  const [showConnectionRequestsMenu, setShowConnectionRequestsMenu] = useState<boolean>(false);
   const [showCrisisModal, setShowCrisisModal] = useState<boolean>(false);
   const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
@@ -376,17 +379,33 @@ const Dashboard: React.FC = () => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user");
 
-      const { data: existingRequest } = await supabase
+      // Check for any existing request regardless of status
+      const { data: anyRequest } = await supabase
         .from("connection_requests")
         .select("*")
         .eq("sender_id", user.id)
-        .eq("recipient_id", recipientId)
-        .eq("status", "pending")
-        .single();
-
-      if (existingRequest) {
-        setError("Connection request already pending.");
-        return;
+        .eq("recipient_id", recipientId);
+      
+      // If there's a rejected request, delete it to allow resending
+      if (anyRequest && anyRequest.length > 0) {
+        const rejectedRequest = anyRequest.find(req => req.status === "rejected");
+        const pendingRequest = anyRequest.find(req => req.status === "pending");
+        
+        if (pendingRequest) {
+          setError("Connection request already pending.");
+          return;
+        }
+        
+        if (rejectedRequest) {
+          const { error: deleteError } = await supabase
+            .from("connection_requests")
+            .delete()
+            .eq("id", rejectedRequest.id);
+            
+          if (deleteError) {
+            throw new Error(`Failed to clear previous request: ${deleteError.message}`);
+          }
+        }
       }
 
       const { data: existingConnection } = await supabase
@@ -425,27 +444,34 @@ const Dashboard: React.FC = () => {
         .eq("user_id", recipientId)
         .single();
 
+      // Use RPC function to insert notification to bypass RLS
       const { error: notificationError } = await supabase
-        .from("notifications")
-        .insert({
-          user_id: recipientId,
-          type: "connection_request",
+        .rpc('create_notification', {
+          recipient_id: recipientId,
           notification_type: "connection_request",
-          message: `${
+          message_text: `${
             senderData?.name || "User"
           } sent a connection request to ${recipientData?.name || "User"}.`,
-          read: false,
-          created_at: new Date().toISOString(),
+          sender_id: user.id
         });
       if (notificationError) {
-        throw new Error(`Notification error: ${notificationError.message}`);
+        console.error("Notification error:", notificationError);
+        // Continue even if notification fails
       }
 
       setError(null);
       setShowProfile(false);
       setShowSearchResults(false);
       setSearchQuery("");
-      alert("Connection request sent successfully!");
+      setSuccess("Connection request sent successfully!");
+      
+      // Update UI to show "Connection Request Sent" status
+      if (selectedSearchProfile && selectedSearchProfile.id === recipientId) {
+        setSelectedSearchProfile({
+          ...selectedSearchProfile,
+          connectionStatus: "request_sent"
+        });
+      }
     } catch (error: any) {
       console.error("Error sending connection request:", error);
       setError(
@@ -453,6 +479,48 @@ const Dashboard: React.FC = () => {
           ? "Cannot send connection request: No user selected."
           : `Failed to send connection request: ${error.message}`
       );
+    }
+  };
+
+  const handleRemoveConnection = async (userId: string) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+
+      // Find the connection between the current user and the selected user
+      const { data: connectionData, error: connectionError } = await supabase
+        .from("connections")
+        .select("id")
+        .or(`user1_id.eq.${user.id}.and.user2_id.eq.${userId},user1_id.eq.${userId}.and.user2_id.eq.${user.id}`)
+        .single();
+
+      if (connectionError || !connectionData) {
+        throw new Error(`Connection not found: ${connectionError?.message || "Unknown error"}`);
+      }
+
+      // Delete the connection
+      const { error: deleteError } = await supabase
+        .from("connections")
+        .delete()
+        .eq("id", connectionData.id);
+
+      if (deleteError) {
+        throw new Error(`Failed to remove connection: ${deleteError.message}`);
+      }
+
+      // Update the connections list
+      setConnections(connections.filter(conn => conn.connected_user_id !== userId));
+      
+      // Close the profile view
+      setShowProfile(false);
+      
+      // Show success message
+      setSuccess("Connection removed successfully");
+    } catch (error: any) {
+      console.error("Error removing connection:", error);
+      setError(`Failed to remove connection: ${error.message}`);
     }
   };
 
@@ -466,6 +534,14 @@ const Dashboard: React.FC = () => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user");
 
+      const { data: requestData } = await supabase
+        .from("connection_requests")
+        .select("sender_id, recipient_id")
+        .eq("id", requestId)
+        .single();
+      
+      if (!requestData) throw new Error("Connection request not found");
+
       const { error } = await supabase
         .from("connection_requests")
         .update({ status: action })
@@ -474,97 +550,109 @@ const Dashboard: React.FC = () => {
       if (error)
         throw new Error(`Connection request update error: ${error.message}`);
 
+      // Remove the request from the UI immediately
       setConnectionRequests((prev) =>
-        prev.map((req) =>
-          req.id === requestId ? { ...req, status: action } : req
-        )
+        prev.filter((req) => req.id !== requestId)
       );
+      
+      // Close the connection requests menu if there are no more requests
+      if (connectionRequests.length <= 1) {
+        setShowConnectionRequestsMenu(false);
+      }
 
       if (action === "accepted") {
-        const { data: requestData } = await supabase
-          .from("connection_requests")
-          .select("sender_id, recipient_id")
-          .eq("id", requestId)
+        const { data: senderData } = await supabase
+          .from("users")
+          .select("name, avatar, user_id")
+          .eq("user_id", requestData.sender_id)
           .single();
-        if (requestData) {
-          const { data: senderData } = await supabase
+        const { data: recipientData } = await supabase
+          .from("users")
+          .select("name")
+          .eq("user_id", requestData.recipient_id)
+          .single();
+          
+        // Add notification for the current user
+        setNotifications((prev) => [
+          {
+            id: Date.now(),
+            user_id: user.id,
+            type: "connection_accepted",
+            notification_type: "connection_accepted",
+            message: `You accepted a connection with ${senderData?.name || "User"}.`,
+            read: false,
+            created_at: new Date().toISOString(),
+          },
+          ...prev,
+        ]);
+
+        // Send notification to the sender that their request was accepted
+        const { error: notificationError } = await supabase
+          .rpc('create_notification', {
+            recipient_id: requestData.sender_id,
+            notification_type: "connection_accepted",
+            message_text: `${
+              recipientData?.name || "User"
+            } accepted your connection request.`,
+            sender_id: user.id
+          });
+        
+        if (notificationError) {
+          console.error("Notification error:", notificationError);
+        }
+
+        const newConnection = {
+          user1_id:
+            user.id < requestData.sender_id ? user.id : requestData.sender_id,
+          user2_id:
+            user.id < requestData.sender_id ? requestData.sender_id : user.id,
+          created_at: new Date().toISOString(),
+        };
+        const { error: connectionError } = await supabase
+          .from("connections")
+          .insert(newConnection);
+        if (connectionError) {
+          throw new Error(
+            `Connection insertion error: ${connectionError.message}`
+          );
+        }
+
+        const { data: connectionsData, error: connectionsError } =
+          await supabase
+            .from("connections")
+            .select("id, user1_id, user2_id")
+            .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+        if (connectionsError) {
+          throw new Error(
+            `Connections fetch error: ${connectionsError.message}`
+          );
+        }
+
+        const formattedConnections: Connection[] = [];
+        for (const conn of connectionsData || []) {
+          const isUser1 = conn.user1_id === user.id;
+          const connectedUserId = isUser1 ? conn.user2_id : conn.user1_id;
+          const { data: connectedUser, error: userError } = await supabase
             .from("users")
             .select("name, avatar")
-            .eq("user_id", requestData.sender_id)
+            .eq("user_id", connectedUserId)
             .single();
-          const { data: recipientData } = await supabase
-            .from("users")
-            .select("name")
-            .eq("user_id", requestData.recipient_id)
-            .single();
-          setNotifications((prev) => [
-            {
-              id: Date.now(),
-              user_id: user.id,
-              type: "connection_accepted",
-              notification_type: "connection_accepted",
-              message: `${
-                recipientData?.name || "User"
-              } accepted a connection with ${senderData?.name || "User"}.`,
-              read: false,
-              created_at: new Date().toISOString(),
-            },
-            ...prev,
-          ]);
-
-          const newConnection = {
-            user1_id:
-              user.id < requestData.sender_id ? user.id : requestData.sender_id,
-            user2_id:
-              user.id < requestData.sender_id ? requestData.sender_id : user.id,
-            created_at: new Date().toISOString(),
-          };
-          const { error: connectionError } = await supabase
-            .from("connections")
-            .insert(newConnection);
-          if (connectionError) {
-            throw new Error(
-              `Connection insertion error: ${connectionError.message}`
+          if (userError) {
+            console.error(
+              `Error fetching user ${connectedUserId}:`,
+              userError
             );
+            continue;
           }
-
-          const { data: connectionsData, error: connectionsError } =
-            await supabase
-              .from("connections")
-              .select("id, user1_id, user2_id")
-              .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
-          if (connectionsError) {
-            throw new Error(
-              `Connections fetch error: ${connectionsError.message}`
-            );
-          }
-
-          const formattedConnections: Connection[] = [];
-          for (const conn of connectionsData || []) {
-            const isUser1 = conn.user1_id === user.id;
-            const connectedUserId = isUser1 ? conn.user2_id : conn.user1_id;
-            const { data: connectedUser, error: userError } = await supabase
-              .from("users")
-              .select("name, avatar")
-              .eq("user_id", connectedUserId)
-              .single();
-            if (userError) {
-              console.error(
-                `Error fetching user ${connectedUserId}:`,
-                userError
-              );
-              continue;
-            }
-            formattedConnections.push({
-              id: conn.id,
-              name: connectedUser?.name || "Unknown User",
-              avatar: connectedUser?.avatar || null,
-              connected_user_id: connectedUserId,
-              is_online: false,
-            });
-          }
-          setConnections(formattedConnections);
+          formattedConnections.push({
+            id: conn.id,
+            name: connectedUser?.name || "Unknown User",
+            avatar: connectedUser?.avatar || null,
+            connected_user_id: connectedUserId,
+            is_online: false,
+          });
         }
+        setConnections(formattedConnections);
       }
     } catch (error: any) {
       console.error(`Error ${action} connection request:`, error);
@@ -1434,13 +1522,20 @@ const Dashboard: React.FC = () => {
         }));
 
       if (notifications.length > 0) {
-        const { error: notificationError } = await supabase
-          .from("notifications")
-          .insert(notifications);
-        if (notificationError)
-          throw new Error(
-            `Notification insert error: ${notificationError.message}`
-          );
+        // Use RPC function for each notification to bypass RLS
+        for (const notification of notifications) {
+          const { error: notificationError } = await supabase
+            .rpc('create_notification', {
+              recipient_id: notification.user_id,
+              notification_type: notification.notification_type || "emergency",
+              message_text: notification.message,
+              sender_id: user.id
+            });
+          if (notificationError) {
+            console.error("Notification error:", notificationError);
+            // Continue even if notification fails
+          }
+        }
       }
 
       setCrisisAlert(insertedAlert);
@@ -1548,10 +1643,20 @@ const Dashboard: React.FC = () => {
         }));
 
       if (notifications.length > 0) {
-        const { error: notificationError } = await supabase
-          .from("notifications")
-          .insert(notifications);
-        if (notificationError) throw new Error(`Notification insert error: ${notificationError.message}`);
+        // Use RPC function for each notification to bypass RLS
+        for (const notification of notifications) {
+          const { error: notificationError } = await supabase
+            .rpc('create_notification', {
+              recipient_id: notification.user_id,
+              notification_type: notification.notification_type || "safe_alert",
+              message_text: notification.message,
+              sender_id: user.id
+            });
+          if (notificationError) {
+            console.error("Notification error:", notificationError);
+            // Continue even if notification fails
+          }
+        }
       }
     } else {
       const newAlert = {
@@ -1633,10 +1738,20 @@ const Dashboard: React.FC = () => {
         }));
 
       if (notifications.length > 0) {
-        const { error: notificationError } = await supabase
-          .from("notifications")
-          .insert(notifications);
-        if (notificationError) throw new Error(`Notification insert error: ${notificationError.message}`);
+        // Use RPC function for each notification to bypass RLS
+        for (const notification of notifications) {
+          const { error: notificationError } = await supabase
+            .rpc('create_notification', {
+              recipient_id: notification.user_id,
+              notification_type: notification.notification_type || "safe_alert_removed",
+              message_text: notification.message,
+              sender_id: user.id
+            });
+          if (notificationError) {
+            console.error("Notification error:", notificationError);
+            // Continue even if notification fails
+          }
+        }
       }
     }
   } catch (error: any) {
@@ -1959,7 +2074,88 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center space-x-4 mt-4 sm:mt-0">
           <div className="relative">
             <button
-              onClick={() => setShowNotifications(!showNotifications)}
+              onClick={() => {
+                setShowConnectionRequestsMenu(!showConnectionRequestsMenu);
+                setShowNotifications(false);
+              }}
+              className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-all duration-300 hover:scale-110"
+            >
+              <FaUserPlus size={20} className="text-[#005524]" />
+              {connectionRequests.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#005524] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
+                  {connectionRequests.length}
+                </span>
+              )}
+            </button>
+            {showConnectionRequestsMenu && (
+              <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#005524]/20">
+                <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+                  <h3 className="text-lg font-bold text-[#005524]">
+                    Connection Requests
+                  </h3>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {connectionRequests.length > 0 ? (
+                    connectionRequests.map((request) => (
+                      <div
+                        key={request.id}
+                        className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 hover:scale-105 transition-all duration-300 rounded-2xl"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                            {request.sender_avatar ? (
+                              <img
+                                src={request.sender_avatar}
+                                className="w-full h-full rounded-full"
+                                alt={request.sender_name}
+                              />
+                            ) : (
+                              <span>👤</span>
+                            )}
+                          </div>
+                          <p className="text-gray-900 text-sm">
+                            {request.sender_name} wants to connect
+                          </p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() =>
+                              handleConnectionRequestAction(
+                                request.id,
+                                "accepted"
+                              )
+                            }
+                            className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                          >
+                            <FaCheck className="inline mr-1" /> Accept
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleConnectionRequestAction(
+                                request.id,
+                                "rejected"
+                              )
+                            }
+                            className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                          >
+                            <FaTimes className="inline mr-1" /> Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="px-4 py-3 text-gray-600">No connection requests.</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowNotifications(!showNotifications);
+                setShowConnectionRequestsMenu(false);
+              }}
               className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-all duration-300 hover:scale-110"
             >
               <FaBell size={20} className="text-[#f69f00]" />
@@ -2725,14 +2921,35 @@ const Dashboard: React.FC = () => {
                 <p className="text-gray-600">{selectedSearchProfile.email}</p>
               </div>
             </div>
-            {selectedSearchProfile.id !== userProfile?.id && !isConnected(selectedSearchProfile.id) && (
-              <button
-                onClick={() => handleSendConnectionRequest(selectedSearchProfile.id)}
-                className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex items-center justify-center"
-              >
-                <FaUserPlus className="mr-2" />
-                Send Connection Request
-              </button>
+            {selectedSearchProfile.id !== userProfile?.id && (
+              <>
+                {isConnected(selectedSearchProfile.id) ? (
+                  <button
+                    onClick={() => handleRemoveConnection(selectedSearchProfile.id)}
+                    className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex items-center justify-center"
+                  >
+                    <FaUserMinus className="mr-2" />
+                    Remove Connection
+                  </button>
+                ) : (
+                  <>
+                    {selectedSearchProfile.connectionStatus === "request_sent" ? (
+                      <div className="w-full bg-gray-500 text-white px-4 py-2 rounded-lg flex items-center justify-center">
+                        <FaCheck className="mr-2" />
+                        Connection Request Sent
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleSendConnectionRequest(selectedSearchProfile.id)}
+                        className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex items-center justify-center"
+                      >
+                        <FaUserPlus className="mr-2" />
+                        Send Connection Request
+                      </button>
+                    )}
+                  </>
+                )}
+              </>
             )}
             {selectedSearchProfile.id === userProfile?.id && (
               <button

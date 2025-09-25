@@ -873,58 +873,6 @@ const SuperAdminDashboard: React.FC = () => {
     }
   };
 
-  // Handle generate report from notification
-  const handleGenerateReportFromNotification = async (
-    notificationId: number
-  ) => {
-    setIsSubmittingReport(true);
-    try {
-      const notification = notificationsList.find(
-        (n) => n.id === notificationId
-      );
-      if (!notification) return;
-
-      const { error } = await supabase.from("system_reports").insert({
-        title: `Report from Notification ${notificationId}`,
-        type: "performance",
-        status: "generated",
-        date: new Date().toISOString(),
-        metrics: { uptime: 99.5 },
-      });
-
-      if (error) throw error;
-
-      // Get current user ID
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        // Create notification for the generated report
-        const { error: notificationError } = await supabase
-          .from("notifications")
-          .insert({
-            user_id: user.id,
-            message: `Report from notification has been generated`,
-            type: "system_report",
-            notification_type: "general",
-            read: false,
-          });
-
-        if (notificationError) {
-          console.error("Notification creation failed:", notificationError);
-        }
-      }
-
-      await fetchReports();
-      setSuccessMessage("Report generated from notification successfully");
-      await markNotificationAsRead(notificationId); // Mark as read after action
-    } catch (error: any) {
-      setError(`Failed to generate report from notification: ${error.message}`);
-    } finally {
-      setIsSubmittingReport(false);
-    }
-  };
-
   // Initial data fetch and subscriptions
   useEffect(() => {
     fetchAllUsers();
@@ -2644,18 +2592,6 @@ const SuperAdminDashboard: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  {notification.message.includes("System report") && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation(); // Prevent marking as read when clicking the button
-                        handleGenerateReportFromNotification(notification.id);
-                      }}
-                      className="text-xs text-[#005524] hover:text-[#004d20]"
-                      disabled={isSubmittingReport}
-                    >
-                      Generate Report
-                    </button>
-                  )}
                 </div>
               ))
             )}

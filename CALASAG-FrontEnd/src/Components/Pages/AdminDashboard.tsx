@@ -16,6 +16,9 @@ import {
   FaPlus,
   FaFilter,
   FaDownload,
+  FaHistory,
+  FaFirstAid,
+  FaFire,
 } from "react-icons/fa";
 import logoImage from "../Images/no-bg-logo.png";
 
@@ -84,6 +87,7 @@ interface UiUser {
   lastLogin?: string;
   reports?: number; // incident reports
   crisis?: number; // crisis alerts
+  role?: string; // user role (admin, user, etc.)
 }
 
 interface IncidentReport {
@@ -97,6 +101,8 @@ interface IncidentReport {
   reporterId?: string; // reporter user_id
   type?: string; // alias for category
   date: string;
+  updatedBy?: string; // admin who last updated the incident
+  updatedAt?: string; // timestamp of last update
 }
 
 interface CrisisAlertRow {
@@ -115,15 +121,29 @@ interface SafetyTip {
   created_at: string;
 }
 
+// Interface for tracking incident actions
+interface IncidentAction {
+  id: number;
+  incident_id: number;
+  admin_id: string;
+  admin_name: string;
+  admin_role: string;
+  action_type: string; // 'status_change', 'severity_change', etc.
+  previous_value: string;
+  new_value: string;
+  timestamp: string;
+}
+
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
 
-  // Define currentUser as a constant at the beginning
-  const currentUser = {
-    name: "Admin",
-    email: "admin@calasag.com",
-    role: "Administrator",
-  };
+  // Get current user data from local storage or authentication
+  const [currentUser, setCurrentUser] = useState({
+    id: localStorage.getItem("userId") || "",
+    name: localStorage.getItem("userName") || "Admin",
+    email: localStorage.getItem("userEmail") || "admin@calasag.com",
+    role: localStorage.getItem("userRole") || "Administrator",
+  });
 
   const appRole = useMemo(() => localStorage.getItem("userRole") || "user", []);
 
@@ -133,9 +153,20 @@ const AdminDashboard: React.FC = () => {
     useState<boolean>(false);
   const [selectedIncident, setSelectedIncident] =
     useState<IncidentReport | null>(null);
+  const [isEditingIncident, setIsEditingIncident] = useState<boolean>(false);
+  const [editedIncident, setEditedIncident] = useState<{
+    severity: "low" | "medium" | "high" | "critical";
+    status: "pending" | "reviewing" | "resolved";
+  }>({ severity: "medium", status: "pending" });
   const [showSafetyTipModal, setShowSafetyTipModal] = useState<boolean>(false);
   const [showSafetyTipDetails, setShowSafetyTipDetails] =
     useState<boolean>(false);
+  const [isEditingSafetyTip, setIsEditingSafetyTip] = useState<boolean>(false);
+  const [editedSafetyTip, setEditedSafetyTip] = useState<{
+    name: string;
+    content: string;
+    icon: string | null;
+  }>({ name: "", content: "", icon: null });
   const [selectedSafetyTip, setSelectedSafetyTip] = useState<SafetyTip | null>(
     null
   );
@@ -174,6 +205,26 @@ const AdminDashboard: React.FC = () => {
 
   const [safetyTips, setSafetyTips] = useState<SafetyTip[]>([]);
   const [safetyTipsError, setSafetyTipsError] = useState<string | null>(null);
+  
+  // State for editing incident reports and safety tips
+  
+  // State for action history and activity log
+  interface IncidentAction {
+    id: number;
+    incident_id: number;
+    admin_id: string;
+    admin_name: string;
+    admin_role: string;
+    action_type: string;
+    previous_value: string;
+    new_value: string;
+    timestamp: string;
+  }
+
+const [incidentActions, setIncidentActions] = useState<IncidentAction[]>([]);
+const [activityLog, setActivityLog] = useState<IncidentAction[]>([]);
+const [actionFilter, setActionFilter] = useState<string>("all");
+  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toISOString());
 
   const [newSafetyTip, setNewSafetyTip] = useState({
     name: "",
@@ -214,12 +265,26 @@ const AdminDashboard: React.FC = () => {
         setSafetyTips(data || []);
       }
     };
+    // Define loadIncidentActions at the top level of useEffect to avoid duplicate declarations
+    const loadIncidentActions = async () => {
+      const { data, error } = await supabase
+        .from("incident_actions")
+        .select("*")
+        .order("timestamp", { ascending: false })
+        .limit(50);
+      if (error) {
+        console.error("Error loading incident actions:", error);
+      } else {
+        setIncidentActions(data || []);
+        setActivityLog(data || []);
+      }
+    };
 
     const loadIncidents = async () => {
       const { data, error } = await supabase
         .from("incidents")
         .select(
-          "incident_id, description, created_at, status, category, user_id"
+          "incident_id, description, created_at, status, category, user_id, severity, updated_by, updated_at"
         )
         .order("created_at", { ascending: false })
         .limit(2000);
@@ -233,8 +298,9 @@ const AdminDashboard: React.FC = () => {
           title: r.category,
           description: r.description || "",
           location: "-",
-          severity:
-            r.category === "crime" || r.category === "fire" ? "high" : "medium",
+          // Use stored severity if available, otherwise use default
+          severity: r.severity || 
+            (r.category === "crime" || r.category === "fire" ? "high" : "medium"),
           status:
             (r.status as any) === "reviewed"
               ? "reviewing"
@@ -242,6 +308,8 @@ const AdminDashboard: React.FC = () => {
           date: (r.created_at || "").toString().substring(0, 10),
           reporterId: r.user_id || undefined,
           type: r.category,
+          updatedBy: r.updated_by || "",
+          updatedAt: r.updated_at || "",
         }));
         setIncidents(mapped);
       }
@@ -361,18 +429,27 @@ const AdminDashboard: React.FC = () => {
       );
     };
 
+    // Load all data with improved concurrent loading
     const loadAll = async () => {
-      await loadSafetyTips();
-      await loadIncidents();
-      await loadCrisis();
-      await loadUsersBase();
-      await loadPresence();
-      await loadIncidentCounts();
-      await loadCrisisCounts();
+      try {
+        await Promise.all([
+          loadSafetyTips(),
+          loadIncidents(),
+          loadCrisis(),
+          loadUsersBase(),
+          loadPresence(),
+          loadIncidentCounts(),
+          loadCrisisCounts(),
+          loadIncidentActions()
+        ]);
+      } catch (error) {
+        console.error("Error loading data:", error);
+      }
     };
-
+    
     loadAll();
 
+    // Set up all real-time subscriptions
     const safetyTipsChannel = supabase
       .channel("safety_tips")
       .on(
@@ -436,13 +513,51 @@ const AdminDashboard: React.FC = () => {
         }
       )
       .subscribe();
+    
+    // Set up real-time subscription for incident actions
+    const incidentActionsChannel = supabase
+      .channel("incident_actions")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "incident_actions" },
+        (payload) => {
+          const newAction = payload.new as IncidentAction;
+          setIncidentActions(prev => [newAction, ...prev]);
+          setActivityLog(prev => [newAction, ...prev]);
+          
+          // If this is a severity change, update the incident in our local state
+          if (newAction.action_type === "severity_change") {
+            setIncidents(prev => 
+              prev.map(inc => 
+                inc.id === newAction.incident_id 
+                  ? {...inc, severity: newAction.new_value as any} 
+                  : inc
+              )
+            );
+          }
+          
+          // If this is a status change, update the incident in our local state
+          if (newAction.action_type === "status_change") {
+            setIncidents(prev => 
+              prev.map(inc => 
+                inc.id === newAction.incident_id 
+                  ? {...inc, status: newAction.new_value as any} 
+                  : inc
+              )
+            );
+          }
+        }
+      )
+      .subscribe();
 
+    // Clean up all subscriptions when component unmounts
     return () => {
       supabase.removeChannel(safetyTipsChannel);
       supabase.removeChannel(incidentsChannel);
       supabase.removeChannel(usersChannel);
       supabase.removeChannel(sessionsChannel);
       supabase.removeChannel(crisisChannel);
+      supabase.removeChannel(incidentActionsChannel);
     };
   }, []);
 
@@ -473,13 +588,203 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleIncidentAction = (
+  // Function to track incident actions
+  const trackIncidentAction = async (
+    incidentId: number,
+    actionType: string,
+    previousValue: string,
+    newValue: string
+  ) => {
+    console.log("🔴 TRACKING ACTION START:", incidentId, actionType, previousValue, newValue);
+    const created_at = new Date().toISOString();
+    
+    try {
+      // Create action with only fields that exist in the database
+      const actionData = {
+        incident_id: incidentId,
+        admin_id: currentUser.id,
+        // Remove admin_name and admin_role as they don't exist in the database
+        action_type: actionType,
+        previous_value: previousValue,
+        new_value: newValue,
+        created_at: created_at // Using created_at instead of timestamp
+      };
+      
+      console.log("📝 Saving action to database:", actionData);
+      
+      // Save to the database with explicit fields
+      const { data, error } = await supabase
+        .from("incident_actions")
+        .insert(actionData);
+        
+      if (error) {
+        console.error("❌ Error saving incident action:", error);
+        console.log("Error details:", JSON.stringify(error));
+        return;
+      }
+      
+      console.log("✅ Action saved successfully");
+
+      // Add to notifications
+      const notificationMessage = `${currentUser.name} ${actionType === 'status_change' ? 'changed status from' : 'changed severity from'} ${previousValue} to ${newValue}`;
+      setNotifications(prev => [
+        { id: Date.now(), message: notificationMessage, time: "Just now" },
+        ...prev,
+      ]);
+      
+      // CRITICAL: Force refresh activity log data from the database
+      console.log("🔄 Forcing complete refresh of activity log data...");
+      const { data: refreshData, error: refreshError } = await supabase
+        .from("incident_actions")
+        .select("*")
+        .order("timestamp", { ascending: false });
+      
+      if (refreshError) {
+        console.error("❌ Error refreshing activity log data:", refreshError);
+        return;
+      }
+      
+      if (refreshData && refreshData.length > 0) {
+        console.log(`✅ Refreshed activity log data: ${refreshData.length} items`);
+        
+        // Update both state variables with the fresh data
+        setIncidentActions([...refreshData]);
+        setActivityLog([...refreshData]);
+        
+        // Force a re-render by updating a timestamp
+        setLastUpdated(new Date().toISOString());
+      } else {
+        console.warn("⚠️ No activity log data returned from refresh");
+      }
+      
+    } catch (error) {
+      console.error("❌ Error tracking incident action:", error);
+    }
+    
+    console.log("🔴 TRACKING ACTION COMPLETE");
+  };
+
+  const handleIncidentAction = async (
     incidentId: number,
     action: "review" | "resolve" | "escalate"
   ) => {
     // Handle incident actions
     console.log(`Incident ${incidentId} ${action}`);
-    setShowIncidentDetails(false);
+    
+    // Find the incident to get previous status
+    const incident = incidents.find(inc => inc.incident_id === incidentId);
+    if (!incident) return;
+    
+    const previousStatus = incident.status;
+    
+    // Update incident status based on action
+    let newStatus: "pending" | "reviewing" | "resolved" = "pending";
+    if (action === "review") newStatus = "reviewing";
+    if (action === "resolve") newStatus = "resolved";
+    
+    try {
+      const { error } = await supabase
+        .from("incidents")
+        .update({ 
+          status: newStatus,
+          updated_by: currentUser.name,
+          updated_at: new Date().toISOString()
+        })
+        .eq("incident_id", incidentId);
+        
+      if (error) {
+        alert(`Error updating incident: ${error.message}`);
+        return;
+      }
+      
+      // Track the action
+      trackIncidentAction(incidentId, "status_change", previousStatus, newStatus);
+      
+      // Update local state
+      setIncidents(prev => 
+        prev.map(inc => inc.id === incidentId ? {...inc, status: newStatus} : inc)
+      );
+      
+      setShowIncidentDetails(false);
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+  
+  const handleSaveIncidentEdit = async () => {
+    if (!selectedIncident || !editedIncident) return;
+    
+    // Track previous values for action history
+    const previousStatus = selectedIncident.status;
+    const previousSeverity = selectedIncident.severity;
+    
+    try {
+      console.log("Saving incident edit:", selectedIncident.id, editedIncident);
+      
+      const { error } = await supabase
+        .from("incidents")
+        .update({ 
+          status: editedIncident.status,
+          severity: editedIncident.severity,
+          updated_by: currentUser.name,
+          updated_at: new Date().toISOString()
+        })
+        .eq("incident_id", selectedIncident.id);
+        
+      if (error) {
+        alert(`Error updating incident: ${error.message}`);
+        return;
+      }
+      
+      // Track status change if it changed
+      if (previousStatus !== editedIncident.status) {
+        console.log("Status changed:", previousStatus, "->", editedIncident.status);
+        await trackIncidentAction(
+          selectedIncident.id, 
+          "status_change", 
+          previousStatus, 
+          editedIncident.status
+        );
+      }
+      
+      // Track severity change if it changed
+      if (previousSeverity !== editedIncident.severity) {
+        console.log("Severity changed:", previousSeverity, "->", editedIncident.severity);
+        await trackIncidentAction(
+          selectedIncident.id, 
+          "severity_change", 
+          previousSeverity, 
+          editedIncident.severity
+        );
+      }
+      
+      // Force refresh activity log
+      const { data } = await supabase
+        .from("incident_actions")
+        .select("*")
+        .order("timestamp", { ascending: false })
+        .limit(50);
+      
+      if (data) {
+        setIncidentActions(data);
+        setActivityLog(data);
+      }
+      
+      // Update local state
+      setIncidents(prev => 
+        prev.map(inc => 
+          inc.id === selectedIncident.id 
+            ? {...inc, status: editedIncident.status, severity: editedIncident.severity} 
+            : inc
+        )
+      );
+      
+      setIsEditingIncident(false);
+      setShowIncidentDetails(false);
+    } catch (err: any) {
+      console.error("Error saving incident edit:", err);
+      alert(`Error: ${err.message}`);
+    }
   };
 
   const handleDeleteSafetyTip = async (tipId: number) => {
@@ -508,6 +813,40 @@ const AdminDashboard: React.FC = () => {
       setSafetyTips((prev) => [data as SafetyTip, ...prev]);
       setShowSafetyTipModal(false);
       setNewSafetyTip({ name: "", content: "" });
+    }
+  };
+  
+  const handleSaveSafetyTipEdit = async () => {
+    if (!editedSafetyTip || !editedSafetyTip.id) return;
+    
+    if (!editedSafetyTip.name || !editedSafetyTip.content) {
+      alert("Title and content are required");
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from("safety_tips")
+        .update({
+          name: editedSafetyTip.name,
+          content: editedSafetyTip.content,
+          icon: editedSafetyTip.icon
+        })
+        .eq("id", editedSafetyTip.id);
+        
+      if (error) {
+        alert(`Unable to update safety tip: ${error.message}`);
+      } else {
+        // Update local state
+        setSafetyTips(prev => 
+          prev.map(tip => tip.id === editedSafetyTip.id ? editedSafetyTip : tip)
+        );
+        setIsEditingSafetyTip(false);
+        setShowSafetyTipDetails(false);
+      }
+    } catch (error: any) {
+      console.error("Error updating safety tip:", error);
+      alert(`Failed to update safety tip: ${error.message}`);
     }
   };
 
@@ -1377,6 +1716,75 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         );
+      case "activity-log":
+        return (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">Activity Log</h3>
+                <div className="flex items-center gap-2">
+                  <select 
+                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                    onChange={(e) => {
+                      // Filter by action type
+                      if (e.target.value === "all") {
+                        setActivityLog(incidentActions);
+                      } else {
+                        setActivityLog(incidentActions.filter(action => action.action_type === e.target.value));
+                      }
+                    }}
+                  >
+                    <option value="all">All Actions</option>
+                    <option value="status_change">Status Changes</option>
+                    <option value="severity_change">Severity Changes</option>
+                  </select>
+                </div>
+              </div>
+              
+              {activityLog.length > 0 ? (
+                <div className="space-y-4">
+                  {activityLog.map((action) => (
+                    <div key={action.id} className="border border-gray-100 rounded-xl p-4 hover:shadow-md transition-all duration-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
+                            action.admin_role === "police" ? "bg-blue-600" : 
+                            action.admin_role === "medical" ? "bg-red-600" : 
+                            "bg-orange-600"
+                          }`}>
+                            {action.admin_role === "police" ? <FaShieldAlt size={14} /> : 
+                             action.admin_role === "medical" ? <FaFirstAid size={14} /> : 
+                             <FaFire size={14} />}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{action.admin_name}</p>
+                            <p className="text-xs text-gray-500">{action.admin_role}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {new Date(action.timestamp).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="pl-10">
+                        <p className="text-gray-700">
+                          {action.action_type === "status_change" ? "Changed status from " : "Changed severity from "}
+                          <span className="font-medium">{action.previous_value}</span> to <span className="font-medium">{action.new_value}</span>
+                          {" for incident #"}{action.incident_id}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <FaHistory size={40} className="mx-auto text-gray-300 mb-4" />
+                  <p className="text-gray-500">No activity recorded yet</p>
+                  <p className="text-sm text-gray-400 mt-2">Actions on incidents will appear here</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
       case "settings":
         return (
           <div className="space-y-6">
@@ -1794,6 +2202,29 @@ const AdminDashboard: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab("activity-log")}
+            className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
+                        ${
+                          activeTab === "activity-log"
+                            ? "bg-[#E7F6EE] text-[#005524]"
+                            : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+                        }
+                        `}
+          >
+            <span
+              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${
+                activeTab === "activity-log"
+                  ? "bg-[#005524]"
+                  : "bg-transparent group-hover:bg-[#CDE6D3]"
+              }`}
+            />
+            <div className="relative flex items-center gap-3 z-10">
+              <FaHistory size={18} />
+              {!isSidebarCollapsed && "Activity Log"}
+            </div>
+          </button>
+
+          <button
             onClick={() => setActiveTab("settings")}
             className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
                         ${
@@ -1912,6 +2343,24 @@ const AdminDashboard: React.FC = () => {
               )}
             </div>
 
+            {/* Admin Role Selector */}
+            <div className="relative mr-4">
+              <select
+                value={currentUser.adminRole}
+                onChange={(e) => {
+                  // Update current user role
+                  (currentUser as any).adminRole = e.target.value;
+                  // Force re-render
+                  setActiveTab(activeTab);
+                }}
+                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#005524]"
+              >
+                <option value="police">Police</option>
+                <option value="medical">Medical Team</option>
+                <option value="firefighter">Firefighter</option>
+              </select>
+            </div>
+            
             {/* Profile */}
             <div className="relative">
               <button
@@ -1929,6 +2378,9 @@ const AdminDashboard: React.FC = () => {
                 />
                 <span className="hidden md:inline text-gray-700 font-medium">
                   {currentUser.name}
+                </span>
+                <span className="hidden md:inline text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                  {currentUser.adminRole}
                 </span>
               </button>
             </div>
@@ -1963,7 +2415,46 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">Severity</h3>
-                <p className="text-gray-600">{selectedIncident.severity}</p>
+                {isEditingIncident ? (
+                  <select
+                    value={editedIncident.severity}
+                    onChange={(e) => 
+                      setEditedIncident({
+                        ...editedIncident,
+                        severity: e.target.value as "low" | "medium" | "high" | "critical"
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                ) : (
+                  <p className="text-gray-600">{selectedIncident.severity}</p>
+                )}
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-700">Status</h3>
+                {isEditingIncident ? (
+                  <select
+                    value={editedIncident.status}
+                    onChange={(e) => 
+                      setEditedIncident({
+                        ...editedIncident,
+                        status: e.target.value as "pending" | "reviewing" | "resolved"
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="reviewing">Reviewing</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+                ) : (
+                  <p className="text-gray-600">{selectedIncident.status}</p>
+                )}
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">Reported By</h3>
@@ -1971,30 +2462,53 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-4">
-              {selectedIncident.severity === "critical" && (
-                <button
-                  onClick={() =>
-                    handleIncidentAction(selectedIncident.id, "escalate")
-                  }
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                >
-                  Escalate to Authorities
-                </button>
+              {!isEditingIncident ? (
+                <>
+                  {selectedIncident.severity === "critical" && (
+                    <button
+                      onClick={() =>
+                        handleIncidentAction(selectedIncident.id, "escalate")
+                      }
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    >
+                      Escalate to Authorities
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setEditedIncident({
+                        severity: selectedIncident.severity,
+                        status: selectedIncident.status
+                      });
+                      setIsEditingIncident(true);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setShowIncidentDetails(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                  >
+                    Close
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleSaveIncidentEdit}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setIsEditingIncident(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                </>
               )}
-              <button
-                onClick={() =>
-                  handleIncidentAction(selectedIncident.id, "resolve")
-                }
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                Mark as Resolved
-              </button>
-              <button
-                onClick={() => setShowIncidentDetails(false)}
-                className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
@@ -2086,15 +2600,57 @@ const AdminDashboard: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <h3 className="font-semibold text-gray-700">Title</h3>
-                <p className="text-gray-600">{selectedSafetyTip.name}</p>
+                {isEditingSafetyTip ? (
+                  <input
+                    type="text"
+                    value={editedSafetyTip?.name || ""}
+                    onChange={(e) =>
+                      setEditedSafetyTip({
+                        ...editedSafetyTip!,
+                        name: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                  />
+                ) : (
+                  <p className="text-gray-600">{selectedSafetyTip.name}</p>
+                )}
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">Content</h3>
-                <p className="text-gray-600">{selectedSafetyTip.content}</p>
+                {isEditingSafetyTip ? (
+                  <textarea
+                    value={editedSafetyTip?.content || ""}
+                    onChange={(e) =>
+                      setEditedSafetyTip({
+                        ...editedSafetyTip!,
+                        content: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                    rows={4}
+                  />
+                ) : (
+                  <p className="text-gray-600">{selectedSafetyTip.content}</p>
+                )}
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">Icon</h3>
-                <p className="text-gray-600">{selectedSafetyTip.icon || "—"}</p>
+                {isEditingSafetyTip ? (
+                  <input
+                    type="text"
+                    value={editedSafetyTip?.icon || ""}
+                    onChange={(e) =>
+                      setEditedSafetyTip({
+                        ...editedSafetyTip!,
+                        icon: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                  />
+                ) : (
+                  <p className="text-gray-600">{selectedSafetyTip.icon || "—"}</p>
+                )}
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">Date</h3>
@@ -2106,12 +2662,40 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-4">
-              <button
-                onClick={() => setShowSafetyTipDetails(false)}
-                className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-              >
-                Close
-              </button>
+              {isEditingSafetyTip ? (
+                <>
+                  <button
+                    onClick={handleSaveSafetyTipEdit}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setIsEditingSafetyTip(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditedSafetyTip({...selectedSafetyTip});
+                      setIsEditingSafetyTip(true);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setShowSafetyTipDetails(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                  >
+                    Close
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

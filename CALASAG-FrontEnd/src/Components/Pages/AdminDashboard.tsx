@@ -91,15 +91,15 @@ interface UiUser {
 }
 
 interface EmergencyReport {
-  id: number; 
+  id: number;
   title: string;
-  description: string;
-  location: string;
-  severity: "low" | "medium" | "high" | "critical";
-  status: "pending" | "reviewing" | "resolved";
-  reportedBy?: string;
+  message: string | undefined; // Changed from description to message
+  location: string | undefined;
+  severity: "low" | "medium" | "high" | "critical" | "Not Set";
+  status: "pending" | "reviewing" | "resolved" | "Not Set";
+  reportedBy: string | undefined;
   reporterId?: string;
-  type?: string; // Maps to emergency_type
+  type?: string;
   date: string;
   updatedBy?: string;
   updatedAt?: string;
@@ -305,7 +305,19 @@ const [actionFilter, setActionFilter] = useState<string>("all");
   const { data, error } = await supabase
     .from("emergencies")
     .select(
-      "id, description, created_at, status, emergency_type, user_id, severity, updated_by, updated_at"
+      `
+      id,
+      message,
+      created_at,
+      status,
+      emergency_type,
+      user_id,
+      severity,
+      updated_by,
+      updated_at,
+      location,
+      users:user_id(name)
+      `
     )
     .order("created_at", { ascending: false })
     .limit(2000);
@@ -327,17 +339,20 @@ const [actionFilter, setActionFilter] = useState<string>("all");
       .map((r: any) => ({
         id: r.id,
         title: r.emergency_type || "Unknown",
-        description: r.description || "",
-        location: r.location ? JSON.stringify(r.location) : "-",
-        severity: r.severity ?? "Not Set", // Use nullish coalescing to preserve null
-        status: r.status ?? "Not Set", // Preserve null as "Not Set"
-        date: r.created_at ? r.created_at.substring(0, 10) : "",
+        message: r.message || "-",
+        location: r.location
+          ? `Lat: ${r.location.lat ?? "N/A"}, Lng: ${r.location.lng ?? "N/A"}`
+          : "-",
+        severity: r.severity ?? "Not Set",
+        status: r.status ?? "Not Set",
+        reportedBy: r.users?.name || "-",
         reporterId: r.user_id || undefined,
         type: r.emergency_type,
+        date: r.created_at ? r.created_at.substring(0, 10) : "",
         updatedBy: r.updated_by || "",
         updatedAt: r.updated_at || "",
       }));
-    console.log("Loaded emergencies:", mapped); // Debug log
+    console.log("Loaded emergencies:", mapped);
     setEmergencies(mapped);
   }
 };
@@ -2295,128 +2310,137 @@ const [actionFilter, setActionFilter] = useState<string>("all");
 
       {/* Emergency Details Modal */}
       {showEmergencyDetails && selectedEmergency && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-[#005524] mb-4">
-              Emergency Details
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold text-gray-700">Title</h3>
-                <p className="text-gray-600">{selectedEmergency.title}</p>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-700">Description</h3>
-                <p className="text-gray-600">{selectedEmergency.description}</p>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-700">Location</h3>
-                <p className="text-gray-600">{selectedEmergency.location}</p>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-700">Severity</h3>
-                {isEditingEmergency ? (
-                  <select
-                    value={editedEmergency.severity}
-                    onChange={(e) =>
-                      setEditedEmergency({
-                        ...editedEmergency,
-                        severity: e.target.value as "low" | "medium" | "high" | "critical"
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
-                  </select>
-                ) : (
-                  <p className="text-gray-600">{selectedEmergency.severity}</p>
-                )}
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-700">Status</h3>
-                {isEditingEmergency ? (
-                  <select
-                    value={editedEmergency.status}
-                    onChange={(e) =>
-                      setEditedEmergency({
-                        ...editedEmergency,
-                        status: e.target.value as "pending" | "reviewing" | "resolved"
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="reviewing">Reviewing</option>
-                    <option value="resolved">Resolved</option>
-                  </select>
-                ) : (
-                  <p className="text-gray-600">{selectedEmergency.status}</p>
-                )}
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-700">Reported By</h3>
-                <p className="text-gray-600">{selectedEmergency.reportedBy}</p>
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end space-x-4">
-              {!isEditingEmergency ? (
-                <>
-                  {selectedEmergency.severity === "critical" && (
-                    <button
-                      onClick={() =>
-                        handleIncidentAction(selectedEmergency.id, "escalate")
-                      }
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                    >
-                      Escalate to Authorities
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      // Ensure we initialize with valid enum values, defaulting if necessary
-                      const currentSeverity = selectedEmergency.severity;
-                      const currentStatus = selectedEmergency.status;
-                      
-                      setEditedEmergency({
-                        severity: ["low", "medium", "high", "critical"].includes(currentSeverity) ? currentSeverity as any : "medium",
-                        status: ["pending", "reviewing", "resolved"].includes(currentStatus) ? currentStatus as any : "pending",
-                      });
-                      setIsEditingEmergency(true);
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => setShowEmergencyDetails(false)}
-                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-                  >
-                    Close
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={handleSaveEmergencyEdit}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => setIsEditingEmergency(false)}
-                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-                  >
-                    Cancel
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
+  <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+      <h2 className="text-2xl font-bold text-[#005524] mb-4">
+        Emergency Details
+      </h2>
+      <div className="space-y-4">
+        <div>
+          <h3 className="font-semibold text-gray-700">Title</h3>
+          <p className="text-gray-600">{selectedEmergency.title}</p>
         </div>
-      )}
+        <div>
+          <h3 className="font-semibold text-gray-700">Message</h3>
+          <p className="text-gray-600">{selectedEmergency.message || "-"}</p>
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-700">Location</h3>
+          <p className="text-gray-600">{selectedEmergency.location || "-"}</p>
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-700">Severity</h3>
+          {isEditingEmergency ? (
+            <select
+              value={editedEmergency.severity}
+              onChange={(e) =>
+                setEditedEmergency({
+                  ...editedEmergency,
+                  severity: e.target.value as "low" | "medium" | "high" | "critical",
+                })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          ) : (
+            <p className="text-gray-600">{selectedEmergency.severity}</p>
+          )}
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-700">Status</h3>
+          {isEditingEmergency ? (
+            <select
+              value={editedEmergency.status}
+              onChange={(e) =>
+                setEditedEmergency({
+                  ...editedEmergency,
+                  status: e.target.value as "pending" | "reviewing" | "resolved",
+                })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+            >
+              <option value="pending">Pending</option>
+              <option value="reviewing">Reviewing</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          ) : (
+            <p className="text-gray-600">{selectedEmergency.status}</p>
+          )}
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-700">Reported By</h3>
+          <p className="text-gray-600">{selectedEmergency.reportedBy || "-"}</p>
+        </div>
+      </div>
+      <div className="mt-6 flex justify-end space-x-4">
+        {!isEditingEmergency ? (
+          <>
+            {selectedEmergency.severity === "critical" && (
+              <button
+                onClick={() =>
+                  handleIncidentAction(selectedEmergency.id, "escalate")
+                }
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Escalate to Authorities
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setEditedEmergency({
+                  severity:
+                    selectedEmergency.severity === "Not Set"
+                      ? "medium"
+                      : (selectedEmergency.severity as
+                          | "low"
+                          | "medium"
+                          | "high"
+                          | "critical"),
+                  status:
+                    selectedEmergency.status === "Not Set"
+                      ? "pending"
+                      : (selectedEmergency.status as
+                          | "pending"
+                          | "reviewing"
+                          | "resolved"),
+                });
+                setIsEditingEmergency(true);
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => setShowEmergencyDetails(false)}
+              className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+            >
+              Close
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={handleSaveEmergencyEdit}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setIsEditingEmergency(false)}
+              className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Safety Tip Modal */}
       {showSafetyTipModal && (

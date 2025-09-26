@@ -90,19 +90,19 @@ interface UiUser {
   role?: string; // user role (admin, user, etc.)
 }
 
-interface IncidentReport {
-  id: number;
+interface EmergencyReport {
+  id: number; 
   title: string;
   description: string;
   location: string;
   severity: "low" | "medium" | "high" | "critical";
   status: "pending" | "reviewing" | "resolved";
-  reportedBy?: string; // reporter name
-  reporterId?: string; // reporter user_id
-  type?: string; // alias for category
+  reportedBy?: string;
+  reporterId?: string;
+  type?: string; // Maps to emergency_type
   date: string;
-  updatedBy?: string; // admin who last updated the incident
-  updatedAt?: string; // timestamp of last update
+  updatedBy?: string;
+  updatedAt?: string;
 }
 
 interface CrisisAlertRow {
@@ -149,12 +149,12 @@ const AdminDashboard: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
-  const [showIncidentDetails, setShowIncidentDetails] =
+  const [showEmergencyDetails, setShowEmergencyDetails] =
     useState<boolean>(false);
-  const [selectedIncident, setSelectedIncident] =
-    useState<IncidentReport | null>(null);
-  const [isEditingIncident, setIsEditingIncident] = useState<boolean>(false);
-  const [editedIncident, setEditedIncident] = useState<{
+  const [selectedEmergency, setSelectedEmergency] =
+    useState<EmergencyReport | null>(null);
+  const [isEditingEmergency, setIsEditingEmergency] = useState<boolean>(false);
+  const [editedEmergency, setEditedEmergency] = useState<{
     severity: "low" | "medium" | "high" | "critical";
     status: "pending" | "reviewing" | "resolved";
   }>({ severity: "medium", status: "pending" });
@@ -200,7 +200,7 @@ const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<UiUser[]>([]);
   const [usersLoadError, setUsersLoadError] = useState<string | null>(null);
 
-  const [incidents, setIncidents] = useState<IncidentReport[]>([]);
+  const [emergencies, setEmergencies] = useState<EmergencyReport[]>([]);
   const [crisisAlerts, setCrisisAlerts] = useState<CrisisAlertRow[]>([]);
 
   const [safetyTips, setSafetyTips] = useState<SafetyTip[]>([]);
@@ -267,53 +267,80 @@ const [actionFilter, setActionFilter] = useState<string>("all");
     };
     // Define loadIncidentActions at the top level of useEffect to avoid duplicate declarations
     const loadIncidentActions = async () => {
-      const { data, error } = await supabase
-        .from("incident_actions")
-        .select("*")
-        .order("timestamp", { ascending: false })
-        .limit(50);
-      if (error) {
-        console.error("Error loading incident actions:", error);
-      } else {
-        setIncidentActions(data || []);
-        setActivityLog(data || []);
-      }
-    };
+  const { data, error } = await supabase
+    .from("incident_actions")
+    .select(`
+      id, incident_id, admin_id, action_type, details, created_at,
+      admin:users!admin_id(name, role)
+    `)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) {
+    console.error("Error loading incident actions:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
+    return;
+  }
+  if (data) {
+    const mapped: IncidentAction[] = data.map((action: any) => ({
+      id: action.id,
+      incident_id: action.incident_id,
+      admin_id: action.admin_id,
+      admin_name: action.admin?.name || "Unknown",
+      admin_role: action.admin?.role || "Unknown",
+      action_type: action.action_type,
+      previous_value: action.details?.split(" from ")[1]?.split(" to ")[0] || "",
+      new_value: action.details?.split(" to ")[1] || "",
+      timestamp: action.created_at,
+    }));
+    setIncidentActions(mapped);
+    setActivityLog(mapped);
+  }
+};
 
-    const loadIncidents = async () => {
-      const { data, error } = await supabase
-        .from("incidents")
-        .select(
-          "incident_id, description, created_at, status, category, user_id, severity, updated_by, updated_at"
-        )
-        .order("created_at", { ascending: false })
-        .limit(2000);
-      if (!error && data) {
-        const filtered = (data as any[]).filter((r) => {
-          const c = (r.category || "").toString().toLowerCase();
-          return c !== "safe" && c !== "unsafe"; // exclude presence statuses from incident list
-        });
-        const mapped: IncidentReport[] = filtered.map((r: any) => ({
-          id: r.incident_id,
-          title: r.category,
-          description: r.description || "",
-          location: "-",
-          // Use stored severity if available, otherwise use default
-          severity: r.severity || 
-            (r.category === "crime" || r.category === "fire" ? "high" : "medium"),
-          status:
-            (r.status as any) === "reviewed"
-              ? "reviewing"
-              : (r.status as any) || "pending",
-          date: (r.created_at || "").toString().substring(0, 10),
-          reporterId: r.user_id || undefined,
-          type: r.category,
-          updatedBy: r.updated_by || "",
-          updatedAt: r.updated_at || "",
-        }));
-        setIncidents(mapped);
-      }
-    };
+    const loadEmergencies = async () => {
+  const { data, error } = await supabase
+    .from("emergencies")
+    .select(
+      "id, description, created_at, status, emergency_type, user_id, severity, updated_by, updated_at"
+    )
+    .order("created_at", { ascending: false })
+    .limit(2000);
+  if (error) {
+    console.error("Error loading emergencies:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
+    return;
+  }
+  if (data) {
+    const mapped: EmergencyReport[] = data
+      .filter((r: any) => {
+        const type = (r.emergency_type || "").toString().toLowerCase();
+        return type !== "safe" && type !== "unsafe";
+      })
+      .map((r: any) => ({
+        id: r.id,
+        title: r.emergency_type || "Unknown",
+        description: r.description || "",
+        location: r.location ? JSON.stringify(r.location) : "-",
+        severity: r.severity ?? "Not Set", // Use nullish coalescing to preserve null
+        status: r.status ?? "Not Set", // Preserve null as "Not Set"
+        date: r.created_at ? r.created_at.substring(0, 10) : "",
+        reporterId: r.user_id || undefined,
+        type: r.emergency_type,
+        updatedBy: r.updated_by || "",
+        updatedAt: r.updated_at || "",
+      }));
+    console.log("Loaded emergencies:", mapped); // Debug log
+    setEmergencies(mapped);
+  }
+};
 
     const loadCrisis = async () => {
       const { data, error } = await supabase
@@ -404,7 +431,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
     };
 
     const loadIncidentCounts = async () => {
-      const { data } = await supabase.from("incidents").select("user_id");
+      const { data } = await supabase.from("emergencies").select("user_id");
       if (!data) return;
       const counts = new Map<string, number>();
       for (const r of data as any[]) {
@@ -434,7 +461,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
       try {
         await Promise.all([
           loadSafetyTips(),
-          loadIncidents(),
+          loadEmergencies(),
           loadCrisis(),
           loadUsersBase(),
           loadPresence(),
@@ -461,13 +488,13 @@ const [actionFilter, setActionFilter] = useState<string>("all");
       )
       .subscribe();
 
-    const incidentsChannel = supabase
-      .channel("incidents")
+    const emergenciesChannel = supabase
+      .channel("emergencies")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "incidents" },
+        { event: "*", schema: "public", table: "emergencies" },
         () => {
-          loadIncidents();
+          loadEmergencies();
           loadIncidentCounts();
         }
       )
@@ -516,44 +543,33 @@ const [actionFilter, setActionFilter] = useState<string>("all");
     
     // Set up real-time subscription for incident actions
     const incidentActionsChannel = supabase
-      .channel("incident_actions")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "incident_actions" },
-        (payload) => {
-          const newAction = payload.new as IncidentAction;
-          setIncidentActions(prev => [newAction, ...prev]);
-          setActivityLog(prev => [newAction, ...prev]);
-          
-          // If this is a severity change, update the incident in our local state
-          if (newAction.action_type === "severity_change") {
-            setIncidents(prev => 
-              prev.map(inc => 
-                inc.id === newAction.incident_id 
-                  ? {...inc, severity: newAction.new_value as any} 
-                  : inc
-              )
-            );
-          }
-          
-          // If this is a status change, update the incident in our local state
-          if (newAction.action_type === "status_change") {
-            setIncidents(prev => 
-              prev.map(inc => 
-                inc.id === newAction.incident_id 
-                  ? {...inc, status: newAction.new_value as any} 
-                  : inc
-              )
-            );
-          }
-        }
-      )
-      .subscribe();
+  .channel("incident_actions")
+  .on(
+    "postgres_changes",
+    { event: "INSERT", schema: "public", table: "incident_actions" },
+    (payload) => {
+      const newAction = payload.new as any;
+      const mappedAction: IncidentAction = {
+        id: newAction.id,
+        incident_id: newAction.incident_id,
+        admin_id: newAction.admin_id,
+        admin_name: "Unknown", // Will be updated via loadIncidentActions
+        admin_role: "Unknown",
+        action_type: newAction.action_type,
+        previous_value: newAction.details?.split(" from ")[1]?.split(" to ")[0] || "",
+        new_value: newAction.details?.split(" to ")[1] || "",
+        timestamp: newAction.created_at,
+      };
+      setIncidentActions((prev) => [mappedAction, ...prev]);
+      setActivityLog((prev) => [mappedAction, ...prev]);
+    }
+  )
+  .subscribe();
 
     // Clean up all subscriptions when component unmounts
     return () => {
       supabase.removeChannel(safetyTipsChannel);
-      supabase.removeChannel(incidentsChannel);
+      supabase.removeChannel(emergenciesChannel);
       supabase.removeChannel(usersChannel);
       supabase.removeChannel(sessionsChannel);
       supabase.removeChannel(crisisChannel);
@@ -588,204 +604,80 @@ const [actionFilter, setActionFilter] = useState<string>("all");
     }
   };
 
-  // Function to track incident actions
-  const trackIncidentAction = async (
-    incidentId: number,
-    actionType: string,
-    previousValue: string,
-    newValue: string
-  ) => {
-    console.log("🔴 TRACKING ACTION START:", incidentId, actionType, previousValue, newValue);
-    const created_at = new Date().toISOString();
-    
-    try {
-      // Create action with only fields that exist in the database
-      const actionData = {
-        incident_id: incidentId,
-        admin_id: currentUser.id,
-        // Remove admin_name and admin_role as they don't exist in the database
-        action_type: actionType,
-        previous_value: previousValue,
-        new_value: newValue,
-        created_at: created_at // Using created_at instead of timestamp
-      };
-      
-      console.log("📝 Saving action to database:", actionData);
-      
-      // Save to the database with explicit fields
-      const { data, error } = await supabase
-        .from("incident_actions")
-        .insert(actionData);
-        
-      if (error) {
-        console.error("❌ Error saving incident action:", error);
-        console.log("Error details:", JSON.stringify(error));
-        return;
-      }
-      
-      console.log("✅ Action saved successfully");
-
-      // Add to notifications
-      const notificationMessage = `${currentUser.name} ${actionType === 'status_change' ? 'changed status from' : 'changed severity from'} ${previousValue} to ${newValue}`;
-      setNotifications(prev => [
-        { id: Date.now(), message: notificationMessage, time: "Just now" },
-        ...prev,
-      ]);
-      
-      // CRITICAL: Force refresh activity log data from the database
-      console.log("🔄 Forcing complete refresh of activity log data...");
-      const { data: refreshData, error: refreshError } = await supabase
-        .from("incident_actions")
-        .select("*")
-        .order("timestamp", { ascending: false });
-      
-      if (refreshError) {
-        console.error("❌ Error refreshing activity log data:", refreshError);
-        return;
-      }
-      
-      if (refreshData && refreshData.length > 0) {
-        console.log(`✅ Refreshed activity log data: ${refreshData.length} items`);
-        
-        // Update both state variables with the fresh data
-        setIncidentActions([...refreshData]);
-        setActivityLog([...refreshData]);
-        
-        // Force a re-render by updating a timestamp
-        setLastUpdated(new Date().toISOString());
-      } else {
-        console.warn("⚠️ No activity log data returned from refresh");
-      }
-      
-    } catch (error) {
-      console.error("❌ Error tracking incident action:", error);
-    }
-    
-    console.log("🔴 TRACKING ACTION COMPLETE");
-  };
-
   const handleIncidentAction = async (
-    incidentId: number,
-    action: "review" | "resolve" | "escalate"
-  ) => {
-    // Handle incident actions
-    console.log(`Incident ${incidentId} ${action}`);
-    
-    // Find the incident to get previous status
-    const incident = incidents.find(inc => inc.incident_id === incidentId);
-    if (!incident) return;
-    
-    const previousStatus = incident.status;
-    
-    // Update incident status based on action
-    let newStatus: "pending" | "reviewing" | "resolved" = "pending";
-    if (action === "review") newStatus = "reviewing";
-    if (action === "resolve") newStatus = "resolved";
-    
-    try {
-      const { error } = await supabase
-        .from("incidents")
-        .update({ 
-          status: newStatus,
-          updated_by: currentUser.name,
-          updated_at: new Date().toISOString()
-        })
-        .eq("incident_id", incidentId);
-        
-      if (error) {
-        alert(`Error updating incident: ${error.message}`);
-        return;
-      }
-      
-      // Track the action
-      trackIncidentAction(incidentId, "status_change", previousStatus, newStatus);
-      
-      // Update local state
-      setIncidents(prev => 
-        prev.map(inc => inc.id === incidentId ? {...inc, status: newStatus} : inc)
-      );
-      
-      setShowIncidentDetails(false);
-    } catch (err: any) {
-      alert(`Error: ${err.message}`);
+  incidentId: number,
+  action: "review" | "resolve" | "escalate"
+) => {
+  console.log(`Emergency ${incidentId} ${action}`);
+  const emergency = emergencies.find((emg) => emg.id === incidentId);
+  if (!emergency) return;
+
+  const previousStatus = emergency.status;
+  let newStatus: "pending" | "reviewing" | "resolved" = "pending";
+  if (action === "review") newStatus = "reviewing";
+  if (action === "resolve") newStatus = "resolved";
+
+  try {
+    const { error } = await supabase
+      .from("emergencies")
+      .update({
+        status: newStatus,
+        updated_by: currentUser.id, // Use user_id
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", incidentId); // Use id
+
+    if (error) {
+      alert(`Error updating emergency: ${error.message}`);
+      return;
     }
-  };
+
+    setEmergencies((prev) =>
+      prev.map((emg) => (emg.id === incidentId ? { ...emg, status: newStatus } : emg))
+    );
+
+    setShowEmergencyDetails(false);
+  } catch (err: any) {
+    alert(`Error: ${err.message}`);
+  }
+};
   
-  const handleSaveIncidentEdit = async () => {
-    if (!selectedIncident || !editedIncident) return;
-    
-    // Track previous values for action history
-    const previousStatus = selectedIncident.status;
-    const previousSeverity = selectedIncident.severity;
-    
-    try {
-      console.log("Saving incident edit:", selectedIncident.id, editedIncident);
-      
-      const { error } = await supabase
-        .from("incidents")
-        .update({ 
-          status: editedIncident.status,
-          severity: editedIncident.severity,
-          updated_by: currentUser.name,
-          updated_at: new Date().toISOString()
-        })
-        .eq("incident_id", selectedIncident.id);
-        
-      if (error) {
-        alert(`Error updating incident: ${error.message}`);
-        return;
-      }
-      
-      // Track status change if it changed
-      if (previousStatus !== editedIncident.status) {
-        console.log("Status changed:", previousStatus, "->", editedIncident.status);
-        await trackIncidentAction(
-          selectedIncident.id, 
-          "status_change", 
-          previousStatus, 
-          editedIncident.status
-        );
-      }
-      
-      // Track severity change if it changed
-      if (previousSeverity !== editedIncident.severity) {
-        console.log("Severity changed:", previousSeverity, "->", editedIncident.severity);
-        await trackIncidentAction(
-          selectedIncident.id, 
-          "severity_change", 
-          previousSeverity, 
-          editedIncident.severity
-        );
-      }
-      
-      // Force refresh activity log
-      const { data } = await supabase
-        .from("incident_actions")
-        .select("*")
-        .order("timestamp", { ascending: false })
-        .limit(50);
-      
-      if (data) {
-        setIncidentActions(data);
-        setActivityLog(data);
-      }
-      
-      // Update local state
-      setIncidents(prev => 
-        prev.map(inc => 
-          inc.id === selectedIncident.id 
-            ? {...inc, status: editedIncident.status, severity: editedIncident.severity} 
-            : inc
-        )
-      );
-      
-      setIsEditingIncident(false);
-      setShowIncidentDetails(false);
-    } catch (err: any) {
-      console.error("Error saving incident edit:", err);
-      alert(`Error: ${err.message}`);
+  const handleSaveEmergencyEdit = async () => {
+  if (!selectedEmergency || !editedEmergency) return;
+
+  try {
+    console.log("Saving emergency edit:", selectedEmergency.id, editedEmergency);
+
+    const { error } = await supabase
+      .from("emergencies")
+      .update({
+        status: editedEmergency.status,
+        severity: editedEmergency.severity,
+        updated_by: currentUser.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", selectedEmergency.id); // Use id
+
+    if (error) {
+      alert(`Error updating emergency: ${error.message}`);
+      return;
     }
-  };
+
+    setEmergencies((prev) =>
+      prev.map((em) =>
+        em.id === selectedEmergency.id
+          ? { ...em, status: editedEmergency.status, severity: editedEmergency.severity }
+          : em
+      )
+    );
+
+    setIsEditingEmergency(false);
+    setShowEmergencyDetails(false);
+  } catch (err: any) {
+    console.error("Error saving emergency edit:", err);
+    alert(`Error: ${err.message}`);
+  }
+};
 
   const handleDeleteSafetyTip = async (tipId: number) => {
     const { error } = await supabase
@@ -852,18 +744,17 @@ const [actionFilter, setActionFilter] = useState<string>("all");
 
   const renderContent = () => {
     // Prepare data for charts
-    const toTypeLabel = (cat?: string) => {
-      if (!cat) return "General";
-      const map: Record<string, string> = {
-        medical: "Medical",
-        fire: "Fire",
-        crime: "Crime",
-        disaster: "Disaster",
-        accidents: "Accident",
-        other: "Other",
-      };
-      return map[cat] || cat.charAt(0).toUpperCase() + cat.slice(1);
-    };
+    const toTypeLabel = (type?: string) => {
+  if (!type) return "General";
+  const map: Record<string, string> = {
+    Medical: "Medical",
+    Fire: "Fire",
+    Accident: "Accident",
+    Crime: "Crime",
+    Other: "Other",
+  };
+  return map[type] || type.charAt(0).toUpperCase() + type.slice(1);
+};
 
     const userStatusData = {
       labels: ["Active", "Inactive"],
@@ -983,16 +874,16 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                 </div>
               </div>
 
-              {/* Critical Incidents */}
+              {/* Critical Emergencies */}
               <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-500/20">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
-                      CRITICAL INCIDENTS
+                      CRITICAL EMERGENCIES
                     </p>
                     <p className="text-3xl font-bold text-gray-900">
                       {
-                        incidents.filter((i) => i.severity === "critical")
+                        emergencies.filter((i) => i.severity === "critical")
                           .length
                       }
                     </p>
@@ -1143,56 +1034,50 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                   </button>
                 </div>
                 <div className="space-y-4">
-                  {incidents.slice(0, 3).map((incident) => (
-                    <div
-                      key={incident.id}
-                      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer group"
-                      onClick={() => {
-                        setSelectedIncident(incident);
-                        setShowIncidentDetails(true);
-                      }}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            incident.severity === "critical"
-                              ? "bg-red-100"
-                              : incident.severity === "high"
-                              ? "bg-orange-100"
-                              : "bg-yellow-100"
-                          }`}
-                        >
-                          <FaBell
-                            size={12}
-                            className={
-                              incident.severity === "critical"
-                                ? "text-red-600"
-                                : incident.severity === "high"
-                                ? "text-orange-600"
-                                : "text-yellow-600"
-                            }
-                          />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {incident.title}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {incident.location}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-400">
-                          {incident.date}
-                        </span>
-                        <button className="p-1 text-gray-400 hover:text-[#005524] opacity-0 group-hover:opacity-100 transition-all duration-300">
-                          <FaEye size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+  {emergencies.slice(0, 3).map((emergency) => (
+    <div
+      key={emergency.id}
+      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer group"
+      onClick={() => {
+        setSelectedEmergency(emergency);
+        setShowEmergencyDetails(true);
+      }}
+    >
+      <div className="flex items-center space-x-3">
+        <div
+          className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            emergency.severity === "critical"
+              ? "bg-red-100"
+              : emergency.severity === "high"
+              ? "bg-orange-100"
+              : "bg-yellow-100"
+          }`}
+        >
+          <FaBell
+            size={12}
+            className={
+              emergency.severity === "critical"
+                ? "text-red-600"
+                : emergency.severity === "high"
+                ? "text-orange-600"
+                : "text-yellow-600"
+            }
+          />
+        </div>
+        <div>
+          <p className="font-medium text-gray-900">{emergency.title}</p>
+          <p className="text-sm text-gray-500">{emergency.location}</p>
+        </div>
+      </div>
+      <div className="flex items-center space-x-2">
+        <span className="text-xs text-gray-400">{emergency.date}</span>
+        <button className="p-1 text-gray-400 hover:text-[#005524] opacity-0 group-hover:opacity-100 transition-all duration-300">
+          <FaEye size={12} />
+        </button>
+      </div>
+    </div>
+  ))}
+</div>
               </div>
 
               {/* System Status */}
@@ -1490,7 +1375,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
           </div>
         );
 
-      case "incidents":
+      case "emergencies":
         return (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex justify-between items-center mb-6">
@@ -1533,64 +1418,79 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {incidents.map((incident) => (
-                    <tr
-                      key={incident.id}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {toTypeLabel(incident.type)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {incident.reporterId
-                          ? userNameById.get(incident.reporterId) || "—"
-                          : "—"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            incident.severity === "critical"
-                              ? "bg-red-100 text-red-800"
-                              : incident.severity === "high"
-                              ? "bg-orange-100 text-orange-800"
-                              : incident.severity === "medium"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-green-100 text-green-800"
-                          }`}
-                        >
-                          {incident.severity}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            incident.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : incident.status === "reviewing"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-green-100 text-green-800"
-                          }`}
-                        >
-                          {incident.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {incident.date}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => {
-                            setSelectedIncident(incident);
-                            setShowIncidentDetails(true);
-                          }}
-                          className="px-3 py-1 rounded-lg text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
-                        >
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+  {emergencies.map((emergency) => (
+    <tr
+      key={emergency.id}
+      className="hover:bg-gray-50 transition-colors"
+    >
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+        {toTypeLabel(emergency.type)}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+        {emergency.reporterId
+          ? userNameById.get(emergency.reporterId) || "—"
+          : "—"}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span
+          className={`px-3 py-1 rounded-full text-xs font-medium ${
+            emergency.severity === "critical"
+              ? "bg-red-100 text-red-800"
+              : emergency.severity === "high"
+              ? "bg-orange-100 text-orange-800"
+              : emergency.severity === "medium"
+              ? "bg-yellow-100 text-yellow-800"
+              : emergency.severity === "low"
+              ? "bg-green-100 text-green-800"
+              : "bg-gray-100 text-gray-800"
+          }`}
+        >
+          {emergency.severity}
+        </span>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span
+          className={`px-3 py-1 rounded-full text-xs font-medium ${
+            emergency.status === "pending"
+              ? "bg-yellow-100 text-yellow-800"
+              : emergency.status === "reviewing"
+              ? "bg-blue-100 text-blue-800"
+              : emergency.status === "resolved"
+              ? "bg-green-100 text-green-800"
+              : "bg-gray-100 text-gray-800"
+          }`}
+        >
+          {emergency.status}
+        </span>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+        {emergency.date}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <button
+          onClick={() => {
+            setSelectedEmergency(emergency);
+            setShowEmergencyDetails(true);
+            // Initialize editedEmergency with current values
+            setEditedEmergency({
+              severity:
+                emergency.severity === "Not Set"
+                  ? "medium"
+                  : (emergency.severity as "low" | "medium" | "high" | "critical"),
+              status:
+                emergency.status === "Not Set"
+                  ? "pending"
+                  : (emergency.status as "pending" | "reviewing" | "resolved"),
+            });
+          }}
+          className="px-3 py-1 rounded-lg text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+        >
+          View Details
+        </button>
+      </td>
+    </tr>
+  ))}
+</tbody>
               </table>
             </div>
 
@@ -1779,7 +1679,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                 <div className="text-center py-8">
                   <FaHistory size={40} className="mx-auto text-gray-300 mb-4" />
                   <p className="text-gray-500">No activity recorded yet</p>
-                  <p className="text-sm text-gray-400 mt-2">Actions on incidents will appear here</p>
+                  <p className="text-sm text-gray-400 mt-2">Actions on emergencies will appear here</p>
                 </div>
               )}
             </div>
@@ -2156,10 +2056,10 @@ const [actionFilter, setActionFilter] = useState<string>("all");
             )}
 
           <button
-            onClick={() => setActiveTab("incidents")}
+            onClick={() => setActiveTab("emergencies")}
             className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
                         ${
-                          activeTab === "incidents"
+                          activeTab === "emergencies"
                             ? "bg-[#E7F6EE] text-[#005524]"
                             : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
                         }
@@ -2167,7 +2067,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
           >
             <span
               className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${
-                activeTab === "incidents"
+                activeTab === "emergencies"
                   ? "bg-[#005524]"
                   : "bg-transparent group-hover:bg-[#CDE6D3]"
               }`}
@@ -2279,7 +2179,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
               <FaChevronRight size={12} />
               <span className="text-gray-900 font-medium">
                 {activeTab === "users" && "User Management"}
-                {activeTab === "incidents" && "Incident Reports"}
+                {activeTab === "emergencies" && "Emergency Reports"}
                 {activeTab === "safety-tips" && "Safety Tips"}
                 {activeTab === "settings" && "Settings"}
               </span>
@@ -2393,34 +2293,34 @@ const [actionFilter, setActionFilter] = useState<string>("all");
         </main>
       </div>
 
-      {/* Incident Details Modal */}
-      {showIncidentDetails && selectedIncident && (
+      {/* Emergency Details Modal */}
+      {showEmergencyDetails && selectedEmergency && (
         <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-2xl font-bold text-[#005524] mb-4">
-              Incident Details
+              Emergency Details
             </h2>
             <div className="space-y-4">
               <div>
                 <h3 className="font-semibold text-gray-700">Title</h3>
-                <p className="text-gray-600">{selectedIncident.title}</p>
+                <p className="text-gray-600">{selectedEmergency.title}</p>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">Description</h3>
-                <p className="text-gray-600">{selectedIncident.description}</p>
+                <p className="text-gray-600">{selectedEmergency.description}</p>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">Location</h3>
-                <p className="text-gray-600">{selectedIncident.location}</p>
+                <p className="text-gray-600">{selectedEmergency.location}</p>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">Severity</h3>
-                {isEditingIncident ? (
+                {isEditingEmergency ? (
                   <select
-                    value={editedIncident.severity}
-                    onChange={(e) => 
-                      setEditedIncident({
-                        ...editedIncident,
+                    value={editedEmergency.severity}
+                    onChange={(e) =>
+                      setEditedEmergency({
+                        ...editedEmergency,
                         severity: e.target.value as "low" | "medium" | "high" | "critical"
                       })
                     }
@@ -2432,17 +2332,17 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                     <option value="critical">Critical</option>
                   </select>
                 ) : (
-                  <p className="text-gray-600">{selectedIncident.severity}</p>
+                  <p className="text-gray-600">{selectedEmergency.severity}</p>
                 )}
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">Status</h3>
-                {isEditingIncident ? (
+                {isEditingEmergency ? (
                   <select
-                    value={editedIncident.status}
-                    onChange={(e) => 
-                      setEditedIncident({
-                        ...editedIncident,
+                    value={editedEmergency.status}
+                    onChange={(e) =>
+                      setEditedEmergency({
+                        ...editedEmergency,
                         status: e.target.value as "pending" | "reviewing" | "resolved"
                       })
                     }
@@ -2453,21 +2353,21 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                     <option value="resolved">Resolved</option>
                   </select>
                 ) : (
-                  <p className="text-gray-600">{selectedIncident.status}</p>
+                  <p className="text-gray-600">{selectedEmergency.status}</p>
                 )}
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">Reported By</h3>
-                <p className="text-gray-600">{selectedIncident.reportedBy}</p>
+                <p className="text-gray-600">{selectedEmergency.reportedBy}</p>
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-4">
-              {!isEditingIncident ? (
+              {!isEditingEmergency ? (
                 <>
-                  {selectedIncident.severity === "critical" && (
+                  {selectedEmergency.severity === "critical" && (
                     <button
                       onClick={() =>
-                        handleIncidentAction(selectedIncident.id, "escalate")
+                        handleIncidentAction(selectedEmergency.id, "escalate")
                       }
                       className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
                     >
@@ -2476,18 +2376,22 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                   )}
                   <button
                     onClick={() => {
-                      setEditedIncident({
-                        severity: selectedIncident.severity,
-                        status: selectedIncident.status
+                      // Ensure we initialize with valid enum values, defaulting if necessary
+                      const currentSeverity = selectedEmergency.severity;
+                      const currentStatus = selectedEmergency.status;
+                      
+                      setEditedEmergency({
+                        severity: ["low", "medium", "high", "critical"].includes(currentSeverity) ? currentSeverity as any : "medium",
+                        status: ["pending", "reviewing", "resolved"].includes(currentStatus) ? currentStatus as any : "pending",
                       });
-                      setIsEditingIncident(true);
+                      setIsEditingEmergency(true);
                     }}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     Edit
                   </button>
                   <button
-                    onClick={() => setShowIncidentDetails(false)}
+                    onClick={() => setShowEmergencyDetails(false)}
                     className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
                   >
                     Close
@@ -2496,13 +2400,13 @@ const [actionFilter, setActionFilter] = useState<string>("all");
               ) : (
                 <>
                   <button
-                    onClick={handleSaveIncidentEdit}
+                    onClick={handleSaveEmergencyEdit}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                   >
                     Save
                   </button>
                   <button
-                    onClick={() => setIsEditingIncident(false)}
+                    onClick={() => setIsEditingEmergency(false)}
                     className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
                   >
                     Cancel
@@ -2664,7 +2568,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
             <div className="mt-6 flex justify-end space-x-4">
               {isEditingSafetyTip ? (
                 <>
-                  <button
+                  <button type="button"
                     onClick={handleSaveSafetyTipEdit}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                   >
@@ -2672,7 +2576,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                   </button>
                   <button
                     onClick={() => setIsEditingSafetyTip(false)}
-                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200" type="button"
                   >
                     Cancel
                   </button>
@@ -2680,7 +2584,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
               ) : (
                 <>
                   <button
-                    onClick={() => {
+                    onClick={() => { // This should not be called for emergencies
                       setEditedSafetyTip({...selectedSafetyTip});
                       setIsEditingSafetyTip(true);
                     }}
@@ -2689,7 +2593,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                     Edit
                   </button>
                   <button
-                    onClick={() => setShowSafetyTipDetails(false)}
+                    onClick={() => {setShowSafetyTipDetails(false); setSelectedSafetyTip(null);}}
                     className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
                   >
                     Close

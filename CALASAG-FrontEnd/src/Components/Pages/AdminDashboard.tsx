@@ -126,12 +126,13 @@ interface IncidentAction {
   id: number;
   incident_id: number;
   admin_id: string;
-  admin_name: string;
-  admin_role: string;
-  action_type: string; // 'status_change', 'severity_change', etc.
+  admin_name: string; 
+  admin_role: string; 
+  action_type: string; 
   previous_value: string;
   new_value: string;
-  timestamp: string;
+  created_at: string; 
+  incident_type?: string; 
 }
 
 const AdminDashboard: React.FC = () => {
@@ -206,6 +207,11 @@ const AdminDashboard: React.FC = () => {
   const [safetyTips, setSafetyTips] = useState<SafetyTip[]>([]);
   const [safetyTipsError, setSafetyTipsError] = useState<string | null>(null);
   
+  // New state for incident actions loading and pagination
+  const [isLoadingActions, setIsLoadingActions] = useState<boolean>(false);
+  const [actionsError, setActionsError] = useState<string | null>(null);
+  const [actionPage, setActionPage] = useState(1);
+  const actionsPerPage = 50;
   // State for editing incident reports and safety tips
   
   // State for action history and activity log
@@ -266,40 +272,59 @@ const [actionFilter, setActionFilter] = useState<string>("all");
       }
     };
     // Define loadIncidentActions at the top level of useEffect to avoid duplicate declarations
-    const loadIncidentActions = async () => {
-  const { data, error } = await supabase
-    .from("incident_actions")
-    .select(`
-      id, incident_id, admin_id, action_type, details, created_at,
-      admin:users!admin_id(name, role)
-    `)
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (error) {
-    console.error("Error loading incident actions:", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
-    return;
-  }
-  if (data) {
-    const mapped: IncidentAction[] = data.map((action: any) => ({
-      id: action.id,
-      incident_id: action.incident_id,
-      admin_id: action.admin_id,
-      admin_name: action.admin?.name || "Unknown",
-      admin_role: action.admin?.role || "Unknown",
-      action_type: action.action_type,
-      previous_value: action.details?.split(" from ")[1]?.split(" to ")[0] || "",
-      new_value: action.details?.split(" to ")[1] || "",
-      timestamp: action.created_at,
-    }));
-    setIncidentActions(mapped);
-    setActivityLog(mapped);
-  }
-};
+    const loadIncidentActions = async (page = 1) => {
+      setIsLoadingActions(true);
+      setActionsError(null);
+const { data, error } = await supabase
+  .from("incident_actions")
+  .select(`
+    id, 
+    incident_id, 
+    admin_id, 
+    action_type, 
+    previous_value, 
+    new_value, 
+    created_at,
+    admin:users!fk_admin(name, role),
+    incident:emergencies!fk_incident(emergency_type)
+
+  `)
+
+        .order("created_at", { ascending: false })
+        .range((page - 1) * actionsPerPage, page * actionsPerPage - 1);
+    
+      if (error) {
+        console.error("Error loading incident actions:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        });
+        setActionsError("Failed to load activity log. Please try again.");
+        setIsLoadingActions(false);
+        return;
+      }
+    
+      if (data) {
+        const mapped: IncidentAction[] = data.map((action: any) => ({
+          id: action.id,
+          incident_id: action.incident_id,
+          admin_id: action.admin_id,
+          admin_name: action.admin?.name || "Unknown",
+          admin_role: action.admin?.role || "Unknown",
+          action_type: action.action_type,
+          previous_value: action.previous_value || "",
+          new_value: action.new_value || "",
+          created_at: action.created_at,
+          incident_type: action.incident?.emergency_type || "Unknown",
+        }));
+    
+        setIncidentActions(mapped);
+        setActivityLog(mapped);
+      }
+    
+      setIsLoadingActions(false);
+    };
 
     const loadEmergencies = async () => {
   const { data, error } = await supabase
@@ -562,21 +587,50 @@ const [actionFilter, setActionFilter] = useState<string>("all");
   .on(
     "postgres_changes",
     { event: "INSERT", schema: "public", table: "incident_actions" },
-    (payload) => {
+    async (payload) => {
       const newAction = payload.new as any;
+
+      // Fetch admin details
+      const { data: adminData, error: adminError } = await supabase
+        .from("users")
+        .select("name, role")
+        .eq("user_id", newAction.admin_id)
+        .single();
+
+      if (adminError) {
+        console.error("Error fetching admin details:", adminError);
+      }
+
+      // Fetch incident details
+      const { data: incidentData, error: incidentError } = await supabase
+        .from("emergencies")
+        .select("emergency_type")
+        .eq("id", newAction.incident_id)
+        .single();
+
+      if (incidentError) {
+        console.error("Error fetching incident details:", incidentError);
+      }
+
       const mappedAction: IncidentAction = {
         id: newAction.id,
         incident_id: newAction.incident_id,
         admin_id: newAction.admin_id,
-        admin_name: "Unknown", // Will be updated via loadIncidentActions
-        admin_role: "Unknown",
+        admin_name: adminData?.name || "Unknown",
+        admin_role: adminData?.role || "Unknown",
         action_type: newAction.action_type,
-        previous_value: newAction.details?.split(" from ")[1]?.split(" to ")[0] || "",
-        new_value: newAction.details?.split(" to ")[1] || "",
-        timestamp: newAction.created_at,
+        previous_value: newAction.previous_value || "",
+        new_value: newAction.new_value || "",
+        created_at: newAction.created_at,
+        incident_type: incidentData?.emergency_type || "Unknown",
       };
+
       setIncidentActions((prev) => [mappedAction, ...prev]);
-      setActivityLog((prev) => [mappedAction, ...prev]);
+      setActivityLog((prev) =>
+        actionFilter === "all" || mappedAction.action_type === actionFilter
+          ? [mappedAction, ...prev]
+          : prev
+      );
     }
   )
   .subscribe();
@@ -623,7 +677,6 @@ const [actionFilter, setActionFilter] = useState<string>("all");
   incidentId: number,
   action: "review" | "resolve" | "escalate"
 ) => {
-  console.log(`Emergency ${incidentId} ${action}`);
   const emergency = emergencies.find((emg) => emg.id === incidentId);
   if (!emergency) return;
 
@@ -631,24 +684,42 @@ const [actionFilter, setActionFilter] = useState<string>("all");
   let newStatus: "pending" | "reviewing" | "resolved" = "pending";
   if (action === "review") newStatus = "reviewing";
   if (action === "resolve") newStatus = "resolved";
+  if (action === "escalate") newStatus = "reviewing";
 
   try {
     const { error } = await supabase
       .from("emergencies")
       .update({
         status: newStatus,
-        updated_by: currentUser.id, // Use user_id
+        updated_by: currentUser.id,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", incidentId); // Use id
+      .eq("id", incidentId);
 
     if (error) {
       alert(`Error updating emergency: ${error.message}`);
       return;
     }
 
+    const { error: actionError } = await supabase
+      .from("incident_actions")
+      .insert({
+        incident_id: incidentId,
+        admin_id: currentUser.id,
+        action_type: "status_change",
+        previous_value: previousStatus,
+        new_value: newStatus,
+        created_at: new Date().toISOString(),
+      });
+
+    if (actionError) {
+      console.error("Error logging incident action:", actionError);
+    }
+
     setEmergencies((prev) =>
-      prev.map((emg) => (emg.id === incidentId ? { ...emg, status: newStatus } : emg))
+      prev.map((emg) =>
+        emg.id === incidentId ? { ...emg, status: newStatus } : emg
+      )
     );
 
     setShowEmergencyDetails(false);
@@ -661,8 +732,6 @@ const [actionFilter, setActionFilter] = useState<string>("all");
   if (!selectedEmergency || !editedEmergency) return;
 
   try {
-    console.log("Saving emergency edit:", selectedEmergency.id, editedEmergency);
-
     const { error } = await supabase
       .from("emergencies")
       .update({
@@ -671,17 +740,57 @@ const [actionFilter, setActionFilter] = useState<string>("all");
         updated_by: currentUser.id,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", selectedEmergency.id); // Use id
+      .eq("id", selectedEmergency.id);
 
     if (error) {
       alert(`Error updating emergency: ${error.message}`);
       return;
     }
 
+    // Log status change if changed
+    if (selectedEmergency.status !== editedEmergency.status) {
+      const { error: actionError } = await supabase
+        .from("incident_actions")
+        .insert({
+          incident_id: selectedEmergency.id,
+          admin_id: currentUser.id,
+          action_type: "status_change",
+          previous_value: selectedEmergency.status,
+          new_value: editedEmergency.status,
+          created_at: new Date().toISOString(),
+        });
+
+      if (actionError) {
+        console.error("Error logging status change:", actionError);
+      }
+    }
+
+    // Log severity change if changed
+    if (selectedEmergency.severity !== editedEmergency.severity) {
+      const { error: actionError } = await supabase
+        .from("incident_actions")
+        .insert({
+          incident_id: selectedEmergency.id,
+          admin_id: currentUser.id,
+          action_type: "severity_change",
+          previous_value: selectedEmergency.severity,
+          new_value: editedEmergency.severity,
+          created_at: new Date().toISOString(),
+        });
+
+      if (actionError) {
+        console.error("Error logging severity change:", actionError);
+      }
+    }
+
     setEmergencies((prev) =>
       prev.map((em) =>
         em.id === selectedEmergency.id
-          ? { ...em, status: editedEmergency.status, severity: editedEmergency.severity }
+          ? {
+              ...em,
+              status: editedEmergency.status,
+              severity: editedEmergency.severity,
+            }
           : em
       )
     );
@@ -1677,8 +1786,11 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                           </div>
                         </div>
                         <span className="text-xs text-gray-500">
-                          {new Date(action.timestamp).toLocaleString()}
-                        </span>
+  {action.created_at
+    ? new Date(action.created_at).toLocaleString()
+    : "N/A"}
+</span>
+
                       </div>
                       <div className="pl-10">
                         <p className="text-gray-700">
@@ -2258,24 +2370,6 @@ const [actionFilter, setActionFilter] = useState<string>("all");
               )}
             </div>
 
-            {/* Admin Role Selector */}
-            <div className="relative mr-4">
-              <select
-                value={currentUser.adminRole}
-                onChange={(e) => {
-                  // Update current user role
-                  (currentUser as any).adminRole = e.target.value;
-                  // Force re-render
-                  setActiveTab(activeTab);
-                }}
-                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#005524]"
-              >
-                <option value="police">Police</option>
-                <option value="medical">Medical Team</option>
-                <option value="firefighter">Firefighter</option>
-              </select>
-            </div>
-            
             {/* Profile */}
             <div className="relative">
               <button
@@ -2293,9 +2387,6 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                 />
                 <span className="hidden md:inline text-gray-700 font-medium">
                   {currentUser.name}
-                </span>
-                <span className="hidden md:inline text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
-                  {currentUser.adminRole}
                 </span>
               </button>
             </div>

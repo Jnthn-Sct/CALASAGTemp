@@ -139,12 +139,12 @@ const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   // Get current user data from local storage or authentication
-  const [currentUser, setCurrentUser] = useState({
-    id: localStorage.getItem("userId") || "",
-    name: localStorage.getItem("userName") || "Admin",
-    email: localStorage.getItem("userEmail") || "admin@calasag.com",
-    role: localStorage.getItem("userRole") || "Administrator",
-  });
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null>(null);
 
   const appRole = useMemo(() => localStorage.getItem("userRole") || "user", []);
 
@@ -175,21 +175,25 @@ const AdminDashboard: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<UiUser | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
-  const [notificationsList, setNotificationsList] = useState([
-    { id: 1, message: "New incident reported", time: "2 mins ago" },
-    { id: 2, message: "Safety tip published", time: "1 hour ago" },
-  ]);
+  // Enhanced notification structure with admin-specific fields
+  const [notificationsList, setNotificationsList] = useState<{
+    id: string;
+    message: string;
+    time: string;
+    read: boolean;
+    type: "emergency" | "incident" | "system";
+    sourceId?: number;
+    forAdminId?: string;
+    clearedBy?: string;
+  }[]>([]);
 
   const [openSidebarDropdown, setOpenSidebarDropdown] = useState<string | null>(
     null
   );
-
+ 
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
   const [isEditingSecurity, setIsEditingSecurity] = useState(false);
-  const [personalInfo, setPersonalInfo] = useState({
-    name: currentUser.name,
-    email: currentUser.email,
-  });
+  const [personalInfo, setPersonalInfo] = useState({ name: "", email: "" });
   const [securityInfo, setSecurityInfo] = useState({
     currentPassword: "",
     newPassword: "",
@@ -258,8 +262,38 @@ const [actionFilter, setActionFilter] = useState<string>("all");
     return m;
   }, [users]);
 
+  // State for tracking new activity log entries
+  const [hasNewActivity, setHasNewActivity] = useState(false);
+  const [lastViewedActionId, setLastViewedActionId] = useState<number>(0);
+  
   // Initial data load and realtime subscriptions
   useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        console.error("Error fetching user, redirecting to login.");
+        navigate("/login");
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("users")
+        .select("user_id, name, email, role")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profileError) {
+        console.error("Error fetching user profile:", profileError);
+      } else if (profile) {
+        setCurrentUser({ id: profile.user_id, name: profile.name, email: profile.email, role: profile.role });
+        setPersonalInfo({ name: profile.name, email: profile.email });
+      }
+    };
+
     const loadSafetyTips = async () => {
       const { data, error } = await supabase
         .from("safety_tips")
@@ -271,25 +305,63 @@ const [actionFilter, setActionFilter] = useState<string>("all");
         setSafetyTips(data || []);
       }
     };
+    
+    // Load admin notifications
+    const loadNotifications = async () => {
+      if (!currentUser?.id) return;
+      
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("notification_type", "admin")
+        .order("created_at", { ascending: false });
+        
+      if (error) {
+        console.error("Error loading notifications:", error);
+        return;
+      }
+      
+      if (data) {
+        const formattedNotifications = data.map((notification) => {
+          // Check if this admin's ID is in the clearedBy array
+          const clearedByArray = notification.cleared_by || [];
+          const isRead = clearedByArray.includes(currentUser?.id ?? '');
+          
+          return {
+            id: notification.id,
+            message: notification.message,
+            time: new Date(notification.created_at).toLocaleString(),
+            read: isRead,
+            type: notification.type || "general",
+            sourceId: notification.source_id,
+            forAdminId: notification.for_admin_id,
+            clearedBy: clearedByArray
+          };
+        });
+        
+        // Filter notifications to show all admin notifications
+        // This ensures all admins see all notifications
+        setNotificationsList(formattedNotifications);
+      }
+    };
+    
     // Define loadIncidentActions at the top level of useEffect to avoid duplicate declarations
     const loadIncidentActions = async (page = 1) => {
       setIsLoadingActions(true);
       setActionsError(null);
-const { data, error } = await supabase
-  .from("incident_actions")
-  .select(`
-    id, 
-    incident_id, 
-    admin_id, 
-    action_type, 
-    previous_value, 
-    new_value, 
-    created_at,
-    admin:users!fk_admin(name, role),
-    incident:emergencies!fk_incident(emergency_type)
-
-  `)
-
+      const { data, error } = await supabase
+        .from("incident_actions")
+        .select(`
+          id, 
+          incident_id, 
+          admin_id, 
+          action_type, 
+          previous_value, 
+          new_value, 
+          created_at,
+          admin:users!fk_admin(name, role),
+          incident:emergencies!fk_incident(emergency_type)
+        `)
         .order("created_at", { ascending: false })
         .range((page - 1) * actionsPerPage, page * actionsPerPage - 1);
     
@@ -321,6 +393,18 @@ const { data, error } = await supabase
     
         setIncidentActions(mapped);
         setActivityLog(mapped);
+        
+        // Check if there are new actions since last viewed
+        if (mapped.length > 0) {
+          const highestId = Math.max(...mapped.map(action => action.id));
+          if (highestId > lastViewedActionId && lastViewedActionId !== 0) {
+            setHasNewActivity(true);
+          }
+          // Update last viewed ID only if this is the initial load
+          if (lastViewedActionId === 0) {
+            setLastViewedActionId(highestId);
+          }
+        }
       }
     
       setIsLoadingActions(false);
@@ -498,6 +582,7 @@ const { data, error } = await supabase
 
     // Load all data with improved concurrent loading
     const loadAll = async () => {
+      await fetchCurrentUser();
       try {
         await Promise.all([
           loadSafetyTips(),
@@ -515,7 +600,7 @@ const { data, error } = await supabase
     };
     
     loadAll();
-
+    
     // Set up all real-time subscriptions
     const safetyTipsChannel = supabase
       .channel("safety_tips")
@@ -532,8 +617,80 @@ const { data, error } = await supabase
       .channel("emergencies")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "emergencies" },
-        () => {
+        { event: "INSERT", schema: "public", table: "emergencies" },
+        async (payload) => {
+          // Create notification for new emergency report
+          const newEmergency = payload.new;
+          const emergencyType = newEmergency.emergency_type;
+          
+          // Add to notifications list
+          setNotificationsList(prev => [
+            {
+              id: Date.now(),
+              message: `New ${emergencyType} emergency reported`,
+              time: new Date().toLocaleString(),
+              read: false,
+              type: 'emergency',
+              sourceId: newEmergency.id,
+              clearedBy: []
+            },
+            ...prev
+          ]);
+          
+          const { error } = await supabase.from("notifications").insert({
+            message: `New ${emergencyType} emergency reported`,
+            notification_type: "admin",
+            type: "emergency",
+            source_id: newEmergency.id,
+            created_at: new Date().toISOString(),
+            read: false,
+            cleared_by: [],
+            for_admin_id: null
+          });
+
+
+          if (error) {
+            console.error("Failed to insert notification:", error);
+          }
+          loadEmergencies();
+          loadIncidentCounts();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "emergencies" },
+        (payload) => {
+          // Check if severity was updated to critical
+          const updatedEmergency = payload.new;
+          if (updatedEmergency.severity === 'critical') {
+            // Add critical notification
+            setNotificationsList(prev => [
+              {
+                id: Date.now(),
+                message: `Emergency #${updatedEmergency.id} severity changed to CRITICAL`,
+                time: new Date().toLocaleString(),
+                read: false,
+                type: 'critical_incident',
+                sourceId: updatedEmergency.id,
+                clearedBy: []
+              },
+              ...prev
+            ]);
+            
+            // Create notification in database
+            supabase
+              .from('notifications')
+              .insert({
+                message: `Emergency #${updatedEmergency.id} severity changed to CRITICAL`,
+                notification_type: 'admin',
+                type: 'critical_incident',
+                source_id: updatedEmergency.id,
+                created_at: new Date().toISOString(),
+                read: false,
+                cleared_by: []
+              });
+          }
+          
           loadEmergencies();
           loadIncidentCounts();
         }
@@ -541,13 +698,42 @@ const { data, error } = await supabase
       .subscribe();
 
     const crisisChannel = supabase
-      .channel("crisis_alerts")
+      .channel("crisis")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "crisis_alerts" },
         () => {
           loadCrisis();
           loadCrisisCounts();
+        }
+      )
+      .subscribe();
+      
+    // Create a separate channel for activity indicators
+    const activityChannel = supabase
+      .channel("activity_indicators")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "incident_actions" },
+        (payload) => {
+          // Set indicator for new activity
+          setHasNewActivity(true);
+          
+          // Refresh incident actions
+          loadIncidentActions();
+        }
+      )
+      .subscribe();
+      
+    // Add subscription for notifications
+    const notificationsChannel = supabase
+      .channel("notifications")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications" },
+        () => {
+          // Reload notifications
+          loadNotifications();
         }
       )
       .subscribe();
@@ -642,7 +828,7 @@ const { data, error } = await supabase
       supabase.removeChannel(usersChannel);
       supabase.removeChannel(sessionsChannel);
       supabase.removeChannel(crisisChannel);
-      supabase.removeChannel(incidentActionsChannel);
+      supabase.removeChannel(incidentActionsChannel); // Make sure to remove this channel as well
     };
   }, []);
 
@@ -690,7 +876,7 @@ const { data, error } = await supabase
     const { error } = await supabase
       .from("emergencies")
       .update({
-        status: newStatus,
+        status: newStatus, // Corrected from `status` to `newStatus`
         updated_by: currentUser.id,
         updated_at: new Date().toISOString(),
       })
@@ -701,11 +887,17 @@ const { data, error } = await supabase
       return;
     }
 
+    console.log("Logging action:", {
+      incident_id: incidentId,
+      admin_id: currentUser?.id || null,
+      action_type: "status_change",
+    });
+
     const { error: actionError } = await supabase
       .from("incident_actions")
       .insert({
         incident_id: incidentId,
-        admin_id: currentUser.id,
+        admin_id: currentUser?.id || null,
         action_type: "status_change",
         previous_value: previousStatus,
         new_value: newStatus,
@@ -737,7 +929,7 @@ const { data, error } = await supabase
       .update({
         status: editedEmergency.status,
         severity: editedEmergency.severity,
-        updated_by: currentUser.id,
+        updated_by: currentUser?.id || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", selectedEmergency.id);
@@ -749,11 +941,17 @@ const { data, error } = await supabase
 
     // Log status change if changed
     if (selectedEmergency.status !== editedEmergency.status) {
+      console.log("Logging action:", {
+        incident_id: selectedEmergency.id,
+        admin_id: currentUser?.id || null,
+        action_type: "status_change",
+      });
+
       const { error: actionError } = await supabase
         .from("incident_actions")
         .insert({
           incident_id: selectedEmergency.id,
-          admin_id: currentUser.id,
+          admin_id: currentUser?.id || null,
           action_type: "status_change",
           previous_value: selectedEmergency.status,
           new_value: editedEmergency.status,
@@ -767,11 +965,17 @@ const { data, error } = await supabase
 
     // Log severity change if changed
     if (selectedEmergency.severity !== editedEmergency.severity) {
+      console.log("Logging action:", {
+        incident_id: selectedEmergency.id,
+        admin_id: currentUser?.id || null,
+        action_type: "severity_change",
+      });
+
       const { error: actionError } = await supabase
         .from("incident_actions")
         .insert({
           incident_id: selectedEmergency.id,
-          admin_id: currentUser.id,
+          admin_id: currentUser?.id || null,
           action_type: "severity_change",
           previous_value: selectedEmergency.severity,
           new_value: editedEmergency.severity,
@@ -1437,8 +1641,8 @@ const { data, error } = await supabase
                     <div>
                       <h3 className="font-medium text-gray-900">{user.name}</h3>
                       <p className="text-sm text-gray-600">
-                        {user.email || "—"} • {user.status || "—"} • Presence:{" "}
-                        {user.onlineStatus || "—"}
+                        {user.email || "—"} &bull; {user.status || "—"} &bull; Presence:{" "}
+                        {user.onlineStatus || "â€”"}
                       </p>
                     </div>
                   </div>
@@ -1482,8 +1686,8 @@ const { data, error } = await supabase
                           {user.name}
                         </h3>
                         <p className="text-sm text-gray-600">
-                          {user.email || "—"} • Presence:{" "}
-                          {user.onlineStatus || "—"}
+                          {user.email || "—"} &bull; Presence:{" "}
+                          {user.onlineStatus || "â€”"}
                         </p>
                       </div>
                     </div>
@@ -1552,8 +1756,8 @@ const { data, error } = await supabase
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
         {emergency.reporterId
-          ? userNameById.get(emergency.reporterId) || "—"
-          : "—"}
+                          ? userNameById.get(emergency.reporterId) || "—"
+                          : "—"}
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <span
@@ -1651,7 +1855,7 @@ const { data, error } = await supabase
                           {a.user_id ? userNameById.get(a.user_id) || "—" : "—"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {new Date(a.created_at).toLocaleString()}
+                          {a.created_at ? new Date(a.created_at).toLocaleString() : "—"}
                         </td>
                       </tr>
                     ))}
@@ -2337,11 +2541,56 @@ const { data, error } = await supabase
                       notificationsList.map((notification) => (
                         <div
                           key={notification.id}
-                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                          className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors ${
+                            notification.read ? 'bg-gray-50' : 'bg-white'
+                          }`}
+                          onClick={async () => {
+                            // Mark this notification as read for current admin
+                            const { data } = await supabase
+                              .from("notifications")
+                              .select("cleared_by")
+                              .eq("id", notification.id)
+                              .single();
+                            
+                            // Add current admin to cleared_by array if not already there
+                            const clearedByArray = data?.cleared_by || [];
+                            if (!clearedByArray.includes(currentUser.id)) {
+                              clearedByArray.push(currentUser.id);
+                              
+                              // Update the notification in the database
+                              await supabase
+                                .from("notifications")
+                                .update({ cleared_by: clearedByArray })
+                                .eq("id", notification.id);
+                                
+                              // Update local state
+                              setNotificationsList(prev => 
+                                prev.map(n => n.id === notification.id 
+                                  ? {...n, read: true, clearedBy: clearedByArray} 
+                                  : n
+                                )
+                              );
+                            }
+                            
+                            // If notification is for an emergency, show emergency details
+                            if (notification.type === "emergency" && notification.sourceId) {
+                              const emergency = emergencies.find(e => e.id === notification.sourceId);
+                              if (emergency) {
+                                setSelectedEmergency(emergency);
+                                setShowEmergencyDetails(true);
+                                setShowNotifications(false);
+                              }
+                            }
+                          }}
                         >
-                          <p className="text-sm text-gray-800">
-                            {notification.message}
-                          </p>
+                          <div className="flex items-center justify-between">
+                            <p className={`text-sm ${notification.read ? 'text-gray-600' : 'text-gray-800 font-medium'}`}>
+                              {notification.message}
+                            </p>
+                            {!notification.read && (
+                              <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500 mt-1">
                             {notification.time}
                           </p>
@@ -2356,13 +2605,44 @@ const { data, error } = await supabase
                   {notificationsList.length > 0 && (
                     <div className="px-4 py-2 border-t border-gray-100">
                       <button
-                        onClick={() => {
-                          setNotificationsList([]);
+                        onClick={async () => {
+                          // Mark notifications as read for current admin only
+                          const updatedNotifications = await Promise.all(
+                            notificationsList.map(async (notification) => {
+                              // Get current cleared_by array
+                              const { data } = await supabase
+                                .from("notifications")
+                                .select("cleared_by")
+                                .eq("id", notification.id)
+                                .single();
+                              
+                              // Add current admin to cleared_by array if not already there
+                              const clearedByArray = data?.cleared_by || [];
+                              if (!clearedByArray.includes(currentUser.id)) {
+                                clearedByArray.push(currentUser.id);
+                                
+                                // Update the notification in the database
+                                await supabase
+                                  .from("notifications")
+                                  .update({ cleared_by: clearedByArray })
+                                  .eq("id", notification.id);
+                              }
+                              
+                              return {
+                                ...notification,
+                                read: true,
+                                clearedBy: clearedByArray
+                              };
+                            })
+                          );
+                          
+                          // Update local state to mark all as read for current user
+                          setNotificationsList(updatedNotifications);
                           setShowNotifications(false);
                         }}
                         className="text-sm text-blue-600 hover:text-blue-700 w-full text-center"
                       >
-                        Clear all notifications
+                        Mark all as read
                       </button>
                     </div>
                   )}
@@ -2378,15 +2658,15 @@ const { data, error } = await supabase
                 }}
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none"
               >
-                <img
+                {currentUser && <img
                   src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    currentUser.name
+                    currentUser?.name || 'A'
                   )}&background=005524&color=fff`}
                   alt="avatar"
                   className="w-8 h-8 rounded-full border border-gray-200"
-                />
+                />}
                 <span className="hidden md:inline text-gray-700 font-medium">
-                  {currentUser.name}
+                  {currentUser?.name || 'Loading...'}
                 </span>
               </button>
             </div>
@@ -2668,7 +2948,7 @@ const { data, error } = await supabase
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
                   />
                 ) : (
-                  <p className="text-gray-600">{selectedSafetyTip.icon || "—"}</p>
+                  <p className="text-gray-600">{selectedSafetyTip.icon || "â€”"}</p>
                 )}
               </div>
               <div>

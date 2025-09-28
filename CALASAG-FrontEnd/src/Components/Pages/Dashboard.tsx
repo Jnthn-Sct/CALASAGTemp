@@ -1054,22 +1054,24 @@ const Dashboard: React.FC = () => {
         );
 
         const notificationSubscription = supabase
-          .channel("notifications")
+          .channel("notifications_dashboard")
           .on(
             "postgres_changes",
             {
               event: "INSERT",
               schema: "public",
-              table: "notifications",
-              filter: `user_id=eq.${user.id}`,
+              table: "notifications"
             },
             (payload) => {
-              setNotifications((prev) => {
-                if (prev.some((n) => n.id === payload.new.id)) {
-                  return prev;
-                }
-                return [payload.new as Notification, ...prev].slice(0, 50);
-              });
+              // Only process if this notification is for the current user
+              if (payload.new.user_id === user.id) {
+                setNotifications((prev) => {
+                  if (prev.some((n) => n.id === payload.new.id)) {
+                    return prev;
+                  }
+                  return [payload.new as Notification, ...prev].slice(0, 50);
+                });
+              }
             }
           )
           .on(
@@ -1077,15 +1079,17 @@ const Dashboard: React.FC = () => {
             {
               event: "UPDATE",
               schema: "public",
-              table: "notifications",
-              filter: `user_id=eq.${user.id}`,
+              table: "notifications"
             },
             (payload) => {
-              setNotifications((prev) =>
-                prev.map((n) =>
-                  n.id === payload.new.id ? { ...n, read: payload.new.read } : n
-                )
-              );
+              // Only process if this notification is for the current user
+              if (payload.new.user_id === user.id) {
+                setNotifications((prev) =>
+                  prev.map((n) =>
+                    n.id === payload.new.id ? { ...n, read: payload.new.read } : n
+                  )
+                );
+              }
             }
           )
           .subscribe((status, err) => {
@@ -1093,14 +1097,13 @@ const Dashboard: React.FC = () => {
           });
 
         const connectionRequestSubscription = supabase
-          .channel("connection_requests")
+          .channel("connection_requests_dashboard")
           .on(
             "postgres_changes",
             {
               event: "INSERT",
               schema: "public",
-              table: "connection_requests",
-              filter: `recipient_id=eq.${user.id}`,
+              table: "connection_requests"
             },
             async (payload) => {
               const newRequest = payload.new as any;
@@ -1176,8 +1179,7 @@ const Dashboard: React.FC = () => {
             {
               event: "INSERT",
               schema: "public",
-              table: "messages",
-              filter: `receiver_id=eq.${user.id}`,
+              table: "messages"
             },
             async (payload) => {
               const newMessage = payload.new as any;
@@ -1210,7 +1212,7 @@ const Dashboard: React.FC = () => {
           });
 
         const crisisAlertSubscription = supabase
-  .channel("crisis_alerts")
+  .channel("crisis_alerts_dashboard")
   .on(
     "postgres_changes",
     {
@@ -1563,14 +1565,18 @@ const Dashboard: React.FC = () => {
         }));
 
       if (notifications.length > 0) {
-        // Use RPC function for each notification to bypass RLS
+        // Insert notifications directly instead of using RPC
         for (const notification of notifications) {
           const { error: notificationError } = await supabase
-            .rpc('create_notification', {
-              recipient_id: notification.user_id,
+            .from('notifications')
+            .insert({
+              user_id: notification.user_id,
+              type: notification.type,
               notification_type: notification.notification_type || "emergency",
-              message_text: notification.message,
-              sender_id: user.id
+              message: notification.message,
+              read: false,
+              created_at: new Date().toISOString(),
+              cleared_by: []
             });
           if (notificationError) {
             console.error("Notification error:", notificationError);

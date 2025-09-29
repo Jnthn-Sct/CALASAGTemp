@@ -1,8 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './Components/Pages/Dashboard';
-import Messages from './Components/Pages/Messages';
-import Report from './Components/Pages/Report';
 import Login from './Components/Pages/Login';
 import SuperAdminDashboard from './Components/Pages/SuperAdminDashboard';
 import AdminDashboard from './Components/Pages/AdminDashboard';
@@ -54,8 +52,6 @@ const App: React.FC = () => {
           }
         />
 
-        <Route path="/messages" element={<Messages />} />
-        <Route path="/report" element={<Report />} />
         <Route path="/" element={<Login />} />
       </Routes>
     </Router>

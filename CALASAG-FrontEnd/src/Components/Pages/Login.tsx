@@ -52,82 +52,83 @@ const Login: React.FC = () => {
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    console.log('Starting registration for:', email);
+  e.preventDefault();
+  if (isSubmitting) return;
+  setIsSubmitting(true);
+  console.log('Starting registration for:', email);
 
-    if (!validateEmail(email)) {
-      setError('Invalid email format.');
-      setIsSubmitting(false);
-      return;
+  if (!validateEmail(email)) {
+    setError('Invalid email format.');
+    setIsSubmitting(false);
+    return;
+  }
+  if (password !== confirmPassword) {
+    setError('Passwords do not match.');
+    setIsSubmitting(false);
+    return;
+  }
+
+  try {
+    console.log('Signing out any existing session');
+    await supabase.auth.signOut();
+
+    console.log('Attempting signUp with email:', email);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name: fullName, role: 'user' },
+      },
+    });
+
+    if (error) {
+      console.error('SignUp Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      throw new Error(`Registration failed: ${error.message || 'Unknown error'}`);
     }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      setIsSubmitting(false);
-      return;
+    if (!data.user) {
+      throw new Error('No user data returned after signup');
     }
 
-    try {
-      console.log('Signing out any existing session');
-      await supabase.auth.signOut();
+    console.log('SignUp User:', JSON.stringify(data.user, null, 2));
 
-      console.log('Attempting signUp with email:', email);
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { name: fullName, role: 'user' },
-        },
-      });
+    console.log('Upserting user profile into public.users');
+    const { error: upsertError } = await supabase.from('users').upsert({
+      user_id: data.user.id,
+      email,
+      name: fullName,
+      role: 'user',
+      status: data.user.email_confirmed_at ? 'active' : 'pending',
+      avatar: null,
+      device_token: mobileNumber || '',
+      notifications_enabled: true,
+      email_notifications_enabled: true,
+      notification_preferences: { system_reports: true, feature_updates: true },
+      temp_notifications_enabled: null,
+      temp_email_notifications_enabled: null,
+    });
 
-      if (error) {
-        console.error('SignUp Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-        throw new Error(`Registration failed: ${error.message || 'Unknown error'}`);
-      }
-      if (!data.user) {
-        console.error('No user data returned after signup');
-        throw new Error('No user data returned');
-      }
-
-      console.log('SignUp User:', JSON.stringify(data.user, null, 2));
-
-      console.log('Inserting user profile into public.users');
-      const { error: insertError } = await supabase.from('users').insert({
-        user_id: data.user.id,
-        email,
-        name: fullName,
-        role: 'user',
-        status: 'active',
-        avatar: null,
-        device_token: mobileNumber || '',
-        notifications_enabled: true,
-        email_notifications_enabled: true,
-        notification_preferences: { system_reports: true, feature_updates: true },
-        temp_notifications_enabled: null,
-        temp_email_notifications_enabled: null,
-      });
-
-      if (insertError) {
-        console.error('Insert Error:', JSON.stringify(insertError, Object.getOwnPropertyNames(insertError), 2));
-        throw new Error(`Insert failed: ${insertError.message || 'Unknown error'}`);
-      }
-
-      setError(null);
-      alert('Registration successful! Please check your email (including Spam/Promotions) for a confirmation link.');
-      setIsRegistering(false);
-      resetForm();
-    } catch (err: unknown) {
-      const error = err as AuthError;
-      console.error('Registration Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-      setError(
-        error.message.includes('User already registered')
-          ? 'This email is already registered. Please log in or use a different email.'
-          : `Error during registration: ${error.message || 'Unknown error'}`
-      );
-      setIsSubmitting(false);
+    if (upsertError) {
+      console.error('Upsert Error:', JSON.stringify(upsertError, Object.getOwnPropertyNames(upsertError), 2));
+      throw new Error(`Upsert failed: ${upsertError.message || 'Unknown error'}`);
     }
-  };
+
+    // ✅ Success path
+    setError(null);
+    alert('✅ Registration successful! Please check your email (including Spam/Promotions) to confirm your account.');
+    setIsRegistering(false);
+    resetForm();
+  } catch (err: unknown) {
+    const error = err as AuthError;
+    console.error('Registration Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    setError(
+      error.message.includes('User already registered')
+        ? 'This email is already registered. Please log in or use a different email.'
+        : `Error during registration: ${error.message || 'Unknown error'}`
+    );
+    setIsSubmitting(false);
+  }
+};
+
 
   const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

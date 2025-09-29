@@ -1790,7 +1790,7 @@ const Dashboard: React.FC = () => {
           const { error: notificationError } = await supabase
             .rpc('create_notification', {
               recipient_id: notification.user_id,
-              notification_type: notification.notification_type || "safe_alert_removed",
+              notification_type: notification.notification_type || "safe_alert",
               message_text: notification.message,
               sender_id: user.id
             });

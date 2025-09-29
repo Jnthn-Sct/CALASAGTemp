@@ -614,87 +614,83 @@ const [actionFilter, setActionFilter] = useState<string>("all");
       .subscribe();
 
     const emergenciesChannel = supabase
-      .channel("emergencies")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "emergencies" },
-        async (payload) => {
-          // Create notification for new emergency report
-          const newEmergency = payload.new;
-          const emergencyType = newEmergency.emergency_type;
-          
-          // Add to notifications list
-          setNotificationsList(prev => [
-            {
-              id: Date.now(),
-              message: `New ${emergencyType} emergency reported`,
-              time: new Date().toLocaleString(),
-              read: false,
-              type: 'emergency',
-              sourceId: newEmergency.id,
-              clearedBy: []
-            },
-            ...prev
-          ]);
-          
-          const { error } = await supabase.from("notifications").insert({
-            message: `New ${emergencyType} emergency reported`,
-            notification_type: "admin",
-            type: "emergency",
-            source_id: newEmergency.id,
-            created_at: new Date().toISOString(),
-            read: false,
-            cleared_by: [],
-            for_admin_id: null
-          });
+  .channel("emergencies")
+  .on(
+    "postgres_changes",
+    { event: "INSERT", schema: "public", table: "emergencies" },
+    async (payload) => {
+      const newEmergency = payload.new;
+      const emergencyType = newEmergency.emergency_type;
 
+      // Update local notifications state immediately
+      setNotificationsList(prev => [
+        {
+          id: Date.now(),
+          message: `New ${emergencyType} emergency reported`,
+          time: new Date().toLocaleString(),
+          read: false,
+          type: 'emergency',
+          sourceId: newEmergency.id,
+          clearedBy: []
+        },
+        ...prev
+      ]);
 
-          if (error) {
-            console.error("Failed to insert notification:", error);
-          }
-          loadEmergencies();
-          loadIncidentCounts();
-        }
-      )
+      // ✅ Use RPC to notify ALL admins
+      const { error } = await supabase.rpc("create_notification", {
+        recipient_id: null, // null means broadcast to all admins (handled in SQL function)
+        notification_type: "admin",
+        message_text: `New ${emergencyType} emergency reported`,
+        sender_id: newEmergency.user_id
+      });
+
+      if (error) {
+        console.error("Failed to create admin notification:", error);
+      }
+
+      loadEmergencies();
+      loadIncidentCounts();
+    }
+  )
+
       .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "emergencies" },
-        (payload) => {
-          // Check if severity was updated to critical
-          const updatedEmergency = payload.new;
-          if (updatedEmergency.severity === 'critical') {
-            // Add critical notification
-            setNotificationsList(prev => [
-              {
-                id: Date.now(),
-                message: `Emergency #${updatedEmergency.id} severity changed to CRITICAL`,
-                time: new Date().toLocaleString(),
-                read: false,
-                type: 'critical_incident',
-                sourceId: updatedEmergency.id,
-                clearedBy: []
-              },
-              ...prev
-            ]);
-            
-            // Create notification in database
-            supabase
-              .from('notifications')
-              .insert({
-                message: `Emergency #${updatedEmergency.id} severity changed to CRITICAL`,
-                notification_type: 'admin',
-                type: 'critical_incident',
-                source_id: updatedEmergency.id,
-                created_at: new Date().toISOString(),
-                read: false,
-                cleared_by: []
-              });
-          }
-          
-          loadEmergencies();
-          loadIncidentCounts();
-        }
-      )
+  "postgres_changes",
+  { event: "UPDATE", schema: "public", table: "emergencies" },
+  async (payload) => {
+    const updatedEmergency = payload.new;
+
+    if (updatedEmergency.severity === 'critical') {
+      setNotificationsList(prev => [
+        {
+          id: Date.now(),
+          message: `Emergency #${updatedEmergency.id} severity changed to CRITICAL`,
+          time: new Date().toLocaleString(),
+          read: false,
+          type: 'critical_incident',
+          sourceId: updatedEmergency.id,
+          clearedBy: []
+        },
+        ...prev
+      ]);
+
+      // ✅ Use RPC so ALL admins are notified
+      const { error } = await supabase.rpc("create_notification", {
+        recipient_id: null, // broadcast to all admins
+        notification_type: "admin",
+        message_text: `Emergency #${updatedEmergency.id} severity changed to CRITICAL`,
+        sender_id: updatedEmergency.updated_by
+      });
+
+      if (error) {
+        console.error("Failed to create critical incident notification:", error);
+      }
+    }
+
+    loadEmergencies();
+    loadIncidentCounts();
+  }
+)
+
       .subscribe();
 
     const crisisChannel = supabase

@@ -33,6 +33,7 @@ import {
   Title as ChartTitle,
   LineElement,
   PointElement,
+  Filler,
 } from "chart.js";
 import { Pie, Line } from "react-chartjs-2";
 
@@ -44,7 +45,8 @@ ChartJS.register(
   LinearScale,
   ChartTitle,
   LineElement,
-  PointElement
+  PointElement,
+  Filler
 );
 import { supabase } from "../../db";
 
@@ -126,13 +128,13 @@ interface IncidentAction {
   id: number;
   incident_id: number;
   admin_id: string;
-  admin_name: string; 
-  admin_role: string; 
-  action_type: string; 
+  admin_name: string;
+  admin_role: string;
+  action_type: string;
   previous_value: string;
   new_value: string;
-  created_at: string; 
-  incident_type?: string; 
+  created_at: string;
+  incident_type?: string;
 }
 
 const AdminDashboard: React.FC = () => {
@@ -164,6 +166,7 @@ const AdminDashboard: React.FC = () => {
     useState<boolean>(false);
   const [isEditingSafetyTip, setIsEditingSafetyTip] = useState<boolean>(false);
   const [editedSafetyTip, setEditedSafetyTip] = useState<{
+    id?: number;
     name: string;
     content: string;
     icon: string | null;
@@ -176,21 +179,23 @@ const AdminDashboard: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   // Enhanced notification structure with admin-specific fields
-  const [notificationsList, setNotificationsList] = useState<{
-    id: string;
-    message: string;
-    time: string;
-    read: boolean;
-    type: "emergency" | "incident" | "system";
-    sourceId?: number;
-    forAdminId?: string;
-    clearedBy?: string;
-  }[]>([]);
+  const [notificationsList, setNotificationsList] = useState<
+    {
+      id: number;
+      message: string;
+      time: string;
+      read: boolean;
+      type: "emergency" | "critical_incident" | "system" | "general";
+      sourceId?: number;
+      forAdminId?: string;
+      clearedBy?: string[];
+    }[]
+  >([]);
 
   const [openSidebarDropdown, setOpenSidebarDropdown] = useState<string | null>(
     null
   );
- 
+
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
   const [isEditingSecurity, setIsEditingSecurity] = useState(false);
   const [personalInfo, setPersonalInfo] = useState({ name: "", email: "" });
@@ -199,7 +204,7 @@ const AdminDashboard: React.FC = () => {
     newPassword: "",
     confirmPassword: "",
   });
-  const [notifications, setNotifications] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(false);
 
   const [users, setUsers] = useState<UiUser[]>([]);
@@ -210,31 +215,21 @@ const AdminDashboard: React.FC = () => {
 
   const [safetyTips, setSafetyTips] = useState<SafetyTip[]>([]);
   const [safetyTipsError, setSafetyTipsError] = useState<string | null>(null);
-  
+
   // New state for incident actions loading and pagination
   const [isLoadingActions, setIsLoadingActions] = useState<boolean>(false);
   const [actionsError, setActionsError] = useState<string | null>(null);
   const [actionPage, setActionPage] = useState(1);
   const actionsPerPage = 50;
   // State for editing incident reports and safety tips
-  
-  // State for action history and activity log
-  interface IncidentAction {
-    id: number;
-    incident_id: number;
-    admin_id: string;
-    admin_name: string;
-    admin_role: string;
-    action_type: string;
-    previous_value: string;
-    new_value: string;
-    timestamp: string;
-  }
 
-const [incidentActions, setIncidentActions] = useState<IncidentAction[]>([]);
-const [activityLog, setActivityLog] = useState<IncidentAction[]>([]);
-const [actionFilter, setActionFilter] = useState<string>("all");
-  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toISOString());
+  // State for action history and activity log
+  const [incidentActions, setIncidentActions] = useState<IncidentAction[]>([]);
+  const [activityLog, setActivityLog] = useState<IncidentAction[]>([]);
+  const [actionFilter, setActionFilter] = useState<string>("all");
+  const [lastUpdated, setLastUpdated] = useState<string>(
+    new Date().toISOString()
+  );
 
   const [newSafetyTip, setNewSafetyTip] = useState({
     name: "",
@@ -265,46 +260,98 @@ const [actionFilter, setActionFilter] = useState<string>("all");
   // State for tracking new activity log entries
   const [hasNewActivity, setHasNewActivity] = useState(false);
   const [lastViewedActionId, setLastViewedActionId] = useState<number>(0);
-  
+
   // Initial data load and realtime subscriptions
+  const [filter, setFilter] = useState<"week" | "month" | "year">("month");
   const [incidentData, setIncidentData] = useState<number[]>([]);
   const [growth, setGrowth] = useState<number | null>(null);
+  const [chartLabels, setChartLabels] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchIncidentStats = async () => {
       try {
-        // Current Year (2024)
-        const { data: currentYear, error: currentError } = await supabase
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const date = now.getDate();
+
+        let startCurrent: Date, endCurrent: Date;
+        let startPrevious: Date, endPrevious: Date;
+        let newLabels: string[] = [];
+        let newIncidentData: number[];
+        let groupByFn: (d: Date) => number;
+
+        if (filter === 'week') {
+          const dayOfWeek = now.getDay();
+          startCurrent = new Date(year, month, date - dayOfWeek);
+          endCurrent = new Date(year, month, date + (6 - dayOfWeek), 23, 59, 59, 999);
+          startPrevious = new Date(startCurrent.getTime() - 7 * 24 * 60 * 60 * 1000);
+          endPrevious = new Date(endCurrent.getTime() - 7 * 24 * 60 * 60 * 1000);
+          newLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          newIncidentData = new Array(7).fill(0);
+          groupByFn = (d) => d.getDay();
+        } else if (filter === 'month') {
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
+          startCurrent = new Date(year, month, 1);
+          endCurrent = new Date(year, month, daysInMonth, 23, 59, 59, 999);
+          startPrevious = new Date(year, month - 1, 1);
+          endPrevious = new Date(year, month, 0, 23, 59, 59, 999);
+          newLabels = Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString());
+          newIncidentData = new Array(daysInMonth).fill(0);
+          groupByFn = (d) => d.getDate() - 1;
+        } else { // 'year'
+          startCurrent = new Date(year, 0, 1);
+          endCurrent = new Date(year, 11, 31, 23, 59, 59, 999);
+          startPrevious = new Date(year - 1, 0, 1);
+          endPrevious = new Date(year - 1, 11, 31, 23, 59, 59, 999);
+          newLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          newIncidentData = new Array(12).fill(0);
+          groupByFn = (d) => d.getMonth();
+        }
+
+        // Fetch current period data
+        const { data: currentData, error: currentError } = await supabase
           .from("emergencies")
           .select("id, created_at")
-          .gte("created_at", "2024-01-01")
-          .lte("created_at", "2024-12-31");
+          .gte("created_at", startCurrent.toISOString())
+          .lte("created_at", endCurrent.toISOString());
 
         if (currentError) throw currentError;
 
-        // Previous Year (2023)
-        const { data: lastYear, error: lastError } = await supabase
+        // Fetch previous period data
+        const { data: previousData, error: previousError } = await supabase
           .from("emergencies")
           .select("id, created_at")
-          .gte("created_at", "2023-01-01")
-          .lte("created_at", "2023-12-31");
+          .gte("created_at", startPrevious.toISOString())
+          .lte("created_at", endPrevious.toISOString());
 
-        if (lastError) throw lastError;
+        if (previousError) throw previousError;
 
-        // Group by month
-        const monthlyCounts = new Array(12).fill(0);
-        currentYear?.forEach((incident) => {
-          const month = new Date(incident.created_at).getMonth();
-          monthlyCounts[month]++;
+        // Group data for the chart
+        currentData?.forEach((incident) => {
+          const incidentDate = new Date(incident.created_at);
+          const index = groupByFn(incidentDate);
+          if (index >= 0 && index < newIncidentData.length) {
+            newIncidentData[index]++;
+          }
         });
 
-        setIncidentData(monthlyCounts);
+        setChartLabels(newLabels);
+        setIncidentData(newIncidentData);
 
-        // Compute growth %
-        const currentTotal = currentYear?.length || 0;
-        const lastTotal = lastYear?.length || 1; // avoid divide by 0
-        const percentageGrowth = ((currentTotal - lastTotal) / lastTotal) * 100;
+        // Calculate growth percentage
+        const currentTotal = currentData?.length || 0;
+        const prevTotal = previousData?.length || 0;
 
+        // Growth %
+        let percentageGrowth = 0;
+        if (prevTotal > 0) {
+          percentageGrowth = ((currentTotal - prevTotal) / prevTotal) * 100;
+        } else if (currentTotal > 0) {
+          percentageGrowth = 100;
+        } else {
+          percentageGrowth = 0;
+        }
         setGrowth(percentageGrowth);
       } catch (err) {
         console.error("Error fetching incident stats:", err);
@@ -312,7 +359,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
     };
 
     fetchIncidentStats();
-  }, []);
+  }, [filter]);
   useEffect(() => {
     const fetchCurrentUser = async () => {
       const {
@@ -335,7 +382,12 @@ const [actionFilter, setActionFilter] = useState<string>("all");
       if (profileError) {
         console.error("Error fetching user profile:", profileError);
       } else if (profile) {
-        setCurrentUser({ id: profile.user_id, name: profile.name, email: profile.email, role: profile.role });
+        setCurrentUser({
+          id: profile.user_id,
+          name: profile.name,
+          email: profile.email,
+          role: profile.role,
+        });
         setPersonalInfo({ name: profile.name, email: profile.email });
       }
     };
@@ -351,28 +403,28 @@ const [actionFilter, setActionFilter] = useState<string>("all");
         setSafetyTips(data || []);
       }
     };
-    
+
     // Load admin notifications
     const loadNotifications = async () => {
       if (!currentUser?.id) return;
-      
+
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
         .eq("notification_type", "admin")
         .order("created_at", { ascending: false });
-        
+
       if (error) {
         console.error("Error loading notifications:", error);
         return;
       }
-      
+
       if (data) {
         const formattedNotifications = data.map((notification) => {
           // Check if this admin's ID is in the clearedBy array
           const clearedByArray = notification.cleared_by || [];
-          const isRead = clearedByArray.includes(currentUser?.id ?? '');
-          
+          const isRead = clearedByArray.includes(currentUser?.id ?? "");
+
           return {
             id: notification.id,
             message: notification.message,
@@ -381,23 +433,24 @@ const [actionFilter, setActionFilter] = useState<string>("all");
             type: notification.type || "general",
             sourceId: notification.source_id,
             forAdminId: notification.for_admin_id,
-            clearedBy: clearedByArray
+            clearedBy: clearedByArray,
           };
         });
-        
+
         // Filter notifications to show all admin notifications
         // This ensures all admins see all notifications
         setNotificationsList(formattedNotifications);
       }
     };
-    
+
     // Define loadIncidentActions at the top level of useEffect to avoid duplicate declarations
     const loadIncidentActions = async (page = 1) => {
       setIsLoadingActions(true);
       setActionsError(null);
       const { data, error } = await supabase
         .from("incident_actions")
-        .select(`
+        .select(
+          `
           id, 
           incident_id, 
           admin_id, 
@@ -407,10 +460,11 @@ const [actionFilter, setActionFilter] = useState<string>("all");
           created_at,
           admin:users!fk_admin(name, role),
           incident:emergencies!fk_incident(emergency_type)
-        `)
+        `
+        )
         .order("created_at", { ascending: false })
         .range((page - 1) * actionsPerPage, page * actionsPerPage - 1);
-    
+
       if (error) {
         console.error("Error loading incident actions:", {
           message: error.message,
@@ -422,7 +476,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
         setIsLoadingActions(false);
         return;
       }
-    
+
       if (data) {
         const mapped: IncidentAction[] = data.map((action: any) => ({
           id: action.id,
@@ -436,13 +490,13 @@ const [actionFilter, setActionFilter] = useState<string>("all");
           created_at: action.created_at,
           incident_type: action.incident?.emergency_type || "Unknown",
         }));
-    
+
         setIncidentActions(mapped);
         setActivityLog(mapped);
-        
+
         // Check if there are new actions since last viewed
         if (mapped.length > 0) {
-          const highestId = Math.max(...mapped.map(action => action.id));
+          const highestId = Math.max(...mapped.map((action) => action.id));
           if (highestId > lastViewedActionId && lastViewedActionId !== 0) {
             setHasNewActivity(true);
           }
@@ -452,15 +506,15 @@ const [actionFilter, setActionFilter] = useState<string>("all");
           }
         }
       }
-    
+
       setIsLoadingActions(false);
     };
 
     const loadEmergencies = async () => {
-  const { data, error } = await supabase
-    .from("emergencies")
-    .select(
-      `
+      const { data, error } = await supabase
+        .from("emergencies")
+        .select(
+          `
       id,
       message,
       created_at,
@@ -473,44 +527,46 @@ const [actionFilter, setActionFilter] = useState<string>("all");
       location,
       users:user_id(name)
       `
-    )
-    .order("created_at", { ascending: false })
-    .limit(2000);
-  if (error) {
-    console.error("Error loading emergencies:", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
-    return;
-  }
-  if (data) {
-    const mapped: EmergencyReport[] = data
-      .filter((r: any) => {
-        const type = (r.emergency_type || "").toString().toLowerCase();
-        return type !== "safe" && type !== "unsafe";
-      })
-      .map((r: any) => ({
-        id: r.id,
-        title: r.emergency_type || "Unknown",
-        message: r.message || "-",
-        location: r.location
-          ? `Lat: ${r.location.lat ?? "N/A"}, Lng: ${r.location.lng ?? "N/A"}`
-          : "-",
-        severity: r.severity ?? "Not Set",
-        status: r.status ?? "Not Set",
-        reportedBy: r.users?.name || "-",
-        reporterId: r.user_id || undefined,
-        type: r.emergency_type,
-        date: r.created_at ? r.created_at.substring(0, 10) : "",
-        updatedBy: r.updated_by || "",
-        updatedAt: r.updated_at || "",
-      }));
-    console.log("Loaded emergencies:", mapped);
-    setEmergencies(mapped);
-  }
-};
+        )
+        .order("created_at", { ascending: false })
+        .limit(2000);
+      if (error) {
+        console.error("Error loading emergencies:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        });
+        return;
+      }
+      if (data) {
+        const mapped: EmergencyReport[] = data
+          .filter((r: any) => {
+            const type = (r.emergency_type || "").toString().toLowerCase();
+            return type !== "safe" && type !== "unsafe";
+          })
+          .map((r: any) => ({
+            id: r.id,
+            title: r.emergency_type || "Unknown",
+            message: r.message || "-",
+            location: r.location
+              ? `Lat: ${r.location.lat ?? "N/A"}, Lng: ${
+                  r.location.lng ?? "N/A"
+                }`
+              : "-",
+            severity: r.severity ?? "Not Set",
+            status: r.status ?? "Not Set",
+            reportedBy: r.users?.name || "-",
+            reporterId: r.user_id || undefined,
+            type: r.emergency_type,
+            date: r.created_at ? r.created_at.substring(0, 10) : "",
+            updatedBy: r.updated_by || "",
+            updatedAt: r.updated_at || "",
+          }));
+        console.log("Loaded emergencies:", mapped);
+        setEmergencies(mapped);
+      }
+    };
 
     const loadCrisis = async () => {
       const { data, error } = await supabase
@@ -638,15 +694,15 @@ const [actionFilter, setActionFilter] = useState<string>("all");
           loadPresence(),
           loadIncidentCounts(),
           loadCrisisCounts(),
-          loadIncidentActions()
+          loadIncidentActions(),
         ]);
       } catch (error) {
         console.error("Error loading data:", error);
       }
     };
-    
+
     loadAll();
-    
+
     // Set up all real-time subscriptions
     const safetyTipsChannel = supabase
       .channel("safety_tips")
@@ -660,82 +716,85 @@ const [actionFilter, setActionFilter] = useState<string>("all");
       .subscribe();
 
     const emergenciesChannel = supabase
-  .channel("emergencies")
-  .on(
-    "postgres_changes",
-    { event: "INSERT", schema: "public", table: "emergencies" },
-    async (payload) => {
-      const newEmergency = payload.new;
-      const emergencyType = newEmergency.emergency_type;
+      .channel("emergencies")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "emergencies" },
+        async (payload) => {
+          const newEmergency = payload.new;
+          const emergencyType = newEmergency.emergency_type;
 
-      // Update local notifications state immediately
-      setNotificationsList(prev => [
-        {
-          id: Date.now(),
-          message: `New ${emergencyType} emergency reported`,
-          time: new Date().toLocaleString(),
-          read: false,
-          type: 'emergency',
-          sourceId: newEmergency.id,
-          clearedBy: []
-        },
-        ...prev
-      ]);
+          // Update local notifications state immediately
+          setNotificationsList((prev) => [
+            {
+              id: Date.now(),
+              message: `New ${emergencyType} emergency reported`,
+              time: new Date().toLocaleString(),
+              read: false,
+              type: "emergency",
+              sourceId: newEmergency.id,
+              clearedBy: [],
+            },
+            ...prev,
+          ]);
 
-      // ✅ Use RPC to notify ALL admins
-      const { error } = await supabase.rpc("create_notification", {
-        recipient_id: null, // null means broadcast to all admins (handled in SQL function)
-        notification_type: "admin",
-        message_text: `New ${emergencyType} emergency reported`,
-        sender_id: newEmergency.user_id
-      });
+          // ✅ Use RPC to notify ALL admins
+          const { error } = await supabase.rpc("create_notification", {
+            recipient_id: null, // null means broadcast to all admins (handled in SQL function)
+            notification_type: "admin",
+            message_text: `New ${emergencyType} emergency reported`,
+            sender_id: newEmergency.user_id,
+          });
 
-      if (error) {
-        console.error("Failed to create admin notification:", error);
-      }
+          if (error) {
+            console.error("Failed to create admin notification:", error);
+          }
 
-      loadEmergencies();
-      loadIncidentCounts();
-    }
-  )
+          loadEmergencies();
+          loadIncidentCounts();
+        }
+      )
 
       .on(
-  "postgres_changes",
-  { event: "UPDATE", schema: "public", table: "emergencies" },
-  async (payload) => {
-    const updatedEmergency = payload.new;
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "emergencies" },
+        async (payload) => {
+          const updatedEmergency = payload.new;
 
-    if (updatedEmergency.severity === 'critical') {
-      setNotificationsList(prev => [
-        {
-          id: Date.now(),
-          message: `Emergency #${updatedEmergency.id} severity changed to CRITICAL`,
-          time: new Date().toLocaleString(),
-          read: false,
-          type: 'critical_incident',
-          sourceId: updatedEmergency.id,
-          clearedBy: []
-        },
-        ...prev
-      ]);
+          if (updatedEmergency.severity === "critical") {
+            setNotificationsList((prev) => [
+              {
+                id: Date.now(),
+                message: `Emergency #${updatedEmergency.id} severity changed to CRITICAL`,
+                time: new Date().toLocaleString(),
+                read: false,
+                type: "critical_incident",
+                sourceId: updatedEmergency.id,
+                clearedBy: [],
+              },
+              ...prev,
+            ]);
 
-      // ✅ Use RPC so ALL admins are notified
-      const { error } = await supabase.rpc("create_notification", {
-        recipient_id: null, // broadcast to all admins
-        notification_type: "admin",
-        message_text: `Emergency #${updatedEmergency.id} severity changed to CRITICAL`,
-        sender_id: updatedEmergency.updated_by
-      });
+            // ✅ Use RPC so ALL admins are notified
+            const { error } = await supabase.rpc("create_notification", {
+              recipient_id: null, // broadcast to all admins
+              notification_type: "admin",
+              message_text: `Emergency #${updatedEmergency.id} severity changed to CRITICAL`,
+              sender_id: updatedEmergency.updated_by,
+            });
 
-      if (error) {
-        console.error("Failed to create critical incident notification:", error);
-      }
-    }
+            if (error) {
+              console.error(
+                "Failed to create critical incident notification:",
+                error
+              );
+            }
+          }
 
-    loadEmergencies();
-    loadIncidentCounts();
-  }
-)
+          loadEmergencies();
+          loadIncidentCounts();
+        }
+      )
 
       .subscribe();
 
@@ -750,7 +809,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
         }
       )
       .subscribe();
-      
+
     // Create a separate channel for activity indicators
     const activityChannel = supabase
       .channel("activity_indicators")
@@ -760,13 +819,13 @@ const [actionFilter, setActionFilter] = useState<string>("all");
         (payload) => {
           // Set indicator for new activity
           setHasNewActivity(true);
-          
+
           // Refresh incident actions
           loadIncidentActions();
         }
       )
       .subscribe();
-      
+
     // Add subscription for notifications
     const notificationsChannel = supabase
       .channel("notifications")
@@ -808,60 +867,61 @@ const [actionFilter, setActionFilter] = useState<string>("all");
         }
       )
       .subscribe();
-    
+
     // Set up real-time subscription for incident actions
     const incidentActionsChannel = supabase
-  .channel("incident_actions")
-  .on(
-    "postgres_changes",
-    { event: "INSERT", schema: "public", table: "incident_actions" },
-    async (payload) => {
-      const newAction = payload.new as any;
+      .channel("incident_actions")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "incident_actions" },
+        async (payload) => {
+          const newAction = payload.new as any;
 
-      // Fetch admin details
-      const { data: adminData, error: adminError } = await supabase
-        .from("users")
-        .select("name, role")
-        .eq("user_id", newAction.admin_id)
-        .single();
+          // Fetch admin details
+          const { data: adminData, error: adminError } = await supabase
+            .from("users")
+            .select("name, role")
+            .eq("user_id", newAction.admin_id)
+            .single();
 
-      if (adminError) {
-        console.error("Error fetching admin details:", adminError);
-      }
+          if (adminError) {
+            console.error("Error fetching admin details:", adminError);
+          }
 
-      // Fetch incident details
-      const { data: incidentData, error: incidentError } = await supabase
-        .from("emergencies")
-        .select("emergency_type")
-        .eq("id", newAction.incident_id)
-        .single();
+          // Fetch incident details
+          const { data: incidentData, error: incidentError } = await supabase
+            .from("emergencies")
+            .select("emergency_type")
+            .eq("id", newAction.incident_id)
+            .single();
 
-      if (incidentError) {
-        console.error("Error fetching incident details:", incidentError);
-      }
+          if (incidentError) {
+            console.error("Error fetching incident details:", incidentError);
+          }
 
-      const mappedAction: IncidentAction = {
-        id: newAction.id,
-        incident_id: newAction.incident_id,
-        admin_id: newAction.admin_id,
-        admin_name: adminData?.name || "Unknown",
-        admin_role: adminData?.role || "Unknown",
-        action_type: newAction.action_type,
-        previous_value: newAction.previous_value || "",
-        new_value: newAction.new_value || "",
-        created_at: newAction.created_at,
-        incident_type: incidentData?.emergency_type || "Unknown",
-      };
+          const mappedAction: IncidentAction = {
+            id: newAction.id,
+            incident_id: newAction.incident_id,
+            admin_id: newAction.admin_id,
+            admin_name: adminData?.name || "Unknown",
+            admin_role: adminData?.role || "Unknown",
+            action_type: newAction.action_type,
+            previous_value: newAction.previous_value || "",
+            new_value: newAction.new_value || "",
+            created_at: newAction.created_at,
+            incident_type: incidentData?.emergency_type || "Unknown",
+          };
 
-      setIncidentActions((prev) => [mappedAction, ...prev]);
-      setActivityLog((prev) =>
-        actionFilter === "all" || mappedAction.action_type === actionFilter
-          ? [mappedAction, ...prev]
-          : prev
-      );
-    }
-  )
-  .subscribe();
+          setIncidentActions((prev) => [mappedAction, ...prev]);
+          setActivityLog((prev) =>
+            actionFilter === "all" ||
+            mappedAction.action_type === actionFilter
+              ? [mappedAction, ...prev]
+              : prev
+          );
+        }
+      )
+      .subscribe();
 
     // Clean up all subscriptions when component unmounts
     return () => {
@@ -902,152 +962,152 @@ const [actionFilter, setActionFilter] = useState<string>("all");
   };
 
   const handleIncidentAction = async (
-  incidentId: number,
-  action: "review" | "resolve" | "escalate"
-) => {
-  const emergency = emergencies.find((emg) => emg.id === incidentId);
-  if (!emergency) return;
+    incidentId: number,
+    action: "review" | "resolve" | "escalate"
+  ) => {
+    const emergency = emergencies.find((emg) => emg.id === incidentId);
+    if (!emergency) return;
 
-  const previousStatus = emergency.status;
-  let newStatus: "pending" | "reviewing" | "resolved" = "pending";
-  if (action === "review") newStatus = "reviewing";
-  if (action === "resolve") newStatus = "resolved";
-  if (action === "escalate") newStatus = "reviewing";
+    const previousStatus = emergency.status;
+    let newStatus: "pending" | "reviewing" | "resolved" = "pending";
+    if (action === "review") newStatus = "reviewing";
+    if (action === "resolve") newStatus = "resolved";
+    if (action === "escalate") newStatus = "reviewing";
 
-  try {
-    const { error } = await supabase
-      .from("emergencies")
-      .update({
-        status: newStatus, // Corrected from `status` to `newStatus`
-        updated_by: currentUser.id,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", incidentId);
+    try {
+      const { error } = await supabase
+        .from("emergencies")
+        .update({
+          status: newStatus, // Corrected from `status` to `newStatus`
+          updated_by: currentUser.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", incidentId);
 
-    if (error) {
-      alert(`Error updating emergency: ${error.message}`);
-      return;
-    }
+      if (error) {
+        alert(`Error updating emergency: ${error.message}`);
+        return;
+      }
 
-    console.log("Logging action:", {
-      incident_id: incidentId,
-      admin_id: currentUser?.id || null,
-      action_type: "status_change",
-    });
-
-    const { error: actionError } = await supabase
-      .from("incident_actions")
-      .insert({
+      console.log("Logging action:", {
         incident_id: incidentId,
         admin_id: currentUser?.id || null,
         action_type: "status_change",
-        previous_value: previousStatus,
-        new_value: newStatus,
-        created_at: new Date().toISOString(),
-      });
-
-    if (actionError) {
-      console.error("Error logging incident action:", actionError);
-    }
-
-    setEmergencies((prev) =>
-      prev.map((emg) =>
-        emg.id === incidentId ? { ...emg, status: newStatus } : emg
-      )
-    );
-
-    setShowEmergencyDetails(false);
-  } catch (err: any) {
-    alert(`Error: ${err.message}`);
-  }
-};
-  
-  const handleSaveEmergencyEdit = async () => {
-  if (!selectedEmergency || !editedEmergency) return;
-
-  try {
-    const { error } = await supabase
-      .from("emergencies")
-      .update({
-        status: editedEmergency.status,
-        severity: editedEmergency.severity,
-        updated_by: currentUser?.id || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", selectedEmergency.id);
-
-    if (error) {
-      alert(`Error updating emergency: ${error.message}`);
-      return;
-    }
-
-    // Log status change if changed
-    if (selectedEmergency.status !== editedEmergency.status) {
-      console.log("Logging action:", {
-        incident_id: selectedEmergency.id,
-        admin_id: currentUser?.id || null,
-        action_type: "status_change",
       });
 
       const { error: actionError } = await supabase
         .from("incident_actions")
         .insert({
+          incident_id: incidentId,
+          admin_id: currentUser?.id || null,
+          action_type: "status_change",
+          previous_value: previousStatus,
+          new_value: newStatus,
+          created_at: new Date().toISOString(),
+        });
+
+      if (actionError) {
+        console.error("Error logging incident action:", actionError);
+      }
+
+      setEmergencies((prev) =>
+        prev.map((emg) =>
+          emg.id === incidentId ? { ...emg, status: newStatus } : emg
+        )
+      );
+
+      setShowEmergencyDetails(false);
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  const handleSaveEmergencyEdit = async () => {
+    if (!selectedEmergency || !editedEmergency) return;
+
+    try {
+      const { error } = await supabase
+        .from("emergencies")
+        .update({
+          status: editedEmergency.status,
+          severity: editedEmergency.severity,
+          updated_by: currentUser?.id || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", selectedEmergency.id);
+
+      if (error) {
+        alert(`Error updating emergency: ${error.message}`);
+        return;
+      }
+
+      // Log status change if changed
+      if (selectedEmergency.status !== editedEmergency.status) {
+        console.log("Logging action:", {
           incident_id: selectedEmergency.id,
           admin_id: currentUser?.id || null,
           action_type: "status_change",
-          previous_value: selectedEmergency.status,
-          new_value: editedEmergency.status,
-          created_at: new Date().toISOString(),
         });
 
-      if (actionError) {
-        console.error("Error logging status change:", actionError);
+        const { error: actionError } = await supabase
+          .from("incident_actions")
+          .insert({
+            incident_id: selectedEmergency.id,
+            admin_id: currentUser?.id || null,
+            action_type: "status_change",
+            previous_value: selectedEmergency.status,
+            new_value: editedEmergency.status,
+            created_at: new Date().toISOString(),
+          });
+
+        if (actionError) {
+          console.error("Error logging status change:", actionError);
+        }
       }
-    }
 
-    // Log severity change if changed
-    if (selectedEmergency.severity !== editedEmergency.severity) {
-      console.log("Logging action:", {
-        incident_id: selectedEmergency.id,
-        admin_id: currentUser?.id || null,
-        action_type: "severity_change",
-      });
-
-      const { error: actionError } = await supabase
-        .from("incident_actions")
-        .insert({
+      // Log severity change if changed
+      if (selectedEmergency.severity !== editedEmergency.severity) {
+        console.log("Logging action:", {
           incident_id: selectedEmergency.id,
           admin_id: currentUser?.id || null,
           action_type: "severity_change",
-          previous_value: selectedEmergency.severity,
-          new_value: editedEmergency.severity,
-          created_at: new Date().toISOString(),
         });
 
-      if (actionError) {
-        console.error("Error logging severity change:", actionError);
+        const { error: actionError } = await supabase
+          .from("incident_actions")
+          .insert({
+            incident_id: selectedEmergency.id,
+            admin_id: currentUser?.id || null,
+            action_type: "severity_change",
+            previous_value: selectedEmergency.severity,
+            new_value: editedEmergency.severity,
+            created_at: new Date().toISOString(),
+          });
+
+        if (actionError) {
+          console.error("Error logging severity change:", actionError);
+        }
       }
+
+      setEmergencies((prev) =>
+        prev.map((em) =>
+          em.id === selectedEmergency.id
+            ? {
+                ...em,
+                status: editedEmergency.status,
+                severity: editedEmergency.severity,
+              }
+            : em
+        )
+      );
+
+      setIsEditingEmergency(false);
+      setShowEmergencyDetails(false);
+    } catch (err: any) {
+      console.error("Error saving emergency edit:", err);
+      alert(`Error: ${err.message}`);
     }
-
-    setEmergencies((prev) =>
-      prev.map((em) =>
-        em.id === selectedEmergency.id
-          ? {
-              ...em,
-              status: editedEmergency.status,
-              severity: editedEmergency.severity,
-            }
-          : em
-      )
-    );
-
-    setIsEditingEmergency(false);
-    setShowEmergencyDetails(false);
-  } catch (err: any) {
-    console.error("Error saving emergency edit:", err);
-    alert(`Error: ${err.message}`);
-  }
-};
+  };
 
   const handleDeleteSafetyTip = async (tipId: number) => {
     const { error } = await supabase
@@ -1077,31 +1137,31 @@ const [actionFilter, setActionFilter] = useState<string>("all");
       setNewSafetyTip({ name: "", content: "" });
     }
   };
-  
+
   const handleSaveSafetyTipEdit = async () => {
     if (!editedSafetyTip || !editedSafetyTip.id) return;
-    
+
     if (!editedSafetyTip.name || !editedSafetyTip.content) {
       alert("Title and content are required");
       return;
     }
-    
+
     try {
       const { error } = await supabase
         .from("safety_tips")
         .update({
           name: editedSafetyTip.name,
           content: editedSafetyTip.content,
-          icon: editedSafetyTip.icon
+          icon: editedSafetyTip.icon,
         })
         .eq("id", editedSafetyTip.id);
-        
+
       if (error) {
         alert(`Unable to update safety tip: ${error.message}`);
       } else {
         // Update local state
-        setSafetyTips(prev => 
-          prev.map(tip => tip.id === editedSafetyTip.id ? editedSafetyTip : tip)
+        setSafetyTips((prev) =>
+          prev.map((tip) => (tip.id === editedSafetyTip.id ? editedSafetyTip : tip))
         );
         setIsEditingSafetyTip(false);
         setShowSafetyTipDetails(false);
@@ -1115,16 +1175,16 @@ const [actionFilter, setActionFilter] = useState<string>("all");
   const renderContent = () => {
     // Prepare data for charts
     const toTypeLabel = (type?: string) => {
-  if (!type) return "General";
-  const map: Record<string, string> = {
-    Medical: "Medical",
-    Fire: "Fire",
-    Accident: "Accident",
-    Crime: "Crime",
-    Other: "Other",
-  };
-  return map[type] || type.charAt(0).toUpperCase() + type.slice(1);
-};
+      if (!type) return "General";
+      const map: Record<string, string> = {
+        Medical: "Medical",
+        Fire: "Fire",
+        Accident: "Accident",
+        Crime: "Crime",
+        Other: "Other",
+      };
+      return map[type] || type.charAt(0).toUpperCase() + type.slice(1);
+    };
 
     const userStatusData = {
       labels: ["Active", "Inactive"],
@@ -1142,10 +1202,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
     };
 
     const salesData = {
-      labels: [
-        "Jan","Feb","Mar","Apr","May","Jun","Jul",
-        "Aug","Sep","Oct","Nov","Dec",
-      ],
+      labels: chartLabels,
       datasets: [
         {
           label: "Incident Reports",
@@ -1204,9 +1261,6 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                     <p className="text-3xl font-bold text-gray-900">
                       {users.length}
                     </p>
-                    <p className="text-sm text-green-600 mt-1">
-                      +12% since last month
-                    </p>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-br from-[#005524] to-[#004015] rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <FaUser size={20} />
@@ -1224,9 +1278,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                     <p className="text-3xl font-bold text-gray-900">
                       {users.filter((u) => u.status === "active").length}
                     </p>
-                    <p className="text-sm text-green-600 mt-1">
-                      +8% since last week
-                    </p>
+                    
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-br from-[#f69f00] to-[#be4c1d] rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <FaUser size={20} />
@@ -1246,9 +1298,6 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                         emergencies.filter((i) => i.severity === "critical")
                           .length
                       }
-                    </p>
-                    <p className="text-sm text-red-600 mt-1">
-                      -5% since yesterday
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
@@ -1308,18 +1357,20 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                     </h3>
                     <p className="text-sm text-gray-600">
                       {growth !== null
-                        ? `${growth.toFixed(1)}% ${growth >= 0 ? "more" : "less"} in 2024`
+                        ? `${growth.toFixed(1)}% ${
+                            growth >= 0 ? "more" : "less"
+                          } vs last ${filter}`
                         : "Loading..."}
                     </p>
                   </div>
                   <div className="flex space-x-2">
-                    <button className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
+                    <button onClick={() => setFilter("week")} className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === 'week' ? 'bg-[#005524] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                       Week
                     </button>
-                    <button className="px-3 py-1 text-xs bg-[#005524] text-white rounded-lg">
+                    <button onClick={() => setFilter("month")} className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === 'month' ? 'bg-[#005524] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                       Month
                     </button>
-                    <button className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
+                    <button onClick={() => setFilter("year")} className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === 'year' ? 'bg-[#005524] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                       Year
                     </button>
                   </div>
@@ -1398,50 +1449,56 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                   </button>
                 </div>
                 <div className="space-y-4">
-  {emergencies.slice(0, 3).map((emergency) => (
-    <div
-      key={emergency.id}
-      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer group"
-      onClick={() => {
-        setSelectedEmergency(emergency);
-        setShowEmergencyDetails(true);
-      }}
-    >
-      <div className="flex items-center space-x-3">
-        <div
-          className={`w-8 h-8 rounded-full flex items-center justify-center ${
-            emergency.severity === "critical"
-              ? "bg-red-100"
-              : emergency.severity === "high"
-              ? "bg-orange-100"
-              : "bg-yellow-100"
-          }`}
-        >
-          <FaBell
-            size={12}
-            className={
-              emergency.severity === "critical"
-                ? "text-red-600"
-                : emergency.severity === "high"
-                ? "text-orange-600"
-                : "text-yellow-600"
-            }
-          />
-        </div>
-        <div>
-          <p className="font-medium text-gray-900">{emergency.title}</p>
-          <p className="text-sm text-gray-500">{emergency.location}</p>
-        </div>
-      </div>
-      <div className="flex items-center space-x-2">
-        <span className="text-xs text-gray-400">{emergency.date}</span>
-        <button className="p-1 text-gray-400 hover:text-[#005524] opacity-0 group-hover:opacity-100 transition-all duration-300">
-          <FaEye size={12} />
-        </button>
-      </div>
-    </div>
-  ))}
-</div>
+                  {emergencies.slice(0, 3).map((emergency) => (
+                    <div
+                      key={emergency.id}
+                      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer group"
+                      onClick={() => {
+                        setSelectedEmergency(emergency);
+                        setShowEmergencyDetails(true);
+                      }}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            emergency.severity === "critical"
+                              ? "bg-red-100"
+                              : emergency.severity === "high"
+                              ? "bg-orange-100"
+                              : "bg-yellow-100"
+                          }`}
+                        >
+                          <FaBell
+                            size={12}
+                            className={
+                              emergency.severity === "critical"
+                                ? "text-red-600"
+                                : emergency.severity === "high"
+                                ? "text-orange-600"
+                                : "text-yellow-600"
+                            }
+                          />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {emergency.title}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {emergency.location}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-gray-400">
+                          {emergency.date}
+                        </span>
+                        <button className="p-1 text-gray-400 hover:text-[#005524] opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <FaEye size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* System Status */}
@@ -1677,8 +1734,8 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                     <div>
                       <h3 className="font-medium text-gray-900">{user.name}</h3>
                       <p className="text-sm text-gray-600">
-                        {user.email || "—"} &bull; {user.status || "—"} &bull; Presence:{" "}
-                        {user.onlineStatus || "â€”"}
+                        {user.email || "—"} &bull; {user.status || "—"} &bull;
+                        Presence: {user.onlineStatus || "â€”"}
                       </p>
                     </div>
                   </div>
@@ -1782,79 +1839,86 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-  {emergencies.map((emergency) => (
-    <tr
-      key={emergency.id}
-      className="hover:bg-gray-50 transition-colors"
-    >
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        {toTypeLabel(emergency.type)}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        {emergency.reporterId
+                  {emergencies.map((emergency) => (
+                    <tr
+                      key={emergency.id}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {toTypeLabel(emergency.type)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {emergency.reporterId
                           ? userNameById.get(emergency.reporterId) || "—"
                           : "—"}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-medium ${
-            emergency.severity === "critical"
-              ? "bg-red-100 text-red-800"
-              : emergency.severity === "high"
-              ? "bg-orange-100 text-orange-800"
-              : emergency.severity === "medium"
-              ? "bg-yellow-100 text-yellow-800"
-              : emergency.severity === "low"
-              ? "bg-green-100 text-green-800"
-              : "bg-gray-100 text-gray-800"
-          }`}
-        >
-          {emergency.severity}
-        </span>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-medium ${
-            emergency.status === "pending"
-              ? "bg-yellow-100 text-yellow-800"
-              : emergency.status === "reviewing"
-              ? "bg-blue-100 text-blue-800"
-              : emergency.status === "resolved"
-              ? "bg-green-100 text-green-800"
-              : "bg-gray-100 text-gray-800"
-          }`}
-        >
-          {emergency.status}
-        </span>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-        {emergency.date}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <button
-          onClick={() => {
-            setSelectedEmergency(emergency);
-            setShowEmergencyDetails(true);
-            // Initialize editedEmergency with current values
-            setEditedEmergency({
-              severity:
-                emergency.severity === "Not Set"
-                  ? "medium"
-                  : (emergency.severity as "low" | "medium" | "high" | "critical"),
-              status:
-                emergency.status === "Not Set"
-                  ? "pending"
-                  : (emergency.status as "pending" | "reviewing" | "resolved"),
-            });
-          }}
-          className="px-3 py-1 rounded-lg text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
-        >
-          View Details
-        </button>
-      </td>
-    </tr>
-  ))}
-</tbody>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            emergency.severity === "critical"
+                              ? "bg-red-100 text-red-800"
+                              : emergency.severity === "high"
+                              ? "bg-orange-100 text-orange-800"
+                              : emergency.severity === "medium"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : emergency.severity === "low"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {emergency.severity}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            emergency.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : emergency.status === "reviewing"
+                              ? "bg-blue-100 text-blue-800"
+                              : emergency.status === "resolved"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {emergency.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {emergency.date}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => {
+                            setSelectedEmergency(emergency);
+                            setShowEmergencyDetails(true);
+                            // Initialize editedEmergency with current values
+                            setEditedEmergency({
+                              severity:
+                                emergency.severity === "Not Set"
+                                  ? "medium"
+                                  : (emergency.severity as
+                                      | "low"
+                                      | "medium"
+                                      | "high"
+                                      | "critical"),
+                              status:
+                                emergency.status === "Not Set"
+                                  ? "pending"
+                                  : (emergency.status as
+                                      | "pending"
+                                      | "reviewing"
+                                      | "resolved"),
+                            });
+                          }}
+                          className="px-3 py-1 rounded-lg text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
 
@@ -1891,7 +1955,9 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                           {a.user_id ? userNameById.get(a.user_id) || "—" : "—"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {a.created_at ? new Date(a.created_at).toLocaleString() : "—"}
+                          {a.created_at
+                            ? new Date(a.created_at).toLocaleString()
+                            : "—"}
                         </td>
                       </tr>
                     ))}
@@ -1985,16 +2051,22 @@ const [actionFilter, setActionFilter] = useState<string>("all");
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Activity Log</h3>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Activity Log
+                </h3>
                 <div className="flex items-center gap-2">
-                  <select 
+                  <select
                     className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#005524]"
                     onChange={(e) => {
                       // Filter by action type
                       if (e.target.value === "all") {
                         setActivityLog(incidentActions);
                       } else {
-                        setActivityLog(incidentActions.filter(action => action.action_type === e.target.value));
+                        setActivityLog(
+                          incidentActions.filter(
+                            (action) => action.action_type === e.target.value
+                          )
+                        );
                       }
                     }}
                   >
@@ -2004,39 +2076,60 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                   </select>
                 </div>
               </div>
-              
+
               {activityLog.length > 0 ? (
                 <div className="space-y-4">
                   {activityLog.map((action) => (
-                    <div key={action.id} className="border border-gray-100 rounded-xl p-4 hover:shadow-md transition-all duration-200">
+                    <div
+                      key={action.id}
+                      className="border border-gray-100 rounded-xl p-4 hover:shadow-md transition-all duration-200"
+                    >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                            action.admin_role === "police" ? "bg-blue-600" : 
-                            action.admin_role === "medical" ? "bg-red-600" : 
-                            "bg-orange-600"
-                          }`}>
-                            {action.admin_role === "police" ? <FaShieldAlt size={14} /> : 
-                             action.admin_role === "medical" ? <FaFirstAid size={14} /> : 
-                             <FaFire size={14} />}
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
+                              action.admin_role === "police"
+                                ? "bg-blue-600"
+                                : action.admin_role === "medical"
+                                ? "bg-red-600"
+                                : "bg-orange-600"
+                            }`}
+                          >
+                            {action.admin_role === "police" ? (
+                              <FaShieldAlt size={14} />
+                            ) : action.admin_role === "medical" ? (
+                              <FaFirstAid size={14} />
+                            ) : (
+                              <FaFire size={14} />
+                            )}
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{action.admin_name}</p>
-                            <p className="text-xs text-gray-500">{action.admin_role}</p>
+                            <p className="font-medium text-gray-900">
+                              {action.admin_name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {action.admin_role}
+                            </p>
                           </div>
                         </div>
                         <span className="text-xs text-gray-500">
-  {action.created_at
-    ? new Date(action.created_at).toLocaleString()
-    : "N/A"}
-</span>
-
+                          {action.created_at
+                            ? new Date(action.created_at).toLocaleString()
+                            : "N/A"}
+                        </span>
                       </div>
                       <div className="pl-10">
                         <p className="text-gray-700">
-                          {action.action_type === "status_change" ? "Changed status from " : "Changed severity from "}
-                          <span className="font-medium">{action.previous_value}</span> to <span className="font-medium">{action.new_value}</span>
-                          {" for incident #"}{action.incident_id}
+                          {action.action_type === "status_change"
+                            ? "Changed status from "
+                            : "Changed severity from "}
+                          <span className="font-medium">
+                            {action.previous_value}
+                          </span>{" "}
+                          to{" "}
+                          <span className="font-medium">{action.new_value}</span>
+                          {" for incident #"}
+                          {action.incident_id}
                         </p>
                       </div>
                     </div>
@@ -2046,7 +2139,9 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                 <div className="text-center py-8">
                   <FaHistory size={40} className="mx-auto text-gray-300 mb-4" />
                   <p className="text-gray-500">No activity recorded yet</p>
-                  <p className="text-sm text-gray-400 mt-2">Actions on emergencies will appear here</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Actions on emergencies will appear here
+                  </p>
                 </div>
               )}
             </div>
@@ -2229,14 +2324,14 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                     </p>
                   </div>
                   <button
-                    onClick={() => setNotifications(!notifications)}
+                    onClick={() => setNotificationsEnabled(!notificationsEnabled)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-                      notifications ? "bg-[#005524]" : "bg-gray-200"
+                      notificationsEnabled ? "bg-[#005524]" : "bg-gray-200"
                     }`}
                   >
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${
-                        notifications ? "translate-x-6" : "translate-x-1"
+                        notificationsEnabled ? "translate-x-6" : "translate-x-1"
                       }`}
                     />
                   </button>
@@ -2561,7 +2656,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                 className="text-gray-400 hover:text-gray-600 transition-colors relative"
               >
                 <FaBell size={18} />
-                {notificationsList.length > 0 && (
+                {notificationsList.some((n) => !n.read) && (
                   <span className="absolute -top-1 -right-1 block h-2 w-2 rounded-full bg-red-500"></span>
                 )}
               </button>
@@ -2578,7 +2673,7 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                         <div
                           key={notification.id}
                           className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors ${
-                            notification.read ? 'bg-gray-50' : 'bg-white'
+                            notification.read ? "bg-gray-50" : "bg-white"
                           }`}
                           onClick={async () => {
                             // Mark this notification as read for current admin
@@ -2587,30 +2682,40 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                               .select("cleared_by")
                               .eq("id", notification.id)
                               .single();
-                            
+
                             // Add current admin to cleared_by array if not already there
                             const clearedByArray = data?.cleared_by || [];
                             if (!clearedByArray.includes(currentUser.id)) {
                               clearedByArray.push(currentUser.id);
-                              
+
                               // Update the notification in the database
                               await supabase
                                 .from("notifications")
                                 .update({ cleared_by: clearedByArray })
                                 .eq("id", notification.id);
-                                
+
                               // Update local state
-                              setNotificationsList(prev => 
-                                prev.map(n => n.id === notification.id 
-                                  ? {...n, read: true, clearedBy: clearedByArray} 
-                                  : n
+                              setNotificationsList((prev) =>
+                                prev.map((n) =>
+                                  n.id === notification.id
+                                    ? {
+                                        ...n,
+                                        read: true,
+                                        clearedBy: clearedByArray,
+                                      }
+                                    : n
                                 )
                               );
                             }
-                            
+
                             // If notification is for an emergency, show emergency details
-                            if (notification.type === "emergency" && notification.sourceId) {
-                              const emergency = emergencies.find(e => e.id === notification.sourceId);
+                            if (
+                              notification.type === "emergency" &&
+                              notification.sourceId
+                            ) {
+                              const emergency = emergencies.find(
+                                (e) => e.id === notification.sourceId
+                              );
                               if (emergency) {
                                 setSelectedEmergency(emergency);
                                 setShowEmergencyDetails(true);
@@ -2620,7 +2725,13 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                           }}
                         >
                           <div className="flex items-center justify-between">
-                            <p className={`text-sm ${notification.read ? 'text-gray-600' : 'text-gray-800 font-medium'}`}>
+                            <p
+                              className={`text-sm ${
+                                notification.read
+                                  ? "text-gray-600"
+                                  : "text-gray-800 font-medium"
+                              }`}
+                            >
                               {notification.message}
                             </p>
                             {!notification.read && (
@@ -2651,27 +2762,27 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                                 .select("cleared_by")
                                 .eq("id", notification.id)
                                 .single();
-                              
+
                               // Add current admin to cleared_by array if not already there
                               const clearedByArray = data?.cleared_by || [];
                               if (!clearedByArray.includes(currentUser.id)) {
                                 clearedByArray.push(currentUser.id);
-                                
+
                                 // Update the notification in the database
                                 await supabase
                                   .from("notifications")
                                   .update({ cleared_by: clearedByArray })
                                   .eq("id", notification.id);
                               }
-                              
+
                               return {
                                 ...notification,
                                 read: true,
-                                clearedBy: clearedByArray
+                                clearedBy: clearedByArray,
                               };
                             })
                           );
-                          
+
                           // Update local state to mark all as read for current user
                           setNotificationsList(updatedNotifications);
                           setShowNotifications(false);
@@ -2694,15 +2805,17 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                 }}
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none"
               >
-                {currentUser && <img
-                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    currentUser?.name || 'A'
-                  )}&background=005524&color=fff`}
-                  alt="avatar"
-                  className="w-8 h-8 rounded-full border border-gray-200"
-                />}
+                {currentUser && (
+                  <img
+                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      currentUser?.name || "A"
+                    )}&background=005524&color=fff`}
+                    alt="avatar"
+                    className="w-8 h-8 rounded-full border border-gray-200"
+                  />
+                )}
                 <span className="hidden md:inline text-gray-700 font-medium">
-                  {currentUser?.name || 'Loading...'}
+                  {currentUser?.name || "Loading..."}
                 </span>
               </button>
             </div>
@@ -2717,137 +2830,150 @@ const [actionFilter, setActionFilter] = useState<string>("all");
 
       {/* Emergency Details Modal */}
       {showEmergencyDetails && selectedEmergency && (
-  <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg p-6 w-full max-w-md">
-      <h2 className="text-2xl font-bold text-[#005524] mb-4">
-        Emergency Details
-      </h2>
-      <div className="space-y-4">
-        <div>
-          <h3 className="font-semibold text-gray-700">Title</h3>
-          <p className="text-gray-600">{selectedEmergency.title}</p>
-        </div>
-        <div>
-          <h3 className="font-semibold text-gray-700">Message</h3>
-          <p className="text-gray-600">{selectedEmergency.message || "-"}</p>
-        </div>
-        <div>
-          <h3 className="font-semibold text-gray-700">Location</h3>
-          <p className="text-gray-600">{selectedEmergency.location || "-"}</p>
-        </div>
-        <div>
-          <h3 className="font-semibold text-gray-700">Severity</h3>
-          {isEditingEmergency ? (
-            <select
-              value={editedEmergency.severity}
-              onChange={(e) =>
-                setEditedEmergency({
-                  ...editedEmergency,
-                  severity: e.target.value as "low" | "medium" | "high" | "critical",
-                })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
-          ) : (
-            <p className="text-gray-600">{selectedEmergency.severity}</p>
-          )}
-        </div>
-        <div>
-          <h3 className="font-semibold text-gray-700">Status</h3>
-          {isEditingEmergency ? (
-            <select
-              value={editedEmergency.status}
-              onChange={(e) =>
-                setEditedEmergency({
-                  ...editedEmergency,
-                  status: e.target.value as "pending" | "reviewing" | "resolved",
-                })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
-            >
-              <option value="pending">Pending</option>
-              <option value="reviewing">Reviewing</option>
-              <option value="resolved">Resolved</option>
-            </select>
-          ) : (
-            <p className="text-gray-600">{selectedEmergency.status}</p>
-          )}
-        </div>
-        <div>
-          <h3 className="font-semibold text-gray-700">Reported By</h3>
-          <p className="text-gray-600">{selectedEmergency.reportedBy || "-"}</p>
-        </div>
-      </div>
-      <div className="mt-6 flex justify-end space-x-4">
-        {!isEditingEmergency ? (
-          <>
-            {selectedEmergency.severity === "critical" && (
-              <button
-                onClick={() =>
-                  handleIncidentAction(selectedEmergency.id, "escalate")
-                }
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Escalate to Authorities
-              </button>
-            )}
-            <button
-              onClick={() => {
-                setEditedEmergency({
-                  severity:
-                    selectedEmergency.severity === "Not Set"
-                      ? "medium"
-                      : (selectedEmergency.severity as
+        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-2xl font-bold text-[#005524] mb-4">
+              Emergency Details
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-gray-700">Title</h3>
+                <p className="text-gray-600">{selectedEmergency.title}</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-700">Message</h3>
+                <p className="text-gray-600">
+                  {selectedEmergency.message || "-"}
+                </p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-700">Location</h3>
+                <p className="text-gray-600">
+                  {selectedEmergency.location || "-"}
+                </p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-700">Severity</h3>
+                {isEditingEmergency ? (
+                  <select
+                    value={editedEmergency.severity}
+                    onChange={(e) =>
+                      setEditedEmergency({
+                        ...editedEmergency,
+                        severity: e.target.value as
                           | "low"
                           | "medium"
                           | "high"
-                          | "critical"),
-                  status:
-                    selectedEmergency.status === "Not Set"
-                      ? "pending"
-                      : (selectedEmergency.status as
+                          | "critical",
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                ) : (
+                  <p className="text-gray-600">{selectedEmergency.severity}</p>
+                )}
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-700">Status</h3>
+                {isEditingEmergency ? (
+                  <select
+                    value={editedEmergency.status}
+                    onChange={(e) =>
+                      setEditedEmergency({
+                        ...editedEmergency,
+                        status: e.target.value as
                           | "pending"
                           | "reviewing"
-                          | "resolved"),
-                });
-                setIsEditingEmergency(true);
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => setShowEmergencyDetails(false)}
-              className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-            >
-              Close
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={handleSaveEmergencyEdit}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              Save
-            </button>
-            <button
-              onClick={() => setIsEditingEmergency(false)}
-              className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-            >
-              Cancel
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+                          | "resolved",
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="reviewing">Reviewing</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+                ) : (
+                  <p className="text-gray-600">{selectedEmergency.status}</p>
+                )}
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-700">Reported By</h3>
+                <p className="text-gray-600">
+                  {selectedEmergency.reportedBy || "-"}
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end space-x-4">
+              {!isEditingEmergency ? (
+                <>
+                  {selectedEmergency.severity === "critical" && (
+                    <button
+                      onClick={() =>
+                        handleIncidentAction(selectedEmergency.id, "escalate")
+                      }
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    >
+                      Escalate to Authorities
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setEditedEmergency({
+                        severity:
+                          selectedEmergency.severity === "Not Set"
+                            ? "medium"
+                            : (selectedEmergency.severity as
+                                | "low"
+                                | "medium"
+                                | "high"
+                                | "critical"),
+                        status:
+                          selectedEmergency.status === "Not Set"
+                            ? "pending"
+                            : (selectedEmergency.status as
+                                | "pending"
+                                | "reviewing"
+                                | "resolved"),
+                      });
+                      setIsEditingEmergency(true);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setShowEmergencyDetails(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                  >
+                    Close
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleSaveEmergencyEdit}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setIsEditingEmergency(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Safety Tip Modal */}
       {showSafetyTipModal && (
@@ -2984,7 +3110,9 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
                   />
                 ) : (
-                  <p className="text-gray-600">{selectedSafetyTip.icon || "â€”"}</p>
+                  <p className="text-gray-600">
+                    {selectedSafetyTip.icon || "â€”"}
+                  </p>
                 )}
               </div>
               <div>
@@ -2999,7 +3127,8 @@ const [actionFilter, setActionFilter] = useState<string>("all");
             <div className="mt-6 flex justify-end space-x-4">
               {isEditingSafetyTip ? (
                 <>
-                  <button type="button"
+                  <button
+                    type="button"
                     onClick={handleSaveSafetyTipEdit}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                   >
@@ -3007,7 +3136,8 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                   </button>
                   <button
                     onClick={() => setIsEditingSafetyTip(false)}
-                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200" type="button"
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                    type="button"
                   >
                     Cancel
                   </button>
@@ -3015,8 +3145,9 @@ const [actionFilter, setActionFilter] = useState<string>("all");
               ) : (
                 <>
                   <button
-                    onClick={() => { // This should not be called for emergencies
-                      setEditedSafetyTip({...selectedSafetyTip});
+                    onClick={() => {
+                      // This should not be called for emergencies
+                      setEditedSafetyTip({ ...selectedSafetyTip });
                       setIsEditingSafetyTip(true);
                     }}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -3024,7 +3155,10 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                     Edit
                   </button>
                   <button
-                    onClick={() => {setShowSafetyTipDetails(false); setSelectedSafetyTip(null);}}
+                    onClick={() => {
+                      setShowSafetyTipDetails(false);
+                      setSelectedSafetyTip(null);
+                    }}
                     className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
                   >
                     Close

@@ -186,6 +186,9 @@ const AdminDashboard: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   // Enhanced notification structure with admin-specific fields
+  const [notificationTab, setNotificationTab] = useState<"unread" | "all">(
+    "unread"
+  );
   const [notificationsList, setNotificationsList] = useState<
     {
       id: number;
@@ -302,7 +305,10 @@ const AdminDashboard: React.FC = () => {
 
     // Calculate percentages
     const percentages = Object.fromEntries(
-      Object.entries(counts).map(([key, val]) => [key, total > 0 ? Math.round((val / total) * 100) : 0])
+      Object.entries(counts).map(([key, val]) => [
+        key,
+        total > 0 ? Math.round((val / total) * 100) : 0,
+      ])
     ) as { low: number; medium: number; high: number; critical: number };
     setSeverityPercentages(percentages);
   };
@@ -325,30 +331,58 @@ const AdminDashboard: React.FC = () => {
         let newIncidentData: number[];
         let groupByFn: (d: Date) => number;
 
-        if (filter === 'week') {
+        if (filter === "week") {
           const dayOfWeek = now.getDay();
           startCurrent = new Date(year, month, date - dayOfWeek);
-          endCurrent = new Date(year, month, date + (6 - dayOfWeek), 23, 59, 59, 999);
-          startPrevious = new Date(startCurrent.getTime() - 7 * 24 * 60 * 60 * 1000);
-          endPrevious = new Date(endCurrent.getTime() - 7 * 24 * 60 * 60 * 1000);
-          newLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          endCurrent = new Date(
+            year,
+            month,
+            date + (6 - dayOfWeek),
+            23,
+            59,
+            59,
+            999
+          );
+          startPrevious = new Date(
+            startCurrent.getTime() - 7 * 24 * 60 * 60 * 1000
+          );
+          endPrevious = new Date(
+            endCurrent.getTime() - 7 * 24 * 60 * 60 * 1000
+          );
+          newLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
           newIncidentData = new Array(7).fill(0);
           groupByFn = (d) => d.getDay();
-        } else if (filter === 'month') {
+        } else if (filter === "month") {
           const daysInMonth = new Date(year, month + 1, 0).getDate();
           startCurrent = new Date(year, month, 1);
           endCurrent = new Date(year, month, daysInMonth, 23, 59, 59, 999);
           startPrevious = new Date(year, month - 1, 1);
           endPrevious = new Date(year, month, 0, 23, 59, 59, 999);
-          newLabels = Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString());
+          newLabels = Array.from({ length: daysInMonth }, (_, i) =>
+            (i + 1).toString()
+          );
           newIncidentData = new Array(daysInMonth).fill(0);
           groupByFn = (d) => d.getDate() - 1;
-        } else { // 'year'
+        } else {
+          // 'year'
           startCurrent = new Date(year, 0, 1);
           endCurrent = new Date(year, 11, 31, 23, 59, 59, 999);
           startPrevious = new Date(year - 1, 0, 1);
           endPrevious = new Date(year - 1, 11, 31, 23, 59, 59, 999);
-          newLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          newLabels = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+          ];
           newIncidentData = new Array(12).fill(0);
           groupByFn = (d) => d.getMonth();
         }
@@ -416,6 +450,7 @@ const AdminDashboard: React.FC = () => {
         navigate("/login");
         return;
       }
+      console.log("Current logged-in user (from Supabase):", user);
 
       const { data: profile, error: profileError } = await supabase
         .from("users")
@@ -452,11 +487,12 @@ const AdminDashboard: React.FC = () => {
     const loadNotifications = async () => {
       if (!currentUser?.id) return;
 
+      // Fetch all notifications for the current admin
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
-        .eq("notification_type", "admin")
-        .order("created_at", { ascending: false });
+        .eq("user_id", currentUser.id)
+        .eq("notification_type", "admin");
 
       if (error) {
         console.error("Error loading notifications:", error);
@@ -465,25 +501,23 @@ const AdminDashboard: React.FC = () => {
 
       if (data) {
         const formattedNotifications = data.map((notification) => {
-          // Check if this admin's ID is in the clearedBy array
-          const clearedByArray = notification.cleared_by || [];
-          const isRead = clearedByArray.includes(currentUser?.id ?? "");
-
           return {
             id: notification.id,
             message: notification.message,
             time: new Date(notification.created_at).toLocaleString(),
-            read: isRead,
+            read: notification.read,
             type: notification.type || "general",
             sourceId: notification.source_id,
             forAdminId: notification.for_admin_id,
-            clearedBy: clearedByArray,
+            clearedBy: notification.cleared_by,
           };
         });
 
-        // Filter notifications to show all admin notifications
-        // This ensures all admins see all notifications
-        setNotificationsList(formattedNotifications);
+        // Sort by creation date descending
+        const sorted = formattedNotifications.sort(
+          (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
+        );
+        setNotificationsList(sorted);
       }
     };
 
@@ -1208,7 +1242,9 @@ const AdminDashboard: React.FC = () => {
       } else {
         // Update local state
         setSafetyTips((prev) =>
-          prev.map((tip) => (tip.id === editedSafetyTip.id ? editedSafetyTip : tip))
+          prev.map((tip) =>
+            tip.id === editedSafetyTip.id ? editedSafetyTip : tip
+          )
         );
         setIsEditingSafetyTip(false);
         setShowSafetyTipDetails(false);
@@ -1326,7 +1362,6 @@ const AdminDashboard: React.FC = () => {
                     <p className="text-3xl font-bold text-gray-900">
                       {users.filter((u) => u.status === "active").length}
                     </p>
-                    
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-br from-[#f69f00] to-[#be4c1d] rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <FaUser size={20} />
@@ -1350,7 +1385,6 @@ const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-
 
               {/* Critical Emergencies */}
               <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-500/20">
@@ -1430,13 +1464,34 @@ const AdminDashboard: React.FC = () => {
                     </p>
                   </div>
                   <div className="flex space-x-2">
-                    <button onClick={() => setFilter("week")} className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === 'week' ? 'bg-[#005524] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    <button
+                      onClick={() => setFilter("week")}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        filter === "week"
+                          ? "bg-[#005524] text-white"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
                       Week
                     </button>
-                    <button onClick={() => setFilter("month")} className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === 'month' ? 'bg-[#005524] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    <button
+                      onClick={() => setFilter("month")}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        filter === "month"
+                          ? "bg-[#005524] text-white"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
                       Month
                     </button>
-                    <button onClick={() => setFilter("year")} className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === 'year' ? 'bg-[#005524] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    <button
+                      onClick={() => setFilter("year")}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        filter === "year"
+                          ? "bg-[#005524] text-white"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
                       Year
                     </button>
                   </div>
@@ -2420,7 +2475,9 @@ const AdminDashboard: React.FC = () => {
                     </p>
                   </div>
                   <button
-                    onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                    onClick={() =>
+                      setNotificationsEnabled(!notificationsEnabled)
+                    }
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
                       notificationsEnabled ? "bg-[#005524]" : "bg-gray-200"
                     }`}
@@ -2759,134 +2816,127 @@ const AdminDashboard: React.FC = () => {
               {showNotifications && (
                 <div className="absolute right-0 mt-3 w-80 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
                   <div className="px-4 py-3 border-b border-gray-100">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Notifications
-                    </h3>
-                  </div>
-                  <div className="max-h-96 overflow-y-auto">
-                    {notificationsList.length > 0 ? (
-                      notificationsList.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors ${
-                            notification.read ? "bg-gray-50" : "bg-white"
-                          }`}
-                          onClick={async () => {
-                            // Mark this notification as read for current admin
-                            const { data } = await supabase
-                              .from("notifications")
-                              .select("cleared_by")
-                              .eq("id", notification.id)
-                              .single();
-
-                            // Add current admin to cleared_by array if not already there
-                            const clearedByArray = data?.cleared_by || [];
-                            if (!clearedByArray.includes(currentUser.id)) {
-                              clearedByArray.push(currentUser.id);
-
-                              // Update the notification in the database
-                              await supabase
-                                .from("notifications")
-                                .update({ cleared_by: clearedByArray })
-                                .eq("id", notification.id);
-
-                              // Update local state
-                              setNotificationsList((prev) =>
-                                prev.map((n) =>
-                                  n.id === notification.id
-                                    ? {
-                                        ...n,
-                                        read: true,
-                                        clearedBy: clearedByArray,
-                                      }
-                                    : n
-                                )
-                              );
-                            }
-
-                            // If notification is for an emergency, show emergency details
-                            if (
-                              notification.type === "emergency" &&
-                              notification.sourceId
-                            ) {
-                              const emergency = emergencies.find(
-                                (e) => e.id === notification.sourceId
-                              );
-                              if (emergency) {
-                                setSelectedEmergency(emergency);
-                                setShowEmergencyDetails(true);
-                                setShowNotifications(false);
-                              }
-                            }
-                          }}
-                        >
-                          <div className="flex items-center justify-between">
-                            <p
-                              className={`text-sm ${
-                                notification.read
-                                  ? "text-gray-600"
-                                  : "text-gray-800 font-medium"
-                              }`}
-                            >
-                              {notification.message}
-                            </p>
-                            {!notification.read && (
-                              <span className="h-2 w-2 rounded-full bg-blue-500"></span>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {notification.time}
-                          </p>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-4 py-3 text-center text-gray-500">
-                        No new notifications
-                      </div>
-                    )}
-                  </div>
-                  {notificationsList.length > 0 && (
-                    <div className="px-4 py-2 border-t border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Notifications
+                      </h3>
                       <button
                         onClick={async () => {
-                          // Mark notifications as read for current admin only
-                          const updatedNotifications = await Promise.all(
-                            notificationsList.map(async (notification) => {
-                              // Get current cleared_by array
-                              const { data } = await supabase
-                                .from("notifications")
-                                .select("cleared_by")
-                                .eq("id", notification.id)
-                                .single();
-
-                              // Add current admin to cleared_by array if not already there
-                              const clearedByArray = data?.cleared_by || [];
-                              if (!clearedByArray.includes(currentUser.id)) {
-                                clearedByArray.push(currentUser.id);
-
-                                // Update the notification in the database
-                                await supabase
-                                  .from("notifications")
-                                  .update({ cleared_by: clearedByArray })
-                                  .eq("id", notification.id);
-                              }
-
-                              return {
-                                ...notification,
-                                read: true,
-                                clearedBy: clearedByArray,
-                              };
-                            })
-                          );
-
-                          // Update local state to mark all as read for current user
-                          setNotificationsList(updatedNotifications);
-                          setShowNotifications(false);
+                          const unreadIds = notificationsList
+                            .filter((n) => !n.read)
+                            .map((n) => n.id);
+                          if (unreadIds.length === 0) return;
+                          const { error } = await supabase
+                            .from("notifications")
+                            .update({ read: true })
+                            .in("id", unreadIds)
+                            .eq("user_id", currentUser.id);
+                          if (error) {
+                            alert(`Error: ${error.message}`);
+                          } else {
+                            setNotificationsList((prev) =>
+                              prev.map((n) => ({ ...n, read: true }))
+                            );
+                          }
                         }}
-                        className="text-sm text-blue-600 hover:text-blue-700 w-full text-center"
+                        className="text-sm text-blue-600 hover:text-blue-700"
                       >
                         Mark all as read
                       </button>
+                    </div>
+                    <div className="flex border-b border-gray-200 mt-2">
+                      <button
+                        onClick={() => setNotificationTab("unread")}
+                        className={`flex-1 py-2 text-sm font-medium ${
+                          notificationTab === "unread"
+                            ? "border-b-2 border-[#005524] text-[#005524]"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        Unread
+                      </button>
+                      <button
+                        onClick={() => setNotificationTab("all")}
+                        className={`flex-1 py-2 text-sm font-medium ${
+                          notificationTab === "all"
+                            ? "border-b-2 border-[#005524] text-[#005524]"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        All
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-96 overflow-y-auto">
+                    {(() => {
+                      const filteredNotifications =
+                        notificationTab === "unread"
+                          ? notificationsList.filter((n) => !n.read)
+                          : notificationsList;
+
+                      if (filteredNotifications.length === 0) {
+                        return (
+                          <div className="px-4 py-3 text-center text-gray-500">
+                            No {notificationTab} notifications
+                          </div>
+                        );
+                      }
+
+                      return filteredNotifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
+                            notification.read ? "bg-gray-50" : "bg-white"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p
+                                className={`text-sm ${
+                                  notification.read
+                                    ? "text-gray-600"
+                                    : "text-gray-800 font-medium"
+                                }`}
+                              >
+                                {notification.message}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {notification.time}
+                              </p>
+                            </div>
+                            {!notification.read && (
+                              <button
+                                onClick={async () => {
+                                  const { error } = await supabase
+                                    .from("notifications")
+                                    .update({ read: true })
+                                    .eq("id", notification.id)
+                                    .eq("user_id", currentUser.id);
+                                  if (error) {
+                                    alert(`Error: ${error.message}`);
+                                  } else {
+                                    setNotificationsList((prev) =>
+                                      prev.map((n) =>
+                                        n.id === notification.id
+                                          ? { ...n, read: true }
+                                          : n
+                                      )
+                                    );
+                                  }
+                                }}
+                                className="ml-2 text-xs text-blue-600 hover:underline"
+                              >
+                                Mark as read
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                  {notificationsList.length === 0 && (
+                    <div className="px-4 py-3 text-center text-gray-500">
+                      No new notifications
                     </div>
                   )}
                 </div>

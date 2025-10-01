@@ -951,8 +951,10 @@ const Dashboard: React.FC = () => {
         const { data: notificationsData, error: notificationsError } =
           await supabase
             .from("notifications")
-            .select("id, user_id, type, notification_type, message, read, created_at")
-            .eq("user_id", user.id)
+            .select(
+              "id, user_id, type, notification_type, message, read, created_at"
+            )
+            .or(`user_id.eq.${user.id},notification_type.in.(emergency,safe_status)`)
             .order("created_at", { ascending: false });
         if (notificationsError) {
           throw new Error(
@@ -1063,8 +1065,10 @@ const Dashboard: React.FC = () => {
               table: "notifications"
             },
             (payload) => {
-              // Only process if this notification is for the current user
-              if (payload.new.user_id === user.id) {
+              if (
+                payload.new.user_id === user.id ||
+                ["emergency", "safe_status"].includes(payload.new.notification_type)
+              ) {
                 setNotifications((prev) => {
                   if (prev.some((n) => n.id === payload.new.id)) {
                     return prev;

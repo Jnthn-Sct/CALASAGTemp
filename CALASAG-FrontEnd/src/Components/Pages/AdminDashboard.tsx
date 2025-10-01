@@ -19,6 +19,7 @@ import {
   FaHistory,
   FaFirstAid,
   FaFire,
+  FaCheckCircle,
 } from "react-icons/fa";
 import logoImage from "../Images/no-bg-logo.png";
 
@@ -69,6 +70,12 @@ export const accountBadge = (status?: string) => {
     return (
       <span className={`${common} bg-green-100 text-green-800`}>
         ACCOUNT ACTIVE
+      </span>
+    );
+  if (status === "pending")
+    return (
+      <span className={`${common} bg-yellow-100 text-yellow-800`}>
+        ACCOUNT PENDING
       </span>
     );
   return (
@@ -231,6 +238,12 @@ const AdminDashboard: React.FC = () => {
     new Date().toISOString()
   );
 
+  const [severityPercentages, setSeverityPercentages] = useState({
+    low: 0,
+    medium: 0,
+    high: 0,
+    critical: 0,
+  });
   const [newSafetyTip, setNewSafetyTip] = useState({
     name: "",
     content: "",
@@ -262,6 +275,37 @@ const AdminDashboard: React.FC = () => {
   const [lastViewedActionId, setLastViewedActionId] = useState<number>(0);
 
   // Initial data load and realtime subscriptions
+  const fetchSeverityDistribution = async () => {
+    const { data: severityCounts, error } = await supabase
+      .from("emergencies")
+      .select("severity");
+
+    if (error) {
+      console.error("Error fetching severities:", error);
+      return;
+    }
+
+    // Count severities
+    const counts: { [key: string]: number } = {
+      low: 0,
+      medium: 0,
+      high: 0,
+      critical: 0,
+    };
+    severityCounts?.forEach((row: { severity: string | null }) => {
+      if (row.severity && row.severity in counts) {
+        counts[row.severity]++;
+      }
+    });
+
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+    // Calculate percentages
+    const percentages = Object.fromEntries(
+      Object.entries(counts).map(([key, val]) => [key, total > 0 ? Math.round((val / total) * 100) : 0])
+    ) as { low: number; medium: number; high: number; critical: number };
+    setSeverityPercentages(percentages);
+  };
   const [filter, setFilter] = useState<"week" | "month" | "year">("month");
   const [incidentData, setIncidentData] = useState<number[]>([]);
   const [growth, setGrowth] = useState<number | null>(null);
@@ -695,6 +739,7 @@ const AdminDashboard: React.FC = () => {
           loadIncidentCounts(),
           loadCrisisCounts(),
           loadIncidentActions(),
+          fetchSeverityDistribution(),
         ]);
       } catch (error) {
         console.error("Error loading data:", error);
@@ -752,6 +797,7 @@ const AdminDashboard: React.FC = () => {
 
           loadEmergencies();
           loadIncidentCounts();
+          fetchSeverityDistribution();
         }
       )
 
@@ -793,6 +839,7 @@ const AdminDashboard: React.FC = () => {
 
           loadEmergencies();
           loadIncidentCounts();
+          fetchSeverityDistribution();
         }
       )
 
@@ -1187,15 +1234,16 @@ const AdminDashboard: React.FC = () => {
     };
 
     const userStatusData = {
-      labels: ["Active", "Inactive"],
+      labels: ["Active", "Inactive", "Pending"],
       datasets: [
         {
           data: [
             users.filter((u) => u.status === "active").length,
             users.filter((u) => u.status === "inactive").length,
+            users.filter((u) => u.status === "pending").length,
           ],
-          backgroundColor: ["#005524", "#f69f00"],
-          borderColor: ["#ffffff", "#ffffff"],
+          backgroundColor: ["#005524", "#f69f00", "#d97706"],
+          borderColor: ["#ffffff", "#ffffff", "#ffffff"],
           borderWidth: 2,
         },
       ],
@@ -1250,7 +1298,7 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="space-y-8">
             {/* Top Metric Cards */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
               {/* Total Users */}
               <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-[#005524]/20">
                 <div className="flex items-center justify-between">
@@ -1285,6 +1333,24 @@ const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Pending Users */}
+              <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-yellow-500/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">
+                      PENDING USERS
+                    </p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {users.filter((u) => u.status === "pending").length}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <FaUser size={20} />
+                  </div>
+                </div>
+              </div>
+
 
               {/* Critical Emergencies */}
               <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-500/20">
@@ -1515,43 +1581,21 @@ const AdminDashboard: React.FC = () => {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <FaShieldAlt size={12} className="text-blue-600" />
-                        </div>
-                        <span className="text-sm font-medium text-gray-900">
-                          Security System
-                        </span>
-                      </div>
-                      <span className="text-sm font-semibold text-green-600">
-                        98%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{ width: "98%" }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                          <FaUser size={12} className="text-green-600" />
+                          <FaCheckCircle size={12} className="text-green-600" />
                         </div>
                         <span className="text-sm font-medium text-gray-900">
-                          User Management
+                          Low Severity
                         </span>
                       </div>
                       <span className="text-sm font-semibold text-green-600">
-                        95%
+                        {severityPercentages.low}%
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-green-500 h-2 rounded-full"
-                        style={{ width: "95%" }}
+                        style={{ width: `${severityPercentages.low}%` }}
                       ></div>
                     </div>
                   </div>
@@ -1559,21 +1603,73 @@ const AdminDashboard: React.FC = () => {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                          <FaBell size={12} className="text-purple-600" />
+                        <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
+                          <FaExclamationTriangle
+                            size={12}
+                            className="text-yellow-600"
+                          />
                         </div>
                         <span className="text-sm font-medium text-gray-900">
-                          Alert System
+                          Medium Severity
                         </span>
                       </div>
-                      <span className="text-sm font-semibold text-green-600">
-                        92%
+                      <span className="text-sm font-semibold text-yellow-600">
+                        {severityPercentages.medium}%
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-purple-500 h-2 rounded-full"
-                        style={{ width: "92%" }}
+                        className="bg-yellow-500 h-2 rounded-full"
+                        style={{ width: `${severityPercentages.medium}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                          <FaExclamationTriangle
+                            size={12}
+                            className="text-orange-600"
+                          />
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">
+                          High Severity
+                        </span>
+                      </div>
+                      <span className="text-sm font-semibold text-orange-600">
+                        {severityPercentages.high}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-orange-500 h-2 rounded-full"
+                        style={{ width: `${severityPercentages.high}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                          <FaExclamationTriangle
+                            size={12}
+                            className="text-red-600"
+                          />
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">
+                          Critical Severity
+                        </span>
+                      </div>
+                      <span className="text-sm font-semibold text-red-600">
+                        {severityPercentages.critical}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-red-500 h-2 rounded-full"
+                        style={{ width: `${severityPercentages.critical}%` }}
                       ></div>
                     </div>
                   </div>
@@ -2965,6 +3061,7 @@ const AdminDashboard: React.FC = () => {
                   <button
                     onClick={() => setIsEditingEmergency(false)}
                     className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                    type="button"
                   >
                     Cancel
                   </button>

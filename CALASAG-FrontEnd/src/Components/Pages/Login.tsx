@@ -14,7 +14,10 @@ const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [middleInitial, setMiddleInitial] = useState("");
+
   const [mobileNumber, setMobileNumber] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [showResendConfirmation, setShowResendConfirmation] = useState(false);
@@ -42,7 +45,9 @@ const Login: React.FC = () => {
     setUsername('');
     setPassword('');
     setConfirmPassword('');
-    setFullName('');
+    setFirstName('');
+    setLastName('');
+    setMiddleInitial('');
     setMobileNumber('');
     setOtpCode('');
     setError(null);
@@ -52,83 +57,88 @@ const Login: React.FC = () => {
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  if (isSubmitting) return;
-  setIsSubmitting(true);
-  console.log('Starting registration for:', email);
+    e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    console.log('Starting registration for:', email);
 
-  if (!validateEmail(email)) {
-    setError('Invalid email format.');
-    setIsSubmitting(false);
-    return;
-  }
-  if (password !== confirmPassword) {
-    setError('Passwords do not match.');
-    setIsSubmitting(false);
-    return;
-  }
-
-  try {
-    console.log('Signing out any existing session');
-    await supabase.auth.signOut();
-
-    console.log('Attempting signUp with email:', email);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name: fullName, role: 'user' },
-      },
-    });
-
-    if (error) {
-      console.error('SignUp Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-      throw new Error(`Registration failed: ${error.message || 'Unknown error'}`);
+    if (!validateEmail(email)) {
+      setError('Invalid email format.');
+      setIsSubmitting(false);
+      return;
     }
-    if (!data.user) {
-      throw new Error('No user data returned after signup');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      setIsSubmitting(false);
+      return;
     }
 
-    console.log('SignUp User:', JSON.stringify(data.user, null, 2));
+    try {
+      console.log('Signing out any existing session');
+      await supabase.auth.signOut();
 
-    console.log('Upserting user profile into public.users');
-    const { error: upsertError } = await supabase.from('users').upsert({
-      user_id: data.user.id,
-      email,
-      name: fullName,
-      role: 'user',
-      status: data.user.email_confirmed_at ? 'active' : 'pending',
-      avatar: null,
-      device_token: mobileNumber || '',
-      notifications_enabled: true,
-      email_notifications_enabled: true,
-      notification_preferences: { system_reports: true, feature_updates: true },
-      temp_notifications_enabled: null,
-      temp_email_notifications_enabled: null,
-    });
+      // 🔹 Generate full name
+      const fullName = `${lastName} ${firstName} ${middleInitial}`.trim();
 
-    if (upsertError) {
-      console.error('Upsert Error:', JSON.stringify(upsertError, Object.getOwnPropertyNames(upsertError), 2));
-      throw new Error(`Upsert failed: ${upsertError.message || 'Unknown error'}`);
+      console.log('Attempting signUp with email:', email);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name: fullName, role: 'user' }, // 👈 use generated name
+        },
+      });
+
+      if (error) {
+        console.error('SignUp Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+        throw new Error(`Registration failed: ${error.message || 'Unknown error'}`);
+      }
+      if (!data.user) {
+        throw new Error('No user data returned after signup');
+      }
+
+      console.log('SignUp User:', JSON.stringify(data.user, null, 2));
+
+      console.log('Upserting user profile into public.users');
+      const { error: upsertError } = await supabase.from('users').upsert({
+        user_id: data.user.id,
+        email,
+        first_name: firstName,
+        last_name: lastName,
+        middle_initial: middleInitial,
+        name: fullName, // 👈 store full name for compatibility
+        role: 'user',
+        status: data.user.email_confirmed_at ? 'active' : 'pending',
+        avatar: null,
+        device_token: mobileNumber || '',
+        notifications_enabled: true,
+        email_notifications_enabled: true,
+        notification_preferences: { system_reports: true, feature_updates: true },
+        temp_notifications_enabled: null,
+        temp_email_notifications_enabled: null,
+      });
+
+      if (upsertError) {
+        console.error('Upsert Error:', JSON.stringify(upsertError, Object.getOwnPropertyNames(upsertError), 2));
+        throw new Error(`Upsert failed: ${upsertError.message || 'Unknown error'}`);
+      }
+
+      // ✅ Success path
+      setError(null);
+      alert('✅ Registration successful! Please check your email (including Spam/Promotions) to confirm your account.');
+      setIsRegistering(false);
+      resetForm();
+    } catch (err: unknown) {
+      const error = err as AuthError;
+      console.error('Registration Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      setError(
+        error.message.includes('User already registered')
+          ? 'This email is already registered. Please log in or use a different email.'
+          : `Error during registration: ${error.message || 'Unknown error'}`
+      );
+      setIsSubmitting(false);
     }
-
-    // ✅ Success path
-    setError(null);
-    alert('✅ Registration successful! Please check your email (including Spam/Promotions) to confirm your account.');
-    setIsRegistering(false);
-    resetForm();
-  } catch (err: unknown) {
-    const error = err as AuthError;
-    console.error('Registration Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-    setError(
-      error.message.includes('User already registered')
-        ? 'This email is already registered. Please log in or use a different email.'
-        : `Error during registration: ${error.message || 'Unknown error'}`
-    );
-    setIsSubmitting(false);
-  }
-};
-
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -137,7 +147,9 @@ const Login: React.FC = () => {
     console.log('Form submitted for login with email:', email);
     console.log('Environment Variables:', {
       VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || 'undefined',
-      VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'present (length: ' + import.meta.env.VITE_SUPABASE_ANON_KEY.length + ')' : 'undefined',
+      VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY
+        ? 'present (length: ' + import.meta.env.VITE_SUPABASE_ANON_KEY.length + ')'
+        : 'undefined',
     });
 
     try {
@@ -168,26 +180,33 @@ const Login: React.FC = () => {
       console.log('Signed-in User:', JSON.stringify(data.user, null, 2));
 
       console.log('Fetching user profile from public.users for user_id:', data.user.id);
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('user_id, email, name, role, status, avatar, device_token')
-        .eq('user_id', data.user.id)
-        .single();
+const { data: userData, error: userError } = await supabase
+  .from('users')
+  .select('user_id, email, name, role, status, avatar, device_token')
+  .eq('user_id', data.user.id)
+  .single();
 
-      if (userError) {
-        console.error('User Query Error:', JSON.stringify(userError, Object.getOwnPropertyNames(userError), 2));
-        throw new Error(`User query failed: ${userError.message || 'Unknown error'}`);
-      }
+if (userError) {
+  console.error('User Query Error:', JSON.stringify(userError, Object.getOwnPropertyNames(userError), 2));
+  throw new Error(`User query failed: ${userError.message || 'Unknown error'}`);
+}
 
-      if (!userData) {
-        console.error('No user profile found in public.users for user_id:', data.user.id);
-        throw new Error('User profile not found in users table');
-      }
+if (!userData) {
+  console.error('No user profile found in public.users for user_id:', data.user.id);
+  throw new Error('User profile not found in users table');
+}
 
-      if (userData.status === 'inactive') {
-        console.error('Login attempt by inactive user:', userData.email);
-        throw new Error('Your account is deactivated. Please contact superadmin@gmail.com.');
-      }
+// ✅ Safe to check after confirming userData exists
+if (data.user.email_confirmed_at && userData.status === "pending") {
+  await supabase
+    .from("users")
+    .update({ status: "active" })
+    .eq("user_id", data.user.id);
+
+  // keep it consistent in memory
+  userData.status = "active";
+}
+
 
       console.log('User Profile:', JSON.stringify(userData, null, 2));
 
@@ -340,6 +359,7 @@ const Login: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
+
               {isRegistering && (
                 <>
                   <div className="mb-4">
@@ -352,16 +372,43 @@ const Login: React.FC = () => {
                       onChange={(e) => setUsername(e.target.value)}
                     />
                   </div>
+
+                  {/* 🔹 First Name */}
                   <div className="mb-4">
                     <input
                       className="input w-full p-2 border border-gray-300 rounded"
                       type="text"
-                      placeholder="Full Name"
+                      placeholder="First Name"
                       required
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
                     />
                   </div>
+
+                  {/* 🔹 Last Name */}
+                  <div className="mb-4">
+                    <input
+                      className="input w-full p-2 border border-gray-300 rounded"
+                      type="text"
+                      placeholder="Last Name"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 🔹 Middle Initial */}
+                  <div className="mb-4">
+                    <input
+                      className="input w-full p-2 border border-gray-300 rounded"
+                      type="text"
+                      placeholder="Middle Initial"
+                      maxLength={1}
+                      value={middleInitial}
+                      onChange={(e) => setMiddleInitial(e.target.value)}
+                    />
+                  </div>
+
                   <div className="mb-4">
                     <input
                       className="input w-full p-2 border border-gray-300 rounded"
@@ -462,12 +509,11 @@ const Login: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    console.log('Toggling between login and register');
+                    console.log(isRegistering ? 'Switching to login' : 'Switching to register');
                     setIsRegistering(!isRegistering);
-                    setShowResendConfirmation(false);
                     resetForm();
                   }}
-                  className="text-[#f9a01b] hover:text-[#F9C835] hover:underline ml-1"
+                  className="text-[#005524] ml-1 hover:underline"
                 >
                   {isRegistering ? 'Login' : 'Register'}
                 </button>

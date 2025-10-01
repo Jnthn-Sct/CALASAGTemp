@@ -267,6 +267,52 @@ const [actionFilter, setActionFilter] = useState<string>("all");
   const [lastViewedActionId, setLastViewedActionId] = useState<number>(0);
   
   // Initial data load and realtime subscriptions
+  const [incidentData, setIncidentData] = useState<number[]>([]);
+  const [growth, setGrowth] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchIncidentStats = async () => {
+      try {
+        // Current Year (2024)
+        const { data: currentYear, error: currentError } = await supabase
+          .from("emergencies")
+          .select("id, created_at")
+          .gte("created_at", "2024-01-01")
+          .lte("created_at", "2024-12-31");
+
+        if (currentError) throw currentError;
+
+        // Previous Year (2023)
+        const { data: lastYear, error: lastError } = await supabase
+          .from("emergencies")
+          .select("id, created_at")
+          .gte("created_at", "2023-01-01")
+          .lte("created_at", "2023-12-31");
+
+        if (lastError) throw lastError;
+
+        // Group by month
+        const monthlyCounts = new Array(12).fill(0);
+        currentYear?.forEach((incident) => {
+          const month = new Date(incident.created_at).getMonth();
+          monthlyCounts[month]++;
+        });
+
+        setIncidentData(monthlyCounts);
+
+        // Compute growth %
+        const currentTotal = currentYear?.length || 0;
+        const lastTotal = lastYear?.length || 1; // avoid divide by 0
+        const percentageGrowth = ((currentTotal - lastTotal) / lastTotal) * 100;
+
+        setGrowth(percentageGrowth);
+      } catch (err) {
+        console.error("Error fetching incident stats:", err);
+      }
+    };
+
+    fetchIncidentStats();
+  }, []);
   useEffect(() => {
     const fetchCurrentUser = async () => {
       const {
@@ -1097,23 +1143,13 @@ const [actionFilter, setActionFilter] = useState<string>("all");
 
     const salesData = {
       labels: [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
+        "Jan","Feb","Mar","Apr","May","Jun","Jul",
+        "Aug","Sep","Oct","Nov","Dec",
       ],
       datasets: [
         {
           label: "Incident Reports",
-          data: [12, 19, 15, 25, 22, 30, 28, 35, 32, 40, 38, 45],
+          data: incidentData.length > 0 ? incidentData : new Array(12).fill(0),
           borderColor: "#005524",
           backgroundColor: "rgba(0, 85, 36, 0.1)",
           tension: 0.4,
@@ -1270,7 +1306,11 @@ const [actionFilter, setActionFilter] = useState<string>("all");
                     <h3 className="text-lg font-semibold text-gray-900">
                       Incident Reports Overview
                     </h3>
-                    <p className="text-sm text-gray-600">4% more in 2024</p>
+                    <p className="text-sm text-gray-600">
+                      {growth !== null
+                        ? `${growth.toFixed(1)}% ${growth >= 0 ? "more" : "less"} in 2024`
+                        : "Loading..."}
+                    </p>
                   </div>
                   <div className="flex space-x-2">
                     <button className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">

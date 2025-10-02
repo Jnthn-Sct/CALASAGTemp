@@ -247,10 +247,72 @@ const AdminDashboard: React.FC = () => {
     high: 0,
     critical: 0,
   });
+  // Sorting
+  const [sortField, setSortField] = useState<string>("created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Filters
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterSeverity, setFilterSeverity] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+
   const [newSafetyTip, setNewSafetyTip] = useState({
     name: "",
     content: "",
   });
+
+  const loadEmergencies = async () => {
+    let query = supabase
+      .from("emergencies")
+      .select(
+        `
+          id,
+          message,
+          created_at,
+          status,
+          emergency_type,
+          user_id,
+          severity,
+          updated_by,
+          updated_at,
+          location,
+          users:user_id(name)
+        `
+      )
+      .order(sortField, { ascending: sortOrder === "asc" })
+      .limit(2000);
+
+    // Apply filters
+    if (filterType !== "all") query = query.eq("emergency_type", filterType);
+    if (filterSeverity !== "all") query = query.eq("severity", filterSeverity);
+    if (filterStatus !== "all") query = query.eq("status", filterStatus);
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Error loading emergencies:", error);
+      return;
+    }
+    if (data) {
+      const mapped: EmergencyReport[] = data.map((r: any) => ({
+        id: r.id,
+        title: r.emergency_type || "Unknown",
+        message: r.message || "-",
+        location: r.location
+          ? `Lat: ${r.location.lat ?? "N/A"}, Lng: ${r.location.lng ?? "N/A"}`
+          : "-",
+        severity: r.severity ?? "Not Set",
+        status: r.status ?? "Not Set",
+        reportedBy: r.users?.name || "-",
+        reporterId: r.user_id,
+        type: r.emergency_type,
+        date: r.created_at?.substring(0, 10) || "",
+        updatedBy: r.updated_by || "",
+        updatedAt: r.updated_at || "",
+      }));
+      setEmergencies(mapped);
+    }
+  };
 
   // Presence helpers
   const computeOnlineStatus = (
@@ -588,63 +650,7 @@ const AdminDashboard: React.FC = () => {
       setIsLoadingActions(false);
     };
 
-    const loadEmergencies = async () => {
-      const { data, error } = await supabase
-        .from("emergencies")
-        .select(
-          `
-      id,
-      message,
-      created_at,
-      status,
-      emergency_type,
-      user_id,
-      severity,
-      updated_by,
-      updated_at,
-      location,
-      users:user_id(name)
-      `
-        )
-        .order("created_at", { ascending: false })
-        .limit(2000);
-      if (error) {
-        console.error("Error loading emergencies:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-        });
-        return;
-      }
-      if (data) {
-        const mapped: EmergencyReport[] = data
-          .filter((r: any) => {
-            const type = (r.emergency_type || "").toString().toLowerCase();
-            return type !== "safe" && type !== "unsafe";
-          })
-          .map((r: any) => ({
-            id: r.id,
-            title: r.emergency_type || "Unknown",
-            message: r.message || "-",
-            location: r.location
-              ? `Lat: ${r.location.lat ?? "N/A"}, Lng: ${
-                  r.location.lng ?? "N/A"
-                }`
-              : "-",
-            severity: r.severity ?? "Not Set",
-            status: r.status ?? "Not Set",
-            reportedBy: r.users?.name || "-",
-            reporterId: r.user_id || undefined,
-            type: r.emergency_type,
-            date: r.created_at ? r.created_at.substring(0, 10) : "",
-            updatedBy: r.updated_by || "",
-            updatedAt: r.updated_at || "",
-          }));
-        console.log("Loaded emergencies:", mapped);
-        setEmergencies(mapped);
-      }
-    };
+    
 
     const loadCrisis = async () => {
       const { data, error } = await supabase
@@ -1013,7 +1019,17 @@ const AdminDashboard: React.FC = () => {
       supabase.removeChannel(crisisChannel);
       supabase.removeChannel(incidentActionsChannel); // Make sure to remove this channel as well
     };
-  }, []);
+  }, [currentUser?.id]); // Re-run if currentUser changes
+
+  useEffect(() => {
+    loadEmergencies();
+  }, [
+    sortField,
+    sortOrder,
+    filterType,
+    filterSeverity,
+    filterStatus,
+  ]);
 
   const handleLogout = () => {
     localStorage.removeItem("userRole");
@@ -1954,16 +1970,84 @@ const AdminDashboard: React.FC = () => {
               <h2 className="text-xl font-semibold text-gray-900">
                 Incident Reports
               </h2>
-              <div className="flex items-center gap-3">
-                <button className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-2">
-                  <FaFilter size={14} />
-                  Filter
-                </button>
-                <button className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2">
-                  <FaPlus size={14} />
-                  New Report
-                </button>
-              </div>
+            </div>
+            <div className="flex flex-wrap gap-3 mb-4">
+              {/* Sort Field */}
+              <select
+                value={sortField}
+                onChange={(e) => setSortField(e.target.value)}
+                className="px-3 py-2 border rounded-lg"
+              >
+                <option value="created_at">Date</option>
+                <option value="emergency_type">Type</option>
+                <option value="users.name">Reporter</option>
+                <option value="severity">Severity</option>
+                <option value="status">Status</option>
+              </select>
+
+              {/* Sort Order */}
+              <button
+                onClick={() =>
+                  setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+                }
+                className="px-3 py-2 border rounded-lg"
+              >
+                {sortOrder === "asc" ? "⬆️ Asc" : "⬇️ Desc"}
+              </button>
+
+              {/* Filter Type */}
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="px-3 py-2 border rounded-lg"
+              >
+                <option value="all">All Types</option>
+                <option value="Crime">Crime</option>
+                <option value="Medical">Medical</option>
+                <option value="Fire">Fire</option>
+                <option value="Accident">Accident</option>
+                <option value="Other">Other</option>
+              </select>
+
+              {/* Filter Severity */}
+              <select
+                value={filterSeverity}
+                onChange={(e) => setFilterSeverity(e.target.value)}
+                className="px-3 py-2 border rounded-lg"
+              >
+                <option value="all">All Severities</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+
+              {/* Filter Status */}
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 border rounded-lg"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="reviewing">Reviewing</option>
+                <option value="resolved">Resolved</option>
+              </select>
+
+              {/* Reset Filters */}
+              <button
+                onClick={() => {
+                  setSortField("created_at");
+                  setSortOrder("desc");
+                  setFilterType("all");
+                  setFilterSeverity("all");
+                  setFilterStatus("all");
+                  setSearchQuery("");
+                }}
+                className="px-3 py-2 border rounded-lg bg-gray-100 hover:bg-gray-200"
+              >
+                Reset
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full">

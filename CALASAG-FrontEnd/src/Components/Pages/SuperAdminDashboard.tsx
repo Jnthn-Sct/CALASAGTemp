@@ -923,7 +923,6 @@ const SuperAdminDashboard: React.FC = () => {
           event: "*",
           schema: "public",
           table: "users",
-          filter: "role=eq.admin",
         },
         () => {
           fetchAllUsers();
@@ -936,6 +935,8 @@ const SuperAdminDashboard: React.FC = () => {
           setError(`User subscription error: ${err.message}`);
         }
       });
+
+    if (!userProfile?.id) return;
 
     const notificationSubscription = supabase
       .channel("notifications")

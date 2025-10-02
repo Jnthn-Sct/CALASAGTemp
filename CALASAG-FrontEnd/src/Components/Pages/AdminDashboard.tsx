@@ -934,7 +934,6 @@ const AdminDashboard: React.FC = () => {
           event: "*",
           schema: "public",
           table: "users",
-          filter: "role=in.(user,moderator)",
         },
         () => {
           loadUsersBase();
@@ -1017,6 +1016,8 @@ const AdminDashboard: React.FC = () => {
       supabase.removeChannel(usersChannel);
       supabase.removeChannel(sessionsChannel);
       supabase.removeChannel(crisisChannel);
+      supabase.removeChannel(activityChannel);
+      supabase.removeChannel(notificationsChannel);
       supabase.removeChannel(incidentActionsChannel); // Make sure to remove this channel as well
     };
   }, [currentUser?.id]); // Re-run if currentUser changes

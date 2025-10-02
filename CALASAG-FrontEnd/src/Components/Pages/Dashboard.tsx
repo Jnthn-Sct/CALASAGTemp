@@ -1065,10 +1065,8 @@ const Dashboard: React.FC = () => {
               table: "notifications"
             },
             (payload) => {
-              if (
-                payload.new.user_id === user.id ||
-                ["emergency", "safe_status"].includes(payload.new.notification_type)
-              ) {
+              console.log("Raw notification payload:", payload);
+              if ([user.id, ...connectionIds].includes(payload.new.user_id)) {
                 setNotifications((prev) => {
                   if (prev.some((n) => n.id === payload.new.id)) {
                     return prev;
@@ -1083,7 +1081,8 @@ const Dashboard: React.FC = () => {
             {
               event: "UPDATE",
               schema: "public",
-              table: "notifications"
+              table: "notifications",
+              filter: `user_id=eq.${user.id}`
             },
             (payload) => {
               // Only process if this notification is for the current user
@@ -1097,7 +1096,7 @@ const Dashboard: React.FC = () => {
             }
           )
           .subscribe((status, err) => {
-            if (err) console.error("Notification subscription error:", err);
+            console.log("Notification status:", status, err || "");
           });
 
         const connectionRequestSubscription = supabase
@@ -1110,6 +1109,7 @@ const Dashboard: React.FC = () => {
               table: "connection_requests"
             },
             async (payload) => {
+              console.log("Raw connection request payload:", payload);
               const newRequest = payload.new as any;
               const { data: senderData, error: senderError } = await supabase
                 .from("users")
@@ -1123,34 +1123,36 @@ const Dashboard: React.FC = () => {
                 );
                 return;
               }
-              setConnectionRequests((prev) => [
-                {
-                  id: newRequest.id,
-                  sender_id: newRequest.sender_id,
-                  recipient_id: newRequest.recipient_id,
-                  status: newRequest.status,
-                  created_at: newRequest.created_at,
-                  sender_name: senderData?.name || "User",
-                  sender_avatar: senderData?.avatar || null,
-                },
-                ...prev,
-              ]);
-              setNotifications((prev) => [
-                {
-                  id: newRequest.id,
-                  user_id: newRequest.recipient_id,
-                  type: "connection_request",
-                  notification_type: "connection_request",
-                  message: `${
-                    senderData?.name || "User"
-                  } sent a connection request to ${
-                    userProfile?.name || "User"
-                  }.`,
-                  read: false,
-                  created_at: newRequest.created_at,
-                },
-                ...prev,
-              ]);
+              if ([user.id, ...connectionIds].includes(payload.new.recipient_id)) {
+                setConnectionRequests((prev) => [
+                  {
+                    id: newRequest.id,
+                    sender_id: newRequest.sender_id,
+                    recipient_id: newRequest.recipient_id,
+                    status: newRequest.status,
+                    created_at: newRequest.created_at,
+                    sender_name: senderData?.name || "User",
+                    sender_avatar: senderData?.avatar || null,
+                  },
+                  ...prev,
+                ]);
+                setNotifications((prev) => [
+                  {
+                    id: newRequest.id,
+                    user_id: newRequest.recipient_id,
+                    type: "connection_request",
+                    notification_type: "connection_request",
+                    message: `${
+                      senderData?.name || "User"
+                    } sent a connection request to ${
+                      userProfile?.name || "User"
+                    }.`,
+                    read: false,
+                    created_at: newRequest.created_at,
+                  },
+                  ...prev,
+                ]);
+              }
             }
           )
           .on(
@@ -1172,8 +1174,7 @@ const Dashboard: React.FC = () => {
             }
           )
           .subscribe((status, err) => {
-            if (err)
-              console.error("Connection request subscription error:", err);
+            console.log("Connection request status:", status, err || "");
           });
 
         const messageSubscription = supabase
@@ -1186,33 +1187,36 @@ const Dashboard: React.FC = () => {
               table: "messages"
             },
             async (payload) => {
-              const newMessage = payload.new as any;
-              const { data: senderData } = await supabase
-                .from("users")
-                .select("name")
-                .eq("user_id", newMessage.sender_id)
-                .single();
-              const { data: receiverData } = await supabase
-                .from("users")
-                .select("name")
-                .eq("user_id", newMessage.receiver_id)
-                .single();
-              setMessages((prev) => [
-                {
-                  id: newMessage.id,
-                  sender_id: newMessage.sender_id,
-                  receiver_id: newMessage.receiver_id,
-                  content: newMessage.content,
-                  timestamp: newMessage.timestamp,
-                  sender_name: senderData?.name || "Unknown User",
-                  receiver_name: receiverData?.name || "Unknown User",
-                },
-                ...prev,
-              ]);
+              console.log("Raw message payload:", payload);
+              if ([user.id, ...connectionIds].includes(payload.new.receiver_id)) {
+                const newMessage = payload.new as any;
+                const { data: senderData } = await supabase
+                  .from("users")
+                  .select("name")
+                  .eq("user_id", newMessage.sender_id)
+                  .single();
+                const { data: receiverData } = await supabase
+                  .from("users")
+                  .select("name")
+                  .eq("user_id", newMessage.receiver_id)
+                  .single();
+                setMessages((prev) => [
+                  {
+                    id: newMessage.id,
+                    sender_id: newMessage.sender_id,
+                    receiver_id: newMessage.receiver_id,
+                    content: newMessage.content,
+                    timestamp: newMessage.timestamp,
+                    sender_name: senderData?.name || "Unknown User",
+                    receiver_name: receiverData?.name || "Unknown User",
+                  },
+                  ...prev,
+                ]);
+              }
             }
           )
           .subscribe((status, err) => {
-            if (err) console.error("Message subscription error:", err);
+            console.log("Message status:", status, err || "");
           });
 
         const crisisAlertSubscription = supabase
@@ -1222,11 +1226,19 @@ const Dashboard: React.FC = () => {
     {
       event: "INSERT",
       schema: "public",
-      table: "crisis_alerts",
+      table: "crisis_alerts"
     },
     async (payload) => {
+      console.log("Raw crisis alert payload:", payload);
       const newAlert = payload.new as CrisisAlert;
-      console.log("New alert received:", newAlert);
+
+      // Client-side filtering because `in` filter is not supported
+      // for realtime postgres_changes subscriptions.
+      if ([user.id, ...connectionIds].includes(payload.new.user_id)) {
+        if (!newAlert.user_id) {
+          return;
+        }
+      }
 
       const { data: userData, error: userError } = await supabase
         .from("users")
@@ -1440,8 +1452,7 @@ const Dashboard: React.FC = () => {
     }
   )
   .subscribe((status, err) => {
-    if (err) console.error("Crisis alert subscription error:", err);
-    console.log("Subscription status:", status);
+    console.log("Crisis alert status:", status, err || "");
   });
 
         return () => {

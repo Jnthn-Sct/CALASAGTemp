@@ -147,6 +147,12 @@ const SuperAdminDashboard: React.FC = () => {
   const [isSubmittingReportAction, setIsSubmittingReportAction] =
     useState<boolean>(false);
 
+      const [systemStatus, setSystemStatus] = useState({
+    security: { unresolved: 0, total: 0 },
+    userManagement: { activePercent: 0 },
+    alerts: { active: 0, resolved: 0 },
+    dbPerformance: { latency: 15 }, // Mocked value
+  });
   // Chart data
   const [performanceData, setPerformanceData] = useState({
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
@@ -568,6 +574,71 @@ const SuperAdminDashboard: React.FC = () => {
     }
   };
 
+  // Fetch system status data
+  const fetchSystemStatus = async () => {
+    try {
+      // 1. Security System: Unresolved incidents
+      const { data: incidents, error: incidentsError } = await supabase
+        .from("emergencies")
+        .select("status", { count: "exact" });
+
+      if (incidentsError) throw incidentsError;
+
+      const unresolvedIncidents = incidents.filter(
+        (i) => i.status !== "resolved"
+      ).length;
+
+      // 2. User Management: % of active users in last 7 days
+      const sevenDaysAgo = new Date(
+        Date.now() - 7 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      const { count: totalUsers, error: totalUsersError } = await supabase
+        .from("users")
+        .select("*", { count: "exact", head: true });
+
+      if (totalUsersError) throw totalUsersError;
+
+      const { count: activeUsers, error: activeUsersError } = await supabase
+        .from("users")
+        .select("*", { count: "exact", head: true })
+        .gte("last_login", sevenDaysAgo);
+
+      if (activeUsersError) throw activeUsersError;
+
+      const activeUserPercentage =
+        totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;
+
+      // 3. Alert System: Active vs Resolved
+      const { data: alerts, error: alertsError } = await supabase
+        .from("emergencies")
+        .select("status");
+
+      if (alertsError) throw alertsError;
+
+      const activeAlerts = alerts.filter(
+        (a) => a.status === "pending" || a.status === "reviewing"
+      ).length;
+      const resolvedAlerts = alerts.filter(
+        (a) => a.status === "resolved"
+      ).length;
+
+      // 4. DB Performance (mocked)
+      // Note: Real DB latency isn't available via client-side API for security reasons.
+      // This value is static but can be replaced if an API becomes available.
+      const dbLatency = 15; // ms
+
+      setSystemStatus({
+        security: { unresolved: unresolvedIncidents, total: incidents.length },
+        userManagement: { activePercent: activeUserPercentage },
+        alerts: { active: activeAlerts, resolved: resolvedAlerts },
+        dbPerformance: { latency: dbLatency },
+      });
+    } catch (error: any) {
+      console.error("Error fetching system status:", error);
+      setError(`Failed to fetch system status: ${error.message}`);
+    }
+  };
+
   // Handle logout
   const handleLogout = async () => {
     try {
@@ -881,6 +952,7 @@ const SuperAdminDashboard: React.FC = () => {
     fetchReports();
     fetchPerformanceData();
     fetchNotifications();
+    fetchSystemStatus();
 
     const featureSubscription = supabase
       .channel(`feature_updates_${Date.now()}`)
@@ -906,6 +978,7 @@ const SuperAdminDashboard: React.FC = () => {
         () => {
           fetchReports();
           fetchPerformanceData();
+          fetchSystemStatus(); // Re-fetch on report changes
         }
       )
       .subscribe((_status, err) => {
@@ -927,6 +1000,7 @@ const SuperAdminDashboard: React.FC = () => {
         () => {
           fetchAllUsers();
           fetchAdminActivityData();
+          fetchSystemStatus(); // Re-fetch on user changes
         }
       )
       .subscribe((_status, err) => {
@@ -1314,14 +1388,14 @@ const SuperAdminDashboard: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm font-semibold text-green-600">
-                          98%
+                        <span className="text-sm font-semibold text-red-600">
+                          {systemStatus.security.unresolved}
                         </span>
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-gray-500">unresolved</span>
                       </div>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
+                      <div // This progress bar is decorative. The number is the key metric.
                         className="bg-blue-500 h-2 rounded-full"
                         style={{ width: "98%" }}
                       ></div>
@@ -1339,15 +1413,15 @@ const SuperAdminDashboard: React.FC = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className="text-sm font-semibold text-green-600">
-                          95%
+                          {systemStatus.userManagement.activePercent}%
                         </span>
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-gray-500">active</span>
                       </div>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-green-500 h-2 rounded-full"
-                        style={{ width: "95%" }}
+                        style={{ width: `${systemStatus.userManagement.activePercent}%` }}
                       ></div>
                     </div>
                   </div>
@@ -1362,14 +1436,14 @@ const SuperAdminDashboard: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm font-semibold text-green-600">
-                          92%
+                        <span className="text-sm font-semibold text-yellow-600">
+                          {systemStatus.alerts.active}
                         </span>
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-gray-500">active</span>
                       </div>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
+                      <div // This progress bar is decorative.
                         className="bg-purple-500 h-2 rounded-full"
                         style={{ width: "92%" }}
                       ></div>
@@ -1387,13 +1461,13 @@ const SuperAdminDashboard: React.FC = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className="text-sm font-semibold text-green-600">
-                          99%
+                          {systemStatus.dbPerformance.latency}ms
                         </span>
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-gray-500">latency</span>
                       </div>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
+                      <div // This progress bar is decorative.
                         className="bg-orange-500 h-2 rounded-full"
                         style={{ width: "99%" }}
                       ></div>

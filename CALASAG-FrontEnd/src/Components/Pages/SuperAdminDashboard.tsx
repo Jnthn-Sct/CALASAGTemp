@@ -883,7 +883,7 @@ const SuperAdminDashboard: React.FC = () => {
     fetchNotifications();
 
     const featureSubscription = supabase
-      .channel("feature_updates")
+      .channel(`feature_updates_${Date.now()}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "feature_updates" },
@@ -899,7 +899,7 @@ const SuperAdminDashboard: React.FC = () => {
       });
 
     const reportSubscription = supabase
-      .channel("system_reports")
+      .channel(`system_reports_${Date.now()}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "system_reports" },
@@ -916,7 +916,7 @@ const SuperAdminDashboard: React.FC = () => {
       });
 
     const userSubscription = supabase
-      .channel("users")
+      .channel(`users_${Date.now()}`)
       .on(
         "postgres_changes",
         {
@@ -939,7 +939,7 @@ const SuperAdminDashboard: React.FC = () => {
     if (!userProfile?.id) return;
 
     const notificationSubscription = supabase
-      .channel("notifications")
+      .channel(`notifications_${Date.now()}`)
       .on(
         "postgres_changes",
         {

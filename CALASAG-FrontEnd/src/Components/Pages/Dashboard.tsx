@@ -201,11 +201,19 @@ const Dashboard: React.FC = () => {
     [notifications]
   );
 
+  // Memoized combined safe alerts list
+  const allSafeAlerts = useMemo(() => {
+    const combined = [...userSafeAlerts, ...crisisAlerts];
+    // Remove duplicates by ID and sort
+    const uniqueAlerts = Array.from(new Map(combined.map(alert => [alert.id, alert])).values());
+    return uniqueAlerts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [userSafeAlerts, crisisAlerts]);
+
   // Calculate total pages and current page alerts for safe alerts
-  const totalSafePages = Math.ceil(userSafeAlerts.length / alertsPerPage);
+  const totalSafePages = Math.ceil(allSafeAlerts.length / alertsPerPage);
   const indexOfLastSafeAlert = safeAlertsPage * alertsPerPage;
   const indexOfFirstSafeAlert = indexOfLastSafeAlert - alertsPerPage;
-  const currentSafeAlerts = userSafeAlerts.slice(indexOfFirstSafeAlert, indexOfLastSafeAlert);
+  const currentSafeAlerts = allSafeAlerts.slice(indexOfFirstSafeAlert, indexOfLastSafeAlert);
 
   // Calculate total pages and current page alerts for pending alerts
   const totalPendingPages = Math.ceil(pendingCrisisAlerts.length / alertsPerPage);
@@ -344,15 +352,46 @@ const Dashboard: React.FC = () => {
         .select("user_id, name, email, avatar")
         .ilike("name", `%${query}%`)
         .neq("user_id", userProfile?.id);
+
       if (error) throw new Error(`Search error: ${error.message}`);
-      setSearchResults(
-        data?.map((user) => ({
-          id: user.user_id,
-          name: user.name,
-          email: user.email,
-          avatar: user.avatar,
-        })) || []
-      );
+
+      if (!data) {
+        setSearchResults([]);
+        setShowSearchResults(true);
+        return; // Early exit if no users are found
+      }
+
+      // Get IDs of search results
+      const userIds = data.map(user => user.user_id);
+
+      // Fetch pending connection requests involving the current user and the search results
+      const { data: requests, error: requestError } = await supabase
+        .from('connection_requests')
+        .select('sender_id, recipient_id, status')
+        .in('status', ['pending'])
+        .or(`sender_id.in.(${userIds.join(',')}),recipient_id.in.(${userIds.join(',')})`)
+        .or(`sender_id.eq.${userProfile?.id},recipient_id.eq.${userProfile?.id}`);
+
+      if (requestError) console.error('Error fetching connection requests:', requestError);
+
+      const sentRequestIds = new Set(requests?.filter(req => req.sender_id === userProfile?.id).map(req => req.recipient_id) || []);
+      const receivedRequestIds = new Set(requests?.filter(req => req.recipient_id === userProfile?.id).map(req => req.sender_id) || []);
+
+      const resultsWithStatus = data.map((user) => ({
+        id: user.user_id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        connectionStatus: isConnected(user.user_id) 
+          ? 'connected' 
+          : sentRequestIds.has(user.user_id) 
+          ? 'request_sent' 
+          : receivedRequestIds.has(user.user_id)
+          ? 'request_received'
+          : null
+      }));
+
+      setSearchResults(resultsWithStatus);
       setShowSearchResults(true);
     } catch (error: any) {
       console.error("Error searching users:", error);
@@ -446,19 +485,17 @@ const Dashboard: React.FC = () => {
         .single();
 
       // Use RPC function to insert notification to bypass RLS
-      const { error: notificationError } = await supabase
-        .rpc('create_notification', {
-          recipient_id: recipientId,
-          notification_type: "connection_request",
-          message_text: `${
-            senderData?.name || "User"
-          } sent a connection request to ${recipientData?.name || "User"}.`,
-          sender_id: user.id
-        });
-      if (notificationError) {
-        console.error("Notification error:", notificationError);
-        // Continue even if notification fails
-      }
+      const { error: notifError } = await supabase.rpc("create_notification", {
+  recipient_id: recipientId,
+  notif_type: "connection_request",
+  notif_message: `${userProfile?.name} has sent you a connection request.`,
+  sender_id: user.id,
+});
+
+if (notifError) {
+  console.error("Notification error:", notifError);
+}
+
 
       setError(null);
       setShowProfile(false);
@@ -1692,34 +1729,6 @@ const Dashboard: React.FC = () => {
         }
       }
 
-      const userConnections = await fetchUserConnections(user.id);
-      const crisisType = await getCrisisType(crisisId);
-      const notifications = userConnections
-        .map((connection) => ({
-          user_id: connection.id,
-          type: "safe_alert_removed",
-          notification_type: "safe_alert_removed",
-          message: `${activeUser || "User"} unmarked themselves as safe for ${crisisType} crisis`,
-          read: false,
-          created_at: new Date().toISOString(),
-        }));
-
-      if (notifications.length > 0) {
-        // Use RPC function for each notification to bypass RLS
-        for (const notification of notifications) {
-          const { error: notificationError } = await supabase
-            .rpc('create_notification', {
-              recipient_id: notification.user_id,
-              notification_type: notification.notification_type || "safe_alert",
-              message_text: notification.message,
-              sender_id: user.id
-            });
-          if (notificationError) {
-            console.error("Notification error:", notificationError);
-            // Continue even if notification fails
-          }
-        }
-      }
     } else {
       const newAlert = {
         user_id: user.id,
@@ -1785,35 +1794,6 @@ const Dashboard: React.FC = () => {
         setIsSafe(true);
       } else {
         setPendingCrisisAlerts((prev) => prev.filter((p) => p.id !== crisisId));
-      }
-
-      const userConnections = await fetchUserConnections(user.id);
-      const crisisType = await getCrisisType(crisisId);
-      const notifications = userConnections
-        .map((connection) => ({
-          user_id: connection.id,
-          type: "safe_alert",
-          notification_type: "safe_alert",
-          message: `${activeUser || "User"} marked themselves as safe for ${crisisType} crisis`,
-          read: false,
-          created_at: new Date().toISOString(),
-        }));
-
-      if (notifications.length > 0) {
-        // Use RPC function for each notification to bypass RLS
-        for (const notification of notifications) {
-          const { error: notificationError } = await supabase
-            .rpc('create_notification', {
-              recipient_id: notification.user_id,
-              notification_type: notification.notification_type || "safe_alert",
-              message_text: notification.message,
-              sender_id: user.id
-            });
-          if (notificationError) {
-            console.error("Notification error:", notificationError);
-            // Continue even if notification fails
-          }
-        }
       }
     }
   } catch (error: any) {
@@ -2803,8 +2783,8 @@ const Dashboard: React.FC = () => {
               Safe Alerts
             </h2>
             {isLoading ? (
-              <p className="text-gray-600">Loading safe alerts...</p>
-            ) : userSafeAlerts.length > 0 ? (
+              <p className="text-gray-600">Loading alerts...</p>
+            ) : allSafeAlerts.length > 0 ? (
               <>
                 {currentSafeAlerts.map((alert) => (
                   <div
@@ -2826,9 +2806,13 @@ const Dashboard: React.FC = () => {
                         <FaCheck />
                       </div>
                       <div>
-                        <p className="text-gray-900 font-bold">
-                          {alert.reporter} marked safe
-                        </p>
+                        {alert.user_id === userProfile?.id ? (
+                          <p className="text-gray-900 font-bold">You marked yourself safe</p>
+                        ) : (
+                          <p className="text-gray-900 font-bold">
+                            {alert.reporter} marked themselves safe
+                          </p>
+                        )}
                         <p className="text-sm text-gray-600">
                           {new Date(alert.created_at).toLocaleString()}
                         </p>
@@ -2837,7 +2821,7 @@ const Dashboard: React.FC = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleMarkSafe(alert.related_crisis_id);
+                        handleMarkSafe(alert.user_id === userProfile?.id ? alert.related_crisis_id : undefined);
                       }}
                       className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                     >

@@ -3346,6 +3346,6 @@ if (notifError) {
       )}
     </div>
   );
-};
+ }; 
 
 export default Dashboard;

@@ -710,35 +710,11 @@ const AdminDashboard: React.FC = () => {
     };
 
     const loadPresence = async () => {
-      const { data } = await supabase
-        .from("user_sessions")
-        .select("user_id, last_seen");
-      if (!data) return;
-      const lastSeenMap = new Map<string, string | null>();
-      for (const row of data as any[]) {
-        const prev = lastSeenMap.get(row.user_id);
-        if (!prev || new Date(row.last_seen) > new Date(prev || 0)) {
-          lastSeenMap.set(row.user_id, row.last_seen);
-        }
-      }
-      setUsers((prev) =>
-        prev.map((u) => {
-          const lastSeen = lastSeenMap.get(u.id) || null;
-          const computedPresence = computeOnlineStatus(lastSeen);
-          // Prefer users.last_login if present; otherwise derive from sessions
-          const derivedLastLogin =
-            lastSeen &&
-            (!u.lastLogin || new Date(lastSeen) > new Date(u.lastLogin))
-              ? lastSeen
-              : u.lastLogin;
-          return {
-            ...u,
-            onlineStatus: computedPresence,
-            lastLogin: derivedLastLogin || u.lastLogin,
-          };
-        })
-      );
-    };
+  console.warn("loadPresence skipped — user_sessions table deleted");
+  // Since the user_sessions table is removed, we'll skip presence tracking for now.
+  // If we reintroduce presence, we'll re-enable this later.
+};
+
 
     const loadIncidentCounts = async () => {
       const { data } = await supabase.from("emergencies").select("user_id");

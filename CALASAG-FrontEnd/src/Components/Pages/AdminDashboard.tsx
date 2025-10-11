@@ -21,7 +21,7 @@ import {
   FaFire,
   FaCheckCircle,
 } from "react-icons/fa";
-import logoImage from "../Images/no-bg-logo.png";
+import logoImage from "../Images/nobg-logo.png";
 
 // Import Chart.js components
 import {
@@ -650,7 +650,7 @@ const AdminDashboard: React.FC = () => {
       setIsLoadingActions(false);
     };
 
-    
+
 
     const loadCrisis = async () => {
       const { data, error } = await supabase
@@ -728,7 +728,7 @@ const AdminDashboard: React.FC = () => {
           // Prefer users.last_login if present; otherwise derive from sessions
           const derivedLastLogin =
             lastSeen &&
-            (!u.lastLogin || new Date(lastSeen) > new Date(u.lastLogin))
+              (!u.lastLogin || new Date(lastSeen) > new Date(u.lastLogin))
               ? lastSeen
               : u.lastLogin;
           return {
@@ -1001,7 +1001,7 @@ const AdminDashboard: React.FC = () => {
           setIncidentActions((prev) => [mappedAction, ...prev]);
           setActivityLog((prev) =>
             actionFilter === "all" ||
-            mappedAction.action_type === actionFilter
+              mappedAction.action_type === actionFilter
               ? [mappedAction, ...prev]
               : prev
           );
@@ -1191,10 +1191,10 @@ const AdminDashboard: React.FC = () => {
         prev.map((em) =>
           em.id === selectedEmergency.id
             ? {
-                ...em,
-                status: editedEmergency.status,
-                severity: editedEmergency.severity,
-              }
+              ...em,
+              status: editedEmergency.status,
+              severity: editedEmergency.severity,
+            }
             : em
         )
       );
@@ -1474,40 +1474,36 @@ const AdminDashboard: React.FC = () => {
                     </h3>
                     <p className="text-sm text-gray-600">
                       {growth !== null
-                        ? `${growth.toFixed(1)}% ${
-                            growth >= 0 ? "more" : "less"
-                          } vs last ${filter}`
+                        ? `${growth.toFixed(1)}% ${growth >= 0 ? "more" : "less"
+                        } vs last ${filter}`
                         : "Loading..."}
                     </p>
                   </div>
                   <div className="flex space-x-2">
                     <button
                       onClick={() => setFilter("week")}
-                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                        filter === "week"
-                          ? "bg-[#005524] text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === "week"
+                        ? "bg-[#005524] text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
                     >
                       Week
                     </button>
                     <button
                       onClick={() => setFilter("month")}
-                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                        filter === "month"
-                          ? "bg-[#005524] text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === "month"
+                        ? "bg-[#005524] text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
                     >
                       Month
                     </button>
                     <button
                       onClick={() => setFilter("year")}
-                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                        filter === "year"
-                          ? "bg-[#005524] text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === "year"
+                        ? "bg-[#005524] text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
                     >
                       Year
                     </button>
@@ -1598,13 +1594,12 @@ const AdminDashboard: React.FC = () => {
                     >
                       <div className="flex items-center space-x-3">
                         <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            emergency.severity === "critical"
-                              ? "bg-red-100"
-                              : emergency.severity === "high"
+                          className={`w-8 h-8 rounded-full flex items-center justify-center ${emergency.severity === "critical"
+                            ? "bg-red-100"
+                            : emergency.severity === "high"
                               ? "bg-orange-100"
                               : "bg-yellow-100"
-                          }`}
+                            }`}
                         >
                           <FaBell
                             size={12}
@@ -1612,8 +1607,8 @@ const AdminDashboard: React.FC = () => {
                               emergency.severity === "critical"
                                 ? "text-red-600"
                                 : emergency.severity === "high"
-                                ? "text-orange-600"
-                                : "text-yellow-600"
+                                  ? "text-orange-600"
+                                  : "text-yellow-600"
                             }
                           />
                         </div>
@@ -1850,11 +1845,10 @@ const AdminDashboard: React.FC = () => {
                         {appRole === "super_admin" && (
                           <button
                             onClick={() => handleToggleUserStatus(user.id)}
-                            className={`px-3 py-1 rounded-lg transition-colors ${
-                              user.status === "active"
-                                ? "text-red-600 hover:text-red-800 hover:bg-red-50"
-                                : "text-green-600 hover:text-green-800 hover:bg-green-50"
-                            }`}
+                            className={`px-3 py-1 rounded-lg transition-colors ${user.status === "active"
+                              ? "text-red-600 hover:text-red-800 hover:bg-red-50"
+                              : "text-green-600 hover:text-green-800 hover:bg-green-50"
+                              }`}
                           >
                             {user.status === "active"
                               ? "Deactivate"
@@ -1889,11 +1883,10 @@ const AdminDashboard: React.FC = () => {
               {users.map((user, index) => (
                 <div
                   key={user.id}
-                  className={`flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors ${
-                    index < users.length - 1
-                      ? "border-b border-gray-100 pb-4"
-                      : ""
-                  }`}
+                  className={`flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors ${index < users.length - 1
+                    ? "border-b border-gray-100 pb-4"
+                    : ""
+                    }`}
                 >
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-gradient-to-br from-[#005524] to-[#f69f00] rounded-full flex items-center justify-center text-white font-semibold">
@@ -1932,11 +1925,10 @@ const AdminDashboard: React.FC = () => {
                 .map((user, index, arr) => (
                   <div
                     key={user.id}
-                    className={`flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors ${
-                      index < arr.length - 1
-                        ? "border-b border-gray-100 pb-4"
-                        : ""
-                    }`}
+                    className={`flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors ${index < arr.length - 1
+                      ? "border-b border-gray-100 pb-4"
+                      : ""
+                      }`}
                   >
                     <div className="flex items-center space-x-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-[#005524] to-[#f69f00] rounded-full flex items-center justify-center text-white font-semibold">
@@ -2090,32 +2082,30 @@ const AdminDashboard: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            emergency.severity === "critical"
-                              ? "bg-red-100 text-red-800"
-                              : emergency.severity === "high"
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${emergency.severity === "critical"
+                            ? "bg-red-100 text-red-800"
+                            : emergency.severity === "high"
                               ? "bg-orange-100 text-orange-800"
                               : emergency.severity === "medium"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : emergency.severity === "low"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
+                                ? "bg-yellow-100 text-yellow-800"
+                                : emergency.severity === "low"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-gray-100 text-gray-800"
+                            }`}
                         >
                           {emergency.severity}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            emergency.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : emergency.status === "reviewing"
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${emergency.status === "pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : emergency.status === "reviewing"
                               ? "bg-blue-100 text-blue-800"
                               : emergency.status === "resolved"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
                         >
                           {emergency.status}
                         </span>
@@ -2134,17 +2124,17 @@ const AdminDashboard: React.FC = () => {
                                 emergency.severity === "Not Set"
                                   ? "medium"
                                   : (emergency.severity as
-                                      | "low"
-                                      | "medium"
-                                      | "high"
-                                      | "critical"),
+                                    | "low"
+                                    | "medium"
+                                    | "high"
+                                    | "critical"),
                               status:
                                 emergency.status === "Not Set"
                                   ? "pending"
                                   : (emergency.status as
-                                      | "pending"
-                                      | "reviewing"
-                                      | "resolved"),
+                                    | "pending"
+                                    | "reviewing"
+                                    | "resolved"),
                             });
                           }}
                           className="px-3 py-1 rounded-lg text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
@@ -2323,13 +2313,12 @@ const AdminDashboard: React.FC = () => {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                              action.admin_role === "police"
-                                ? "bg-blue-600"
-                                : action.admin_role === "medical"
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${action.admin_role === "police"
+                              ? "bg-blue-600"
+                              : action.admin_role === "medical"
                                 ? "bg-red-600"
                                 : "bg-orange-600"
-                            }`}
+                              }`}
                           >
                             {action.admin_role === "police" ? (
                               <FaShieldAlt size={14} />
@@ -2415,9 +2404,8 @@ const AdminDashboard: React.FC = () => {
                       setPersonalInfo({ ...personalInfo, name: e.target.value })
                     }
                     disabled={!isEditingPersonal}
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2 ${
-                      !isEditingPersonal ? "bg-gray-100" : "bg-white"
-                    }`}
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2 ${!isEditingPersonal ? "bg-gray-100" : "bg-white"
+                      }`}
                   />
                 </div>
                 <div>
@@ -2438,9 +2426,8 @@ const AdminDashboard: React.FC = () => {
                       })
                     }
                     disabled={!isEditingPersonal}
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2 ${
-                      !isEditingPersonal ? "bg-gray-100" : "bg-white"
-                    }`}
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2 ${!isEditingPersonal ? "bg-gray-100" : "bg-white"
+                      }`}
                   />
                 </div>
                 {isEditingPersonal && (
@@ -2563,14 +2550,12 @@ const AdminDashboard: React.FC = () => {
                     onClick={() =>
                       setNotificationsEnabled(!notificationsEnabled)
                     }
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-                      notificationsEnabled ? "bg-[#005524]" : "bg-gray-200"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${notificationsEnabled ? "bg-[#005524]" : "bg-gray-200"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${
-                        notificationsEnabled ? "translate-x-6" : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${notificationsEnabled ? "translate-x-6" : "translate-x-1"
+                        }`}
                     />
                   </button>
                 </div>
@@ -2585,14 +2570,12 @@ const AdminDashboard: React.FC = () => {
                   </div>
                   <button
                     onClick={() => setEmailNotifications(!emailNotifications)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-                      emailNotifications ? "bg-[#005524]" : "bg-gray-200"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${emailNotifications ? "bg-[#005524]" : "bg-gray-200"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${
-                        emailNotifications ? "translate-x-6" : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${emailNotifications ? "translate-x-6" : "translate-x-1"
+                        }`}
                     />
                   </button>
                 </div>
@@ -2616,9 +2599,8 @@ const AdminDashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <aside
-        className={`transition-all duration-300 ${
-          isSidebarCollapsed ? "w-20" : "w-64"
-        } bg-white border-r border-gray-200 min-h-screen flex flex-col shadow-sm z-30 fixed inset-y-0 left-0`}
+        className={`transition-all duration-300 ${isSidebarCollapsed ? "w-20" : "w-64"
+          } bg-white border-r border-gray-200 min-h-screen flex flex-col shadow-sm z-30 fixed inset-y-0 left-0`}
       >
         <div className="flex items-center justify-between px-6 py-6 border-b border-gray-100">
           <div className="flex items-center gap-3">
@@ -2647,19 +2629,17 @@ const AdminDashboard: React.FC = () => {
           <button
             onClick={() => setActiveTab("dashboard")}
             className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium overflow-hidden group
-                        ${
-                          activeTab === "dashboard"
-                            ? "bg-[#E7F6EE] text-[#005524]"
-                            : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
-                        }
+                        ${activeTab === "dashboard"
+                ? "bg-[#E7F6EE] text-[#005524]"
+                : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+              }
                         `}
           >
             <span
-              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${
-                activeTab === "dashboard"
-                  ? "bg-[#005524]"
-                  : "bg-transparent group-hover:bg-[#CDE6D3]"
-              }`}
+              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "dashboard"
+                ? "bg-[#005524]"
+                : "bg-transparent group-hover:bg-[#CDE6D3]"
+                }`}
             />
             <div className="relative flex items-center gap-3 z-10">
               <FaHome size={18} />
@@ -2680,29 +2660,26 @@ const AdminDashboard: React.FC = () => {
               }
             }}
             className={`relative flex items-center w-full gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                        ${
-                          [
-                            "users",
-                            "total-users-list",
-                            "active-users-list",
-                          ].includes(activeTab)
-                            ? "bg-[#E7F6EE] text-[#005524]"
-                            : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
-                        }
-                        ${
-                          isSidebarCollapsed
-                            ? "justify-center"
-                            : "justify-between"
-                        }`}
+                        ${[
+                "users",
+                "total-users-list",
+                "active-users-list",
+              ].includes(activeTab)
+                ? "bg-[#E7F6EE] text-[#005524]"
+                : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+              }
+                        ${isSidebarCollapsed
+                ? "justify-center"
+                : "justify-between"
+              }`}
           >
             <span
-              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${
-                ["users", "total-users-list", "active-users-list"].includes(
-                  activeTab
-                )
-                  ? "bg-[#005524]"
-                  : "bg-transparent group-hover:bg-[#CDE6D3]"
-              }`}
+              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${["users", "total-users-list", "active-users-list"].includes(
+                activeTab
+              )
+                ? "bg-[#005524]"
+                : "bg-transparent group-hover:bg-[#CDE6D3]"
+                }`}
             />
             <div className="relative flex items-center gap-3 z-10">
               <FaUser size={18} />
@@ -2710,9 +2687,8 @@ const AdminDashboard: React.FC = () => {
             </div>
             {!isSidebarCollapsed && (
               <FaChevronDown
-                className={`transform transition-transform duration-200 ${
-                  openSidebarDropdown === "users-management" ? "rotate-180" : ""
-                }`}
+                className={`transform transition-transform duration-200 ${openSidebarDropdown === "users-management" ? "rotate-180" : ""
+                  }`}
               />
             )}
           </button>
@@ -2722,33 +2698,30 @@ const AdminDashboard: React.FC = () => {
                 <button
                   onClick={() => setActiveTab("users")}
                   className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6
-                                ${
-                                  activeTab === "users"
-                                    ? "text-[#005524] font-medium bg-[#E7F6EE]"
-                                    : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"
-                                }`}
+                                ${activeTab === "users"
+                      ? "text-[#005524] font-medium bg-[#E7F6EE]"
+                      : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"
+                    }`}
                 >
                   View Full User Table
                 </button>
                 <button
                   onClick={() => setActiveTab("total-users-list")}
                   className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6
-                                ${
-                                  activeTab === "total-users-list"
-                                    ? "text-[#005524] font-medium bg-[#E7F6EE]"
-                                    : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"
-                                }`}
+                                ${activeTab === "total-users-list"
+                      ? "text-[#005524] font-medium bg-[#E7F6EE]"
+                      : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"
+                    }`}
                 >
                   Total Users List
                 </button>
                 <button
                   onClick={() => setActiveTab("active-users-list")}
                   className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6
-                                ${
-                                  activeTab === "active-users-list"
-                                    ? "text-[#005524] font-medium bg-[#E7F6EE]"
-                                    : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"
-                                }`}
+                                ${activeTab === "active-users-list"
+                      ? "text-[#005524] font-medium bg-[#E7F6EE]"
+                      : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"
+                    }`}
                 >
                   Active Users List
                 </button>
@@ -2758,19 +2731,17 @@ const AdminDashboard: React.FC = () => {
           <button
             onClick={() => setActiveTab("emergencies")}
             className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                        ${
-                          activeTab === "emergencies"
-                            ? "bg-[#E7F6EE] text-[#005524]"
-                            : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
-                        }
+                        ${activeTab === "emergencies"
+                ? "bg-[#E7F6EE] text-[#005524]"
+                : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+              }
                         `}
           >
             <span
-              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${
-                activeTab === "emergencies"
-                  ? "bg-[#005524]"
-                  : "bg-transparent group-hover:bg-[#CDE6D3]"
-              }`}
+              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "emergencies"
+                ? "bg-[#005524]"
+                : "bg-transparent group-hover:bg-[#CDE6D3]"
+                }`}
             />
             <div className="relative flex items-center gap-3 z-10">
               <FaBell size={18} />
@@ -2781,19 +2752,17 @@ const AdminDashboard: React.FC = () => {
           <button
             onClick={() => setActiveTab("safety-tips")}
             className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                        ${
-                          activeTab === "safety-tips"
-                            ? "bg-[#E7F6EE] text-[#005524]"
-                            : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
-                        }
+                        ${activeTab === "safety-tips"
+                ? "bg-[#E7F6EE] text-[#005524]"
+                : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+              }
                         `}
           >
             <span
-              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${
-                activeTab === "safety-tips"
-                  ? "bg-[#005524]"
-                  : "bg-transparent group-hover:bg-[#CDE6D3]"
-              }`}
+              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "safety-tips"
+                ? "bg-[#005524]"
+                : "bg-transparent group-hover:bg-[#CDE6D3]"
+                }`}
             />
             <div className="relative flex items-center gap-3 z-10">
               <FaFileAlt size={18} />
@@ -2804,19 +2773,17 @@ const AdminDashboard: React.FC = () => {
           <button
             onClick={() => setActiveTab("activity-log")}
             className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                        ${
-                          activeTab === "activity-log"
-                            ? "bg-[#E7F6EE] text-[#005524]"
-                            : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
-                        }
+                        ${activeTab === "activity-log"
+                ? "bg-[#E7F6EE] text-[#005524]"
+                : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+              }
                         `}
           >
             <span
-              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${
-                activeTab === "activity-log"
-                  ? "bg-[#005524]"
-                  : "bg-transparent group-hover:bg-[#CDE6D3]"
-              }`}
+              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "activity-log"
+                ? "bg-[#005524]"
+                : "bg-transparent group-hover:bg-[#CDE6D3]"
+                }`}
             />
             <div className="relative flex items-center gap-3 z-10">
               <FaHistory size={18} />
@@ -2827,19 +2794,17 @@ const AdminDashboard: React.FC = () => {
           <button
             onClick={() => setActiveTab("settings")}
             className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                        ${
-                          activeTab === "settings"
-                            ? "bg-[#E7F6EE] text-[#005524]"
-                            : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
-                        }
+                        ${activeTab === "settings"
+                ? "bg-[#E7F6EE] text-[#005524]"
+                : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+              }
                         `}
           >
             <span
-              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${
-                activeTab === "settings"
-                  ? "bg-[#005524]"
-                  : "bg-transparent group-hover:bg-[#CDE6D3]"
-              }`}
+              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "settings"
+                ? "bg-[#005524]"
+                : "bg-transparent group-hover:bg-[#CDE6D3]"
+                }`}
             />
             <div className="relative flex items-center gap-3 z-10">
               <FaCog size={18} />
@@ -2861,9 +2826,8 @@ const AdminDashboard: React.FC = () => {
 
       {/* Main Content */}
       <div
-        className={`flex-1 flex flex-col transition-all duration-300 ${
-          isSidebarCollapsed ? "ml-20" : "ml-64"
-        }`}
+        className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? "ml-20" : "ml-64"
+          }`}
       >
         {/* Top Navigation Bar */}
         <header className="sticky top-0 z-20 bg-white border-b border-gray-200 flex items-center justify-between px-6 py-4">
@@ -2932,21 +2896,19 @@ const AdminDashboard: React.FC = () => {
                     <div className="flex border-b border-gray-200 mt-2">
                       <button
                         onClick={() => setNotificationTab("unread")}
-                        className={`flex-1 py-2 text-sm font-medium ${
-                          notificationTab === "unread"
-                            ? "border-b-2 border-[#005524] text-[#005524]"
-                            : "text-gray-500 hover:text-gray-700"
-                        }`}
+                        className={`flex-1 py-2 text-sm font-medium ${notificationTab === "unread"
+                          ? "border-b-2 border-[#005524] text-[#005524]"
+                          : "text-gray-500 hover:text-gray-700"
+                          }`}
                       >
                         Unread
                       </button>
                       <button
                         onClick={() => setNotificationTab("all")}
-                        className={`flex-1 py-2 text-sm font-medium ${
-                          notificationTab === "all"
-                            ? "border-b-2 border-[#005524] text-[#005524]"
-                            : "text-gray-500 hover:text-gray-700"
-                        }`}
+                        className={`flex-1 py-2 text-sm font-medium ${notificationTab === "all"
+                          ? "border-b-2 border-[#005524] text-[#005524]"
+                          : "text-gray-500 hover:text-gray-700"
+                          }`}
                       >
                         All
                       </button>
@@ -2970,18 +2932,16 @@ const AdminDashboard: React.FC = () => {
                       return filteredNotifications.map((notification) => (
                         <div
                           key={notification.id}
-                          className={`px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
-                            notification.read ? "bg-gray-50" : "bg-white"
-                          }`}
+                          className={`px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${notification.read ? "bg-gray-50" : "bg-white"
+                            }`}
                         >
                           <div className="flex items-start justify-between">
                             <div>
                               <p
-                                className={`text-sm ${
-                                  notification.read
-                                    ? "text-gray-600"
-                                    : "text-gray-800 font-medium"
-                                }`}
+                                className={`text-sm ${notification.read
+                                  ? "text-gray-600"
+                                  : "text-gray-800 font-medium"
+                                  }`}
                               >
                                 {notification.message}
                               </p>
@@ -3160,17 +3120,17 @@ const AdminDashboard: React.FC = () => {
                           selectedEmergency.severity === "Not Set"
                             ? "medium"
                             : (selectedEmergency.severity as
-                                | "low"
-                                | "medium"
-                                | "high"
-                                | "critical"),
+                              | "low"
+                              | "medium"
+                              | "high"
+                              | "critical"),
                         status:
                           selectedEmergency.status === "Not Set"
                             ? "pending"
                             : (selectedEmergency.status as
-                                | "pending"
-                                | "reviewing"
-                                | "resolved"),
+                              | "pending"
+                              | "reviewing"
+                              | "resolved"),
                       });
                       setIsEditingEmergency(true);
                     }}
@@ -3463,11 +3423,10 @@ const AdminDashboard: React.FC = () => {
             <div className="mt-6 flex justify-end space-x-4">
               <button
                 onClick={() => handleToggleUserStatus(selectedUser.id)}
-                className={`px-4 py-2 rounded-lg ${
-                  selectedUser.status === "active"
-                    ? "bg-red-600 text-white hover:bg-red-700"
-                    : "bg-green-600 text-white hover:bg-green-700"
-                }`}
+                className={`px-4 py-2 rounded-lg ${selectedUser.status === "active"
+                  ? "bg-red-600 text-white hover:bg-red-700"
+                  : "bg-green-600 text-white hover:bg-green-700"
+                  }`}
               >
                 {selectedUser.status === "active"
                   ? "Deactivate User"

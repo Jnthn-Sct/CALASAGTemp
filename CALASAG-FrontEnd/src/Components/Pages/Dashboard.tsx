@@ -26,9 +26,10 @@ import {
   FaArrowLeft,
   FaPaperPlane,
 } from "react-icons/fa";
-import logoImage from "../Images/no-bg-logo.png";
+import logoImage from "../Images/nobg-logo.png";
 import mapImage from "../Images/ph-map.png";
 import { supabase } from "../../db";
+import { FaHouseFloodWater } from "react-icons/fa6";
 
 // Interfaces
 interface Location {
@@ -111,6 +112,7 @@ interface UserProfile {
   email: string;
   role: string;
   avatar: string | null;
+  first_name?: string;
 }
 
 interface SearchResult {
@@ -274,13 +276,13 @@ const Dashboard: React.FC = () => {
         .from("connections")
         .select("user1_id, user2_id")
         .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
-      
+
       if (connectionsError) throw new Error(`Connections fetch error: ${connectionsError.message}`);
-      
+
       if (!connectionsData || connectionsData.length === 0) {
         return [];
       }
-      
+
       // Extract all unique user IDs from connections
       const connectionUserIds = new Set<string>();
       connectionsData.forEach((connection) => {
@@ -291,15 +293,15 @@ const Dashboard: React.FC = () => {
           connectionUserIds.add(connection.user2_id);
         }
       });
-      
+
       // Fetch user details for all connection IDs
       const { data: usersData, error: usersError } = await supabase
         .from("users")
         .select("user_id, name, email, avatar")
         .in("user_id", Array.from(connectionUserIds));
-      
+
       if (usersError) throw new Error(`Users fetch error: ${usersError.message}`);
-      
+
       // Convert to SearchResult format
       const connections: SearchResult[] = (usersData || []).map((user) => ({
         id: user.user_id,
@@ -308,7 +310,7 @@ const Dashboard: React.FC = () => {
         email: user.email,
         avatar: user.avatar,
       }));
-      
+
       return connections;
     } catch (error: any) {
       console.error("Error fetching user connections:", error);
@@ -319,19 +321,19 @@ const Dashboard: React.FC = () => {
 
   const getCrisisType = async (crisisId: number | null | undefined): Promise<string> => {
     if (!crisisId) return "general";
-    
+
     try {
       const { data: crisisData, error } = await supabase
         .from("crisis_alerts")
         .select("type")
         .eq("id", crisisId)
         .single();
-      
+
       if (error) {
         console.error("Error fetching crisis type:", error);
         return "general";
       }
-      
+
       return crisisData?.type || "general";
     } catch (error) {
       console.error("Error fetching crisis type:", error);
@@ -341,9 +343,9 @@ const Dashboard: React.FC = () => {
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
-    if (query.trim().length < 2) {
+    if (query.trim().length < 1) {
       setSearchResults([]);
-      setShowSearchResults(false);
+      // Keep panel open while typing; just clear results for short queries
       return;
     }
     try {
@@ -382,13 +384,13 @@ const Dashboard: React.FC = () => {
         name: user.name,
         email: user.email,
         avatar: user.avatar,
-        connectionStatus: isConnected(user.user_id) 
-          ? 'connected' 
-          : sentRequestIds.has(user.user_id) 
-          ? 'request_sent' 
-          : receivedRequestIds.has(user.user_id)
-          ? 'request_received'
-          : null
+        connectionStatus: isConnected(user.user_id)
+          ? 'connected'
+          : sentRequestIds.has(user.user_id)
+            ? 'request_sent'
+            : receivedRequestIds.has(user.user_id)
+              ? 'request_received'
+              : null
       }));
 
       setSearchResults(resultsWithStatus);
@@ -399,14 +401,14 @@ const Dashboard: React.FC = () => {
     }
   };
   const getConnectedSafeUsers = (markedSafeUsers: { user_id: string; name: string }[] | undefined): string[] => {
-  if (!markedSafeUsers || !connections) return [];
-  return markedSafeUsers
-    .filter((safeUser) =>
-      connections.some((connection) => connection.connected_user_id === safeUser.user_id)
-    )
-    .map((safeUser) => safeUser.name)
-    .filter((name, index, self) => self.indexOf(name) === index); // Remove duplicates
-};
+    if (!markedSafeUsers || !connections) return [];
+    return markedSafeUsers
+      .filter((safeUser) =>
+        connections.some((connection) => connection.connected_user_id === safeUser.user_id)
+      )
+      .map((safeUser) => safeUser.name)
+      .filter((name, index, self) => self.indexOf(name) === index); // Remove duplicates
+  };
 
   const handleSendConnectionRequest = async (recipientId: string) => {
     try {
@@ -425,23 +427,23 @@ const Dashboard: React.FC = () => {
         .select("*")
         .eq("sender_id", user.id)
         .eq("recipient_id", recipientId);
-      
+
       // If there's a rejected request, delete it to allow resending
       if (anyRequest && anyRequest.length > 0) {
         const rejectedRequest = anyRequest.find(req => req.status === "rejected");
         const pendingRequest = anyRequest.find(req => req.status === "pending");
-        
+
         if (pendingRequest) {
           setError("Connection request already pending.");
           return;
         }
-        
+
         if (rejectedRequest) {
           const { error: deleteError } = await supabase
             .from("connection_requests")
             .delete()
             .eq("id", rejectedRequest.id);
-            
+
           if (deleteError) {
             throw new Error(`Failed to clear previous request: ${deleteError.message}`);
           }
@@ -486,15 +488,15 @@ const Dashboard: React.FC = () => {
 
       // Use RPC function to insert notification to bypass RLS
       const { error: notifError } = await supabase.rpc("create_notification", {
-  recipient_id: recipientId,
-  notif_type: "connection_request",
-  notif_message: `${userProfile?.name} has sent you a connection request.`,
-  sender_id: user.id,
-});
+        recipient_id: recipientId,
+        notif_type: "connection_request",
+        notif_message: `${userProfile?.name} has sent you a connection request.`,
+        sender_id: user.id,
+      });
 
-if (notifError) {
-  console.error("Notification error:", notifError);
-}
+      if (notifError) {
+        console.error("Notification error:", notifError);
+      }
 
 
       setError(null);
@@ -502,7 +504,7 @@ if (notifError) {
       setShowSearchResults(false);
       setSearchQuery("");
       setSuccess("Connection request sent successfully!");
-      
+
       // Update UI to show "Connection Request Sent" status
       if (selectedSearchProfile && selectedSearchProfile.id === recipientId) {
         setSelectedSearchProfile({
@@ -530,7 +532,7 @@ if (notifError) {
       // Find the connection between the current user and the selected user
       let connectionData = null;
       let connectionError = null;
-      
+
       // Try first direction (user is user1, selected profile is user2)
       const { data: firstDirectionData, error: firstDirectionError } = await supabase
         .from("connections")
@@ -538,7 +540,7 @@ if (notifError) {
         .eq("user1_id", user.id)
         .eq("user2_id", userId)
         .maybeSingle();
-        
+
       if (firstDirectionData) {
         connectionData = firstDirectionData;
         connectionError = firstDirectionError;
@@ -550,7 +552,7 @@ if (notifError) {
           .eq("user1_id", userId)
           .eq("user2_id", user.id)
           .maybeSingle();
-          
+
         if (secondDirectionData) {
           connectionData = secondDirectionData;
           connectionError = secondDirectionError;
@@ -573,16 +575,16 @@ if (notifError) {
 
       // Update the connections list
       setConnections(connections.filter(conn => conn.connected_user_id !== userId));
-      
+
       // Update the search results if the user is in the search results
       if (searchResults.length > 0) {
-        setSearchResults(searchResults.map(profile => 
-          profile.id === userId 
-            ? { ...profile, connectionStatus: null } 
+        setSearchResults(searchResults.map(profile =>
+          profile.id === userId
+            ? { ...profile, connectionStatus: null }
             : profile
         ));
       }
-      
+
       // Update the selected profile if it's the one we're removing connection from
       if (selectedSearchProfile && selectedSearchProfile.id === userId) {
         setSelectedSearchProfile({
@@ -590,10 +592,10 @@ if (notifError) {
           connectionStatus: null
         });
       }
-      
+
       // Close the profile view
       setShowProfile(false);
-      
+
       // Show success message
       setSuccess("Connection removed successfully");
     } catch (error: any) {
@@ -617,7 +619,7 @@ if (notifError) {
         .select("sender_id, recipient_id")
         .eq("id", requestId)
         .single();
-      
+
       if (!requestData) throw new Error("Connection request not found");
 
       const { error } = await supabase
@@ -632,7 +634,7 @@ if (notifError) {
       setConnectionRequests((prev) =>
         prev.filter((req) => req.id !== requestId)
       );
-      
+
       // Close the connection requests menu if there are no more requests
       if (connectionRequests.length <= 1) {
         setShowConnectionRequestsMenu(false);
@@ -649,7 +651,7 @@ if (notifError) {
           .select("name")
           .eq("user_id", requestData.recipient_id)
           .single();
-          
+
         // Add notification for the current user
         setNotifications((prev) => [
           {
@@ -669,12 +671,11 @@ if (notifError) {
           .rpc('create_notification', {
             recipient_id: requestData.sender_id,
             notification_type: "connection_accepted",
-            message_text: `${
-              recipientData?.name || "User"
-            } accepted your connection request.`,
+            message_text: `${recipientData?.name || "User"
+              } accepted your connection request.`,
             sender_id: user.id
           });
-        
+
         if (notificationError) {
           console.error("Notification error:", notificationError);
         }
@@ -757,10 +758,10 @@ if (notifError) {
       setUserProfile((prev) =>
         prev
           ? {
-              ...prev,
-              name: editProfileData.name || prev.name,
-              avatar: editProfileData.avatar || prev.avatar,
-            }
+            ...prev,
+            name: editProfileData.name || prev.name,
+            avatar: editProfileData.avatar || prev.avatar,
+          }
           : prev
       );
       setActiveUser(editProfileData.name || userProfile?.name || "User");
@@ -807,79 +808,80 @@ if (notifError) {
 
         const { data: profileData, error: profileError } = await supabase
           .from("users")
-          .select("user_id, name, email, role, avatar")
+          .select("user_id, name, first_name, email, role, avatar")
           .eq("user_id", user.id)
           .single();
         if (profileError) {
           throw new Error(`Profile fetch error: ${profileError.message}`);
         }
         if (profileData) {
-          setActiveUser(profileData.name || "User");
+          setActiveUser(profileData.first_name || profileData.name || "User");
           setUserProfile({
             id: profileData.user_id,
             name: profileData.name || "User",
             email: profileData.email,
             role: profileData.role || "user",
             avatar: profileData.avatar,
+            first_name: profileData.first_name || undefined,
           });
         }
 
         const fetchCrisisAlerts = async (user: any, connectionIds: string[]): Promise<CrisisAlert[]> => {
-  try {
-    const { data: crisisAlertsData, error: crisisAlertsError } = await supabase
-      .from("crisis_alerts")
-      .select("*, users!user_id(name)")
-      .neq("type", "Safe")
-      .in("user_id", [...connectionIds, user.id])
-      .order("created_at", { ascending: false });
+          try {
+            const { data: crisisAlertsData, error: crisisAlertsError } = await supabase
+              .from("crisis_alerts")
+              .select("*, users!user_id(name)")
+              .neq("type", "Safe")
+              .in("user_id", [...connectionIds, user.id])
+              .order("created_at", { ascending: false });
 
-    if (crisisAlertsError) {
-      console.error("Crisis alerts fetch error:", crisisAlertsError);
-      throw new Error(`Crisis alerts fetch error: ${crisisAlertsError.message}`);
-    }
+            if (crisisAlertsError) {
+              console.error("Crisis alerts fetch error:", crisisAlertsError);
+              throw new Error(`Crisis alerts fetch error: ${crisisAlertsError.message}`);
+            }
 
-    console.log("Fetched crisis alerts:", crisisAlertsData);
+            console.log("Fetched crisis alerts:", crisisAlertsData);
 
-    const formattedCrisisAlerts: CrisisAlert[] = [];
-    for (const alert of crisisAlertsData || []) {
-      const { data: markedSafeData, error: markedSafeError } = await supabase
-        .from("crisis_alerts")
-        .select("user_id, users!user_id(name)")
-        .eq("type", "Safe")
-        .eq("related_crisis_id", alert.id);
+            const formattedCrisisAlerts: CrisisAlert[] = [];
+            for (const alert of crisisAlertsData || []) {
+              const { data: markedSafeData, error: markedSafeError } = await supabase
+                .from("crisis_alerts")
+                .select("user_id, users!user_id(name)")
+                .eq("type", "Safe")
+                .eq("related_crisis_id", alert.id);
 
-      if (markedSafeError) {
-        console.error(`Error fetching safe users for crisis ${alert.id}:`, markedSafeError);
-        continue;
-      }
+              if (markedSafeError) {
+                console.error(`Error fetching safe users for crisis ${alert.id}:`, markedSafeError);
+                continue;
+              }
 
-      console.log(`Safe users for crisis ${alert.id}:`, markedSafeData);
+              console.log(`Safe users for crisis ${alert.id}:`, markedSafeData);
 
-      const markedSafeUsers: { user_id: string; name: string }[] = (markedSafeData || []).map(
-        (safeEntry) => ({
-          user_id: safeEntry.user_id || "unknown",
-          name: safeEntry.users?.name || "Unknown User",
-        })
-      );
+              const markedSafeUsers: { user_id: string; name: string }[] = (markedSafeData || []).map(
+                (safeEntry) => ({
+                  user_id: safeEntry.user_id || "unknown",
+                  name: safeEntry.users?.name || "Unknown User",
+                })
+              );
 
-      formattedCrisisAlerts.push({
-        ...alert,
-        reporter: alert.users?.name || "Unknown User",
-        marked_safe_users: markedSafeUsers,
-        responded_safe: markedSafeUsers.some((u) => u.user_id === user.id),
-      });
-    }
+              formattedCrisisAlerts.push({
+                ...alert,
+                reporter: alert.users?.name || "Unknown User",
+                marked_safe_users: markedSafeUsers,
+                responded_safe: markedSafeUsers.some((u) => u.user_id === user.id),
+              });
+            }
 
-    const sortedAlerts = formattedCrisisAlerts.sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-    console.log("Formatted crisis alerts:", sortedAlerts);
-    return sortedAlerts;
-  } catch (error: any) {
-    console.error("Error in fetchCrisisAlerts:", error);
-    return [];
-  }
-};
+            const sortedAlerts = formattedCrisisAlerts.sort(
+              (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+            console.log("Formatted crisis alerts:", sortedAlerts);
+            return sortedAlerts;
+          } catch (error: any) {
+            console.error("Error in fetchCrisisAlerts:", error);
+            return [];
+          }
+        };
 
         const { data: connectionsData, error: connectionsError } =
           await supabase
@@ -967,13 +969,13 @@ if (notifError) {
         const filteredEmergencies =
           emergencyFilter === "nearby"
             ? emergenciesData?.filter((emergency) => {
-                const distance =
-                  Math.sqrt(
-                    Math.pow(emergency.location.lat - userLocation.lat, 2) +
-                      Math.pow(emergency.location.lng - userLocation.lng, 2)
-                  ) * 111;
-                return distance <= 5;
-              }) || []
+              const distance =
+                Math.sqrt(
+                  Math.pow(emergency.location.lat - userLocation.lat, 2) +
+                  Math.pow(emergency.location.lng - userLocation.lng, 2)
+                ) * 111;
+              return distance <= 5;
+            }) || []
             : emergenciesData || [];
         setEmergencies(filteredEmergencies);
 
@@ -1179,11 +1181,9 @@ if (notifError) {
                     user_id: newRequest.recipient_id,
                     type: "connection_request",
                     notification_type: "connection_request",
-                    message: `${
-                      senderData?.name || "User"
-                    } sent a connection request to ${
-                      userProfile?.name || "User"
-                    }.`,
+                    message: `${senderData?.name || "User"
+                      } sent a connection request to ${userProfile?.name || "User"
+                      }.`,
                     read: false,
                     created_at: newRequest.created_at,
                   },
@@ -1257,240 +1257,240 @@ if (notifError) {
           });
 
         const crisisAlertSubscription = supabase
-  .channel("crisis_alerts_dashboard")
-  .on(
-    "postgres_changes",
-    {
-      event: "INSERT",
-      schema: "public",
-      table: "crisis_alerts"
-    },
-    async (payload) => {
-      console.log("Raw crisis alert payload:", payload);
-      const newAlert = payload.new as CrisisAlert;
+          .channel("crisis_alerts_dashboard")
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "crisis_alerts"
+            },
+            async (payload) => {
+              console.log("Raw crisis alert payload:", payload);
+              const newAlert = payload.new as CrisisAlert;
 
-      // Client-side filtering because `in` filter is not supported
-      // for realtime postgres_changes subscriptions.
-      if ([user.id, ...connectionIds].includes(payload.new.user_id)) {
-        if (!newAlert.user_id) {
-          return;
-        }
-      }
+              // Client-side filtering because `in` filter is not supported
+              // for realtime postgres_changes subscriptions.
+              if ([user.id, ...connectionIds].includes(payload.new.user_id)) {
+                if (!newAlert.user_id) {
+                  return;
+                }
+              }
 
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("name")
-        .eq("user_id", newAlert.user_id)
-        .single();
+              const { data: userData, error: userError } = await supabase
+                .from("users")
+                .select("name")
+                .eq("user_id", newAlert.user_id)
+                .single();
 
-      if (userError) {
-        console.error("Error fetching user data for alert:", userError);
-      }
+              if (userError) {
+                console.error("Error fetching user data for alert:", userError);
+              }
 
-      const safeUser: { user_id: string; name: string } = {
-        user_id: newAlert.user_id || "unknown",
-        name: userData?.name || "Unknown User",
-      };
+              const safeUser: { user_id: string; name: string } = {
+                user_id: newAlert.user_id || "unknown",
+                name: userData?.name || "Unknown User",
+              };
 
-      console.log("Safe user for alert:", safeUser);
+              console.log("Safe user for alert:", safeUser);
 
-      if (newAlert.user_id !== user.id) {
-        if (newAlert.type === "Safe" && newAlert.user_id && connectionIds.includes(newAlert.user_id)) {
-          setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
-            prev
-              .map((crisis) =>
-                crisis.id === newAlert.related_crisis_id
-                  ? {
-                      ...crisis,
+              if (newAlert.user_id !== user.id) {
+                if (newAlert.type === "Safe" && newAlert.user_id && connectionIds.includes(newAlert.user_id)) {
+                  setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
+                    prev
+                      .map((crisis) =>
+                        crisis.id === newAlert.related_crisis_id
+                          ? {
+                            ...crisis,
+                            marked_safe_users: [
+                              ...(crisis.marked_safe_users || []),
+                              safeUser,
+                            ],
+                          }
+                          : crisis
+                      )
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                      .slice(0, 6)
+                  );
+
+                  setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
+                    prev && prev.id === newAlert.related_crisis_id
+                      ? {
+                        ...prev,
+                        marked_safe_users: [
+                          ...(prev.marked_safe_users || []),
+                          safeUser,
+                        ],
+                      }
+                      : prev
+                  );
+
+                  // Add notification for connection marking themselves safe
+                  const crisisType = await getCrisisType(newAlert.related_crisis_id);
+                  const connectionSafeNotification = {
+                    id: Date.now(),
+                    user_id: user.id,
+                    type: "connection_safe",
+                    notification_type: "connection_safe",
+                    message: `${safeUser.name} marked themselves as safe for ${crisisType} crisis`,
+                    read: false,
+                    created_at: new Date().toISOString(),
+                  };
+
+                  setNotifications((prev) => [connectionSafeNotification, ...prev]);
+
+                  console.log("Updated crisisAlerts and selectedCrisisAlert with safe user:", safeUser);
+                } else if (newAlert.type !== "Safe") {
+                  const { data: safeForThis, error: safeError } = await supabase
+                    .from("crisis_alerts")
+                    .select("id")
+                    .eq("type", "Safe")
+                    .eq("related_crisis_id", newAlert.id)
+                    .eq("user_id", user.id);
+                  if (safeError) {
+                    console.error("Error checking safe status:", safeError);
+                  }
+                  if (!safeForThis || safeForThis.length === 0) {
+                    setPendingCrisisAlerts((prev) => [
+                      { ...newAlert, reporter: safeUser.name },
+                      ...prev,
+                    ]);
+                    console.log("Added to pendingCrisisAlerts:", newAlert);
+                  }
+                }
+              } else if (newAlert.type === "Safe") {
+                setUserSafeAlerts((prev) => {
+                  if (prev.some((alert) => alert.id === newAlert.id)) {
+                    return prev;
+                  }
+                  return [newAlert, ...prev];
+                });
+
+                setPendingCrisisAlerts((prev) => prev.filter((p) => p.id !== newAlert.related_crisis_id));
+
+                setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
+                  prev
+                    .map((crisis) =>
+                      crisis.id === newAlert.related_crisis_id
+                        ? {
+                          ...crisis,
+                          responded_safe: true,
+                          marked_safe_users: [
+                            ...(crisis.marked_safe_users || []),
+                            safeUser,
+                          ],
+                        }
+                        : crisis
+                    )
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .slice(0, 6)
+                );
+
+                setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
+                  prev && prev.id === newAlert.related_crisis_id
+                    ? {
+                      ...prev,
+                      responded_safe: true,
                       marked_safe_users: [
-                        ...(crisis.marked_safe_users || []),
+                        ...(prev.marked_safe_users || []),
                         safeUser,
                       ],
                     }
-                  : crisis
-              )
-              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-              .slice(0, 6)
-          );
-
-          setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
-            prev && prev.id === newAlert.related_crisis_id
-              ? {
-                  ...prev,
-                  marked_safe_users: [
-                    ...(prev.marked_safe_users || []),
-                    safeUser,
-                  ],
-                }
-              : prev
-          );
-
-          // Add notification for connection marking themselves safe
-          const crisisType = await getCrisisType(newAlert.related_crisis_id);
-          const connectionSafeNotification = {
-            id: Date.now(),
-            user_id: user.id,
-            type: "connection_safe",
-            notification_type: "connection_safe",
-            message: `${safeUser.name} marked themselves as safe for ${crisisType} crisis`,
-            read: false,
-            created_at: new Date().toISOString(),
-          };
-
-          setNotifications((prev) => [connectionSafeNotification, ...prev]);
-
-          console.log("Updated crisisAlerts and selectedCrisisAlert with safe user:", safeUser);
-        } else if (newAlert.type !== "Safe") {
-          const { data: safeForThis, error: safeError } = await supabase
-            .from("crisis_alerts")
-            .select("id")
-            .eq("type", "Safe")
-            .eq("related_crisis_id", newAlert.id)
-            .eq("user_id", user.id);
-          if (safeError) {
-            console.error("Error checking safe status:", safeError);
-          }
-          if (!safeForThis || safeForThis.length === 0) {
-            setPendingCrisisAlerts((prev) => [
-              { ...newAlert, reporter: safeUser.name },
-              ...prev,
-            ]);
-            console.log("Added to pendingCrisisAlerts:", newAlert);
-          }
-        }
-      } else if (newAlert.type === "Safe") {
-        setUserSafeAlerts((prev) => {
-          if (prev.some((alert) => alert.id === newAlert.id)) {
-            return prev;
-          }
-          return [newAlert, ...prev];
-        });
-
-        setPendingCrisisAlerts((prev) => prev.filter((p) => p.id !== newAlert.related_crisis_id));
-
-        setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
-          prev
-            .map((crisis) =>
-              crisis.id === newAlert.related_crisis_id
-                ? {
-                    ...crisis,
-                    responded_safe: true,
-                    marked_safe_users: [
-                      ...(crisis.marked_safe_users || []),
-                      safeUser,
-                    ],
-                  }
-                : crisis
-            )
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-            .slice(0, 6)
-        );
-
-        setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
-          prev && prev.id === newAlert.related_crisis_id
-            ? {
-                ...prev,
-                responded_safe: true,
-                marked_safe_users: [
-                  ...(prev.marked_safe_users || []),
-                  safeUser,
-                ],
+                    : prev
+                );
+                console.log("User marked safe, updated states:", safeUser);
               }
-            : prev
-        );
-        console.log("User marked safe, updated states:", safeUser);
-      }
-    }
-  )
-  .on(
-    "postgres_changes",
-    {
-      event: "DELETE",
-      schema: "public",
-      table: "crisis_alerts",
-    },
-    async (payload) => {
-      const deletedAlert = payload.old as CrisisAlert;
-      console.log("Deleted alert:", deletedAlert);
-
-      setUserSafeAlerts((prev) => prev.filter((s) => s.id !== deletedAlert.id));
-      
-      // Add notification if a connection unmarked themselves as safe
-      if (deletedAlert.type === "Safe" && deletedAlert.user_id !== user.id && deletedAlert.user_id && connectionIds.includes(deletedAlert.user_id)) {
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("name")
-          .eq("user_id", deletedAlert.user_id)
-          .single();
-
-        if (!userError && userData) {
-          const crisisType = await getCrisisType(deletedAlert.related_crisis_id);
-          const connectionUnsafeNotification = {
-            id: Date.now(),
-            user_id: user.id,
-            type: "connection_unsafe",
-            notification_type: "connection_unsafe",
-            message: `${userData.name} unmarked themselves as safe for ${crisisType} crisis`,
-            read: false,
-            created_at: new Date().toISOString(),
-          };
-
-          setNotifications((prev) => [connectionUnsafeNotification, ...prev]);
-        }
-      }
-
-      if (deletedAlert.related_crisis_id) {
-        const { data: crisisData, error: crisisError } = await supabase
-          .from("crisis_alerts")
-          .select("*")
-          .eq("id", deletedAlert.related_crisis_id)
-          .single();
-        if (crisisError) {
-          console.error("Error fetching crisis data for deletion:", crisisError);
-        }
-        if (crisisData) {
-          setPendingCrisisAlerts((prev) => {
-            if (!prev.some((p) => p.id === crisisData.id)) {
-              return [...prev, crisisData];
             }
-            return prev;
-          });
-        }
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "DELETE",
+              schema: "public",
+              table: "crisis_alerts",
+            },
+            async (payload) => {
+              const deletedAlert = payload.old as CrisisAlert;
+              console.log("Deleted alert:", deletedAlert);
 
-        setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
-          prev
-            .map((crisis) =>
-              crisis.id === deletedAlert.related_crisis_id
-                ? {
-                    ...crisis,
-                    marked_safe_users: crisis.marked_safe_users?.filter(
-                      (u) => u.user_id !== deletedAlert.user_id
-                    ) || [],
-                    responded_safe: crisis.user_id === user.id ? false : crisis.responded_safe,
-                  }
-                : crisis
-            )
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        );
+              setUserSafeAlerts((prev) => prev.filter((s) => s.id !== deletedAlert.id));
 
-        setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
-          prev && prev.id === deletedAlert.related_crisis_id
-            ? {
-                ...prev,
-                marked_safe_users: prev.marked_safe_users?.filter(
-                  (u) => u.user_id !== deletedAlert.user_id
-                ) || [],
-                responded_safe: prev.user_id === user.id ? false : prev.responded_safe,
+              // Add notification if a connection unmarked themselves as safe
+              if (deletedAlert.type === "Safe" && deletedAlert.user_id !== user.id && deletedAlert.user_id && connectionIds.includes(deletedAlert.user_id)) {
+                const { data: userData, error: userError } = await supabase
+                  .from("users")
+                  .select("name")
+                  .eq("user_id", deletedAlert.user_id)
+                  .single();
+
+                if (!userError && userData) {
+                  const crisisType = await getCrisisType(deletedAlert.related_crisis_id);
+                  const connectionUnsafeNotification = {
+                    id: Date.now(),
+                    user_id: user.id,
+                    type: "connection_unsafe",
+                    notification_type: "connection_unsafe",
+                    message: `${userData.name} unmarked themselves as safe for ${crisisType} crisis`,
+                    read: false,
+                    created_at: new Date().toISOString(),
+                  };
+
+                  setNotifications((prev) => [connectionUnsafeNotification, ...prev]);
+                }
               }
-            : prev
-        );
-        console.log("Updated states after deletion:", deletedAlert.user_id);
-      }
-    }
-  )
-  .subscribe((status, err) => {
-    console.log("Crisis alert status:", status, err || "");
-  });
+
+              if (deletedAlert.related_crisis_id) {
+                const { data: crisisData, error: crisisError } = await supabase
+                  .from("crisis_alerts")
+                  .select("*")
+                  .eq("id", deletedAlert.related_crisis_id)
+                  .single();
+                if (crisisError) {
+                  console.error("Error fetching crisis data for deletion:", crisisError);
+                }
+                if (crisisData) {
+                  setPendingCrisisAlerts((prev) => {
+                    if (!prev.some((p) => p.id === crisisData.id)) {
+                      return [...prev, crisisData];
+                    }
+                    return prev;
+                  });
+                }
+
+                setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
+                  prev
+                    .map((crisis) =>
+                      crisis.id === deletedAlert.related_crisis_id
+                        ? {
+                          ...crisis,
+                          marked_safe_users: crisis.marked_safe_users?.filter(
+                            (u) => u.user_id !== deletedAlert.user_id
+                          ) || [],
+                          responded_safe: crisis.user_id === user.id ? false : crisis.responded_safe,
+                        }
+                        : crisis
+                    )
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                );
+
+                setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
+                  prev && prev.id === deletedAlert.related_crisis_id
+                    ? {
+                      ...prev,
+                      marked_safe_users: prev.marked_safe_users?.filter(
+                        (u) => u.user_id !== deletedAlert.user_id
+                      ) || [],
+                      responded_safe: prev.user_id === user.id ? false : prev.responded_safe,
+                    }
+                    : prev
+                );
+                console.log("Updated states after deletion:", deletedAlert.user_id);
+              }
+            }
+          )
+          .subscribe((status, err) => {
+            console.log("Crisis alert status:", status, err || "");
+          });
 
         return () => {
           supabase.removeChannel(notificationSubscription);
@@ -1545,13 +1545,13 @@ if (notifError) {
       const filteredEmergencies =
         emergencyFilter === "nearby"
           ? data?.filter((emergency) => {
-              const distance =
-                Math.sqrt(
-                  Math.pow(emergency.location.lat - userLocation.lat, 2) +
-                    Math.pow(emergency.location.lng - userLocation.lng, 2)
-                ) * 111;
-              return distance <= 5;
-            }) || []
+            const distance =
+              Math.sqrt(
+                Math.pow(emergency.location.lat - userLocation.lat, 2) +
+                Math.pow(emergency.location.lng - userLocation.lng, 2)
+              ) * 111;
+            return distance <= 5;
+          }) || []
           : data || [];
       setEmergencies(filteredEmergencies);
     } catch (error: any) {
@@ -1609,9 +1609,8 @@ if (notifError) {
           user_id: connection.id,
           type: "emergency",
           notification_type: "emergency",
-          message: `${activeUser || "User"} triggered a ${type} alert at Lat: ${
-            userLocation.lat
-          }, Lng: ${userLocation.lng}!`,
+          message: `${activeUser || "User"} triggered a ${type} alert at Lat: ${userLocation.lat
+            }, Lng: ${userLocation.lng}!`,
           read: false,
           created_at: new Date().toISOString(),
         }));
@@ -1648,10 +1647,10 @@ if (notifError) {
         (emergencyFilter === "nearby" &&
           Math.sqrt(
             Math.pow(newEmergency.location.lat - userLocation.lat, 2) +
-              Math.pow(newEmergency.location.lng - userLocation.lng, 2)
+            Math.pow(newEmergency.location.lng - userLocation.lng, 2)
           ) *
-            111 <=
-            5)
+          111 <=
+          5)
       ) {
         setEmergencies((prev) => [newEmergency, ...prev]);
       }
@@ -1662,109 +1661,109 @@ if (notifError) {
   };
 
   const handleMarkSafe = async (crisisId?: number) => {
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error("No authenticated user");
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
 
-    const query = supabase
-      .from("crisis_alerts")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("type", "Safe");
-    if (crisisId) {
-      query.eq("related_crisis_id", crisisId);
-    } else {
-      query.is("related_crisis_id", null);
-    }
-    const { data: existingSafeAlert } = await query.limit(1);
-
-    if (existingSafeAlert && existingSafeAlert.length > 0) {
-      const { error } = await supabase
+      const query = supabase
         .from("crisis_alerts")
-        .delete()
-        .eq("id", existingSafeAlert[0].id);
-      if (error) throw new Error(`Unmark safe error: ${error.message}`);
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("type", "Safe");
+      if (crisisId) {
+        query.eq("related_crisis_id", crisisId);
+      } else {
+        query.is("related_crisis_id", null);
+      }
+      const { data: existingSafeAlert } = await query.limit(1);
 
-      setUserSafeAlerts((prev) => prev.filter((alert) => alert.id !== existingSafeAlert[0].id));
-      setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
-        prev
-          .map((crisis) =>
-            crisis.id === crisisId
-              ? {
+      if (existingSafeAlert && existingSafeAlert.length > 0) {
+        const { error } = await supabase
+          .from("crisis_alerts")
+          .delete()
+          .eq("id", existingSafeAlert[0].id);
+        if (error) throw new Error(`Unmark safe error: ${error.message}`);
+
+        setUserSafeAlerts((prev) => prev.filter((alert) => alert.id !== existingSafeAlert[0].id));
+        setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
+          prev
+            .map((crisis) =>
+              crisis.id === crisisId
+                ? {
                   ...crisis,
                   responded_safe: crisis.user_id === user.id ? false : crisis.responded_safe,
                   marked_safe_users: crisis.marked_safe_users?.filter((u) => u.user_id !== user.id) || [],
                 }
-              : crisis
-          )
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      );
-      setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
-        prev && prev.id === crisisId
-          ? {
+                : crisis
+            )
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        );
+        setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
+          prev && prev.id === crisisId
+            ? {
               ...prev,
               responded_safe: prev.user_id === user.id ? false : prev.responded_safe,
               marked_safe_users: prev.marked_safe_users?.filter((u) => u.user_id !== user.id) || [],
             }
-          : prev
-      );
+            : prev
+        );
 
-      if (!crisisId) {
-        setIsSafe(false);
+        if (!crisisId) {
+          setIsSafe(false);
+        } else {
+          const { data: crisisData } = await supabase
+            .from("crisis_alerts")
+            .select("*")
+            .eq("id", crisisId)
+            .single();
+          if (crisisData) {
+            setPendingCrisisAlerts((prev) => {
+              if (!prev.some((p) => p.id === crisisData.id)) {
+                return [...prev, crisisData];
+              }
+              return prev;
+            });
+          }
+        }
+
       } else {
-        const { data: crisisData } = await supabase
+        const newAlert = {
+          user_id: user.id,
+          type: "Safe",
+          reporter: activeUser || "User",
+          is_self: true,
+          created_at: new Date().toISOString(),
+          location: userLocation,
+          responded_safe: true,
+          related_crisis_id: crisisId || null,
+        };
+
+        const { data: insertedAlert, error } = await supabase
           .from("crisis_alerts")
-          .select("*")
-          .eq("id", crisisId)
+          .insert(newAlert)
+          .select()
           .single();
-        if (crisisData) {
-          setPendingCrisisAlerts((prev) => {
-            if (!prev.some((p) => p.id === crisisData.id)) {
-              return [...prev, crisisData];
-            }
+        if (error) throw new Error(`Mark safe error: ${error.message}`);
+
+        setUserSafeAlerts((prev) => {
+          if (prev.some((alert) => alert.id === insertedAlert.id)) {
             return prev;
-          });
-        }
-      }
+          }
+          return [insertedAlert, ...prev];
+        });
 
-    } else {
-      const newAlert = {
-        user_id: user.id,
-        type: "Safe",
-        reporter: activeUser || "User",
-        is_self: true,
-        created_at: new Date().toISOString(),
-        location: userLocation,
-        responded_safe: true,
-        related_crisis_id: crisisId || null,
-      };
+        const safeUser = {
+          user_id: user.id,
+          name: activeUser || "User",
+        };
 
-      const { data: insertedAlert, error } = await supabase
-        .from("crisis_alerts")
-        .insert(newAlert)
-        .select()
-        .single();
-      if (error) throw new Error(`Mark safe error: ${error.message}`);
-
-      setUserSafeAlerts((prev) => {
-        if (prev.some((alert) => alert.id === insertedAlert.id)) {
-          return prev;
-        }
-        return [insertedAlert, ...prev];
-      });
-
-      const safeUser = {
-        user_id: user.id,
-        name: activeUser || "User",
-      };
-
-      setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
-        prev
-          .map((crisis) =>
-            crisis.id === crisisId
-              ? {
+        setCrisisAlerts((prev: CrisisAlert[]): CrisisAlert[] =>
+          prev
+            .map((crisis) =>
+              crisis.id === crisisId
+                ? {
                   ...crisis,
                   responded_safe: crisis.user_id === user.id ? true : crisis.responded_safe,
                   marked_safe_users: [
@@ -1772,14 +1771,14 @@ if (notifError) {
                     safeUser,
                   ],
                 }
-              : crisis
-          )
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      );
+                : crisis
+            )
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        );
 
-      setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
-        prev && prev.id === crisisId
-          ? {
+        setSelectedCrisisAlert((prev: CrisisAlert | null): CrisisAlert | null =>
+          prev && prev.id === crisisId
+            ? {
               ...prev,
               responded_safe: prev.user_id === user.id ? true : prev.responded_safe,
               marked_safe_users: [
@@ -1787,20 +1786,20 @@ if (notifError) {
                 safeUser,
               ],
             }
-          : prev
-      );
+            : prev
+        );
 
-      if (!crisisId) {
-        setIsSafe(true);
-      } else {
-        setPendingCrisisAlerts((prev) => prev.filter((p) => p.id !== crisisId));
+        if (!crisisId) {
+          setIsSafe(true);
+        } else {
+          setPendingCrisisAlerts((prev) => prev.filter((p) => p.id !== crisisId));
+        }
       }
+    } catch (error: any) {
+      console.error("Error toggling safe status:", error);
+      setError(`Failed to toggle safe status: ${error.message}`);
     }
-  } catch (error: any) {
-    console.error("Error toggling safe status:", error);
-    setError(`Failed to toggle safe status: ${error.message}`);
-  }
-};
+  };
 
   const clearAllNotifications = async () => {
     try {
@@ -2024,89 +2023,38 @@ if (notifError) {
   return (
     <div className="min-h-screen bg-[#f8eed4] flex flex-col">
       {/* Navbar */}
-      <div className="bg-[#f8eed4] border-b border-gray-300 p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between shadow-sm">
+  <div className="bg-[#f8eed4] border-b border-gray-300 p-2 sm:p-3 flex flex-col sm:flex-row items-center justify-between shadow-sm relative">
         <div className="flex items-center w-full sm:w-auto mb-4 sm:mb-0">
-          <img src={logoImage} className="h-10 w-auto sm:h-12" alt="Logo" />
-          <div className="ml-0 sm:ml-4 relative w-full sm:w-64">
-            <input
-              type="text"
-              placeholder="Search users..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="bg-white rounded-2xl px-4 py-2 w-full text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
-            />
-            <button className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-[#005524] transition-colors duration-200">
-              <FaSearch size={16} />
-            </button>
-            {showSearchResults && (
-              <div className="absolute top-full left-0 mt-2 w-full sm:w-64 bg-white rounded-2xl shadow-xl z-50 max-h-60 overflow-y-auto animate-in fade-in duration-300 border border-gray-100 hover:border-[#005524]/20">
-                {searchResults.length > 0 ? (
-                  searchResults.map((user) => (
-                    <div
-                      key={user.id}
-                      className="px-4 py-3 hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer flex items-center space-x-3 rounded-2xl"
-                      onClick={() => {
-                        setSelectedSearchProfile(user);
-                        setShowProfile(true);
-                        setShowSearchResults(false);
-                        setSearchQuery("");
-                      }}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
-                        {user.avatar ? (
-                          <img
-                            src={user.avatar}
-                            className="w-full h-full rounded-full"
-                            alt={user.name}
-                          />
-                        ) : (
-                          <span>👤</span>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-[#005524] font-bold">{user.name}</p>
-                        <p className="text-sm text-gray-600">{user.email}</p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="px-4 py-3 text-gray-600">No users found.</p>
-                )}
-              </div>
-            )}
-          </div>
+          <img src={logoImage} className="h-10 w-auto sm:h-16 md:h-20" alt="Logo" />
         </div>
 
-        <div className="flex items-center justify-center space-x-4 sm:space-x-8">
+  <div className="flex items-center justify-center space-x-4 sm:space-x-8 sm:absolute sm:left-1/2 sm:transform sm:-translate-x-1/2">
           <button
             onClick={() => handleNavigation("home")}
-            className={`flex flex-col items-center transition-all duration-300 ${
-              activeTab === "home"
-                ? "text-[#005524]"
-                : "text-gray-600 hover:text-[#005524] hover:scale-110"
-            }`}
+            className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 ${activeTab === "home"
+              ? "text-[#005524] border-[#005524] bg-[#005524]/10 font-bold shadow-sm"
+              : "text-gray-600 border-transparent hover:text-[#005524] hover:border-[#005524]/50 hover:bg-[#005524]/5 hover:scale-105"
+              }`}
           >
             <FaHome size={20} />
             <span className="text-xs mt-1">Home</span>
           </button>
           <button
             onClick={() => handleNavigation("message")}
-            className={`flex flex-col items-center transition-all duration-300 ${
-              activeTab === "message"
-                ? "text-[#005524]"
-                : "text-gray-600 hover:text-[#005524] hover:scale-110"
-            }`}
+            className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 ${activeTab === "message"
+              ? "text-[#005524] border-[#005524] bg-[#005524]/10 font-bold shadow-sm"
+              : "text-gray-600 border-transparent hover:text-[#005524] hover:border-[#005524]/50 hover:bg-[#005524]/5 hover:scale-105"
+              }`}
           >
             <FaEnvelope size={20} />
             <span className="text-xs mt-1">Message</span>
           </button>
           <button
             onClick={() => handleNavigation("report")}
-            className={`flex flex-col items-center transition-all duration-300 ${
-              activeTab === "report"
-                ? "text-[#005524]"
-                : "text-gray-600 hover:text-[#005524] hover:scale-110"
-            }`}
+            className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 ${activeTab === "report"
+              ? "text-[#005524] border-[#005524] bg-[#005524]/10 font-bold shadow-sm"
+              : "text-gray-600 border-transparent hover:text-[#005524] hover:border-[#005524]/50 hover:bg-[#005524]/5 hover:scale-105"
+              }`}
           >
             <FaExclamationTriangle size={20} />
             <span className="text-xs mt-1">Report</span>
@@ -2114,6 +2062,71 @@ if (notifError) {
         </div>
 
         <div className="flex items-center space-x-4 mt-4 sm:mt-0">
+          <div className="relative">
+            <button
+              onClick={() => setShowSearchResults(!showSearchResults)}
+              aria-label="Search users"
+              title="Search users"
+              className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-all duration-300 hover:scale-110"
+            >
+              <FaSearch size={20} className="text-[#005524]" />
+            </button>
+            <div className="absolute right-10 top-0 z-70">
+              <div
+                className={`bg-white rounded-2xl border border-gray-100 shadow-md overflow-hidden transition-all duration-300 group ${showSearchResults ? 'w-64 opacity-100 -translate-x-1' : 'w-0 opacity-0 translate-x-2 pointer-events-none'
+                  }`}
+              >
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    placeholder="Search users..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="w-full bg-white px-3 py-2 text-sm focus:ring-[#005524] focus:border-[#005524] outline-none"
+                    autoFocus={showSearchResults}
+                  />
+                </div>
+                {/* Interactive divider between input and results */}
+                <div className="h-px mx-2 bg-gradient-to-r from-transparent via-[#005524]/30 to-transparent transition-opacity duration-300 opacity-60 group-hover:opacity-100" />
+                {searchQuery.trim().length >= 2 && (
+                  <div className="max-h-60 overflow-y-auto py-2">
+                    {searchResults.length > 0 ? (
+                      searchResults.map((user) => (
+                        <div
+                          key={user.id}
+                          className="px-4 py-3 hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer flex items-center space-x-3"
+                          onClick={() => {
+                            setSelectedSearchProfile(user);
+                            setShowProfile(true);
+                            setShowSearchResults(false);
+                            setSearchQuery("");
+                          }}
+                        >
+                          <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
+                            {user.avatar ? (
+                              <img
+                                src={user.avatar}
+                                className="w-full h-full rounded-full"
+                                alt={user.name}
+                              />
+                            ) : (
+                              <FaUser className="text-white" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-[#005524] font-bold">{user.name}</p>
+                            <p className="text-sm text-gray-600">{user.email}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="px-4 py-2 text-gray-600">No users found.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
           <div className="relative">
             <button
               onClick={() => {
@@ -2144,7 +2157,7 @@ if (notifError) {
                         className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 hover:scale-105 transition-all duration-300 rounded-2xl"
                       >
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                          <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
                             {request.sender_avatar ? (
                               <img
                                 src={request.sender_avatar}
@@ -2152,7 +2165,7 @@ if (notifError) {
                                 alt={request.sender_name}
                               />
                             ) : (
-                              <span>👤</span>
+                              <FaUser className="text-white" />
                             )}
                           </div>
                           <p className="text-gray-900 text-sm">
@@ -2225,9 +2238,8 @@ if (notifError) {
                     notifications.map((notification) => (
                       <div
                         key={notification.id}
-                        className={`px-4 py-3 hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer rounded-2xl ${
-                          !notification.read ? "bg-[#005524]/5" : ""
-                        }`}
+                        className={`px-4 py-3 hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer rounded-2xl ${!notification.read ? "bg-[#005524]/5" : ""
+                          }`}
                         onClick={() => markNotificationAsRead(notification.id)}
                       >
                         <p className="text-gray-900 text-sm">{notification.message}</p>
@@ -2250,7 +2262,7 @@ if (notifError) {
                           className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 hover:scale-105 transition-all duration-300 rounded-2xl"
                         >
                           <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                            <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
                               {request.sender_avatar ? (
                                 <img
                                   src={request.sender_avatar}
@@ -2258,7 +2270,7 @@ if (notifError) {
                                   alt={request.sender_name}
                                 />
                               ) : (
-                                <span>👤</span>
+                                <FaUser className="text-white" />
                               )}
                             </div>
                             <p className="text-gray-900 text-sm">
@@ -2302,7 +2314,7 @@ if (notifError) {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center space-x-2 focus:outline-none hover:bg-gray-100 rounded-2xl px-3 py-2 transition-all duration-300 hover:scale-105"
             >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+              <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
                 {userProfile?.avatar ? (
                   <img
                     src={userProfile.avatar}
@@ -2310,7 +2322,7 @@ if (notifError) {
                     alt="Profile"
                   />
                 ) : (
-                  <span>👤</span>
+                  <FaUser className="text-white" />
                 )}
               </div>
               <div className="flex items-center text-[#005524]">
@@ -2318,9 +2330,8 @@ if (notifError) {
                   {isLoading ? "Loading..." : activeUser || "User"}
                 </span>
                 <span
-                  className={`ml-2 transition-transform duration-300 ${
-                    showProfileMenu ? "rotate-180" : ""
-                  }`}
+                  className={`ml-2 transition-transform duration-300 ${showProfileMenu ? "rotate-180" : ""
+                    }`}
                 >
                   ▼
                 </span>
@@ -2356,10 +2367,12 @@ if (notifError) {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex flex-col lg:flex-row flex-1 relative px-4 sm:px-6 gap-4 sm:gap-6">
+  {/* Main Content */}
+  <div className="flex flex-col lg:flex-row flex-1 relative px-4 sm:px-6 gap-4 sm:gap-6 pt-4 sm:pt-6">
         {/* Left Sidebar */}
-        <div className="w-full lg:w-1/4 flex flex-col space-y-4 sm:space-y-6">
+        <div className="w-full lg:w-1/4 flex flex-col space-y-4 sm:space-y-6 min-h-0">
+          {/* Make the left sidebar content fixed in layout but scrollable on hover */}
+          <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
           <div className="bg-gradient-to-br from-[#005524] to-[#005524] rounded-2xl shadow-xl p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl sm:text-2xl font-bold text-white">Your Device</h2>
@@ -2375,21 +2388,19 @@ if (notifError) {
               <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
                 <span className="text-white/90 font-medium">Status:</span>
                 <span
-                  className={`font-bold px-3 py-1 rounded-full text-sm ${
-                    deviceStatus === "Active"
-                      ? "bg-green-500 text-white"
-                      : "bg-red-500 text-white"
-                  }`}
+                  className={`font-bold px-3 py-1 rounded-full text-sm ${deviceStatus === "Active"
+                    ? "bg-green-500 text-white"
+                    : "bg-red-500 text-white"
+                    }`}
                 >
                   {deviceStatus}
                 </span>
               </div>
               <button
-                className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all duration-300 transform hover:scale-105 shadow-lg ${
-                  deviceStatus === "Active"
-                    ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
-                    : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-                }`}
+                className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all duration-300 transform hover:scale-105 shadow-lg ${deviceStatus === "Active"
+                  ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+                  : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                  }`}
                 onClick={() =>
                   setDeviceStatus(deviceStatus === "Active" ? "Inactive" : "Active")
                 }
@@ -2412,7 +2423,7 @@ if (notifError) {
                   onClick={() => handleSelectConnection(connection)}
                 >
                   <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                    <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
                       {connection.avatar ? (
                         <img
                           src={connection.avatar}
@@ -2420,7 +2431,7 @@ if (notifError) {
                           alt={connection.name}
                         />
                       ) : (
-                        <span>👤</span>
+                        <FaUser className="text-white" />
                       )}
                     </div>
                     <span className="text-gray-900 font-bold">{connection.name}</span>
@@ -2441,7 +2452,7 @@ if (notifError) {
               <p className="text-gray-600">No connections found.</p>
             )}
           </div>
-                    <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
             <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
               Safety Tips
             </h2>
@@ -2457,7 +2468,7 @@ if (notifError) {
                     setShowSafetyTipModal(true);
                   }}
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                  <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
                     {iconMap[tip.icon] ? (
                       React.createElement(iconMap[tip.icon])
                     ) : (
@@ -2471,13 +2482,16 @@ if (notifError) {
               <p className="text-gray-600">No safety tips available.</p>
             )}
           </div>
+          </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="w-full lg:w-2/4 p-4 sm:p-6">
+        <div className="w-full lg:w-2/4 p-4 sm:p-6 min-h-0">
+          {/* Center column: fixed in page layout, inner content scrolls on hover */}
+          <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
           <div className="bg-gradient-to-br from-[#005524] to-[#005524] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-center shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20 border border-gray-100">
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white text-xl">
+              <div className="w-12 h-14 rounded-full bg-white/20 flex items-center justify-center text-white text-xl">
                 {userProfile?.avatar ? (
                   <img
                     src={userProfile.avatar}
@@ -2485,16 +2499,13 @@ if (notifError) {
                     alt="Profile"
                   />
                 ) : (
-                  <span>👤</span>
+                  <FaUser className="text-white" />
                 )}
               </div>
               <div>
                 <span className="text-white text-lg sm:text-xl font-bold">
-                  Welcome, {isLoading ? "Loading..." : activeUser || "User"}!
+                  Welcome, {isLoading ? "..." : (userProfile?.first_name || (userProfile?.name || "User").split(" ")[0])}!
                 </span>
-                {userProfile && (
-                  <p className="text-sm text-white/90">Role: {userProfile.role}</p>
-                )}
               </div>
             </div>
           </div>
@@ -2512,21 +2523,19 @@ if (notifError) {
                 <div className="flex flex-wrap space-x-2 mt-2 sm:mt-0">
                   <button
                     onClick={() => setEmergencyFilter("nearby")}
-                    className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                      emergencyFilter === "nearby"
-                        ? "bg-[#005524] hover:bg-[#004015] text-white"
-                        : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                    }`}
+                    className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${emergencyFilter === "nearby"
+                      ? "bg-[#005524] hover:bg-[#004015] text-white"
+                      : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                      }`}
                   >
                     Nearby (5km)
                   </button>
                   <button
                     onClick={() => setEmergencyFilter("all")}
-                    className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                      emergencyFilter === "all"
-                        ? "bg-[#005524] hover:bg-[#004015] text-white"
-                        : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                    }`}
+                    className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${emergencyFilter === "all"
+                      ? "bg-[#005524] hover:bg-[#004015] text-white"
+                      : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                      }`}
                   >
                     All
                   </button>
@@ -2542,93 +2551,54 @@ if (notifError) {
                 <p className="text-gray-600">Loading emergencies...</p>
               ) : emergencies.length > 0 ? (
                 <div>
-                  {(() => {
-                    const emergenciesPerPage = 4;
-                    const totalEmergencyPages = Math.ceil(
-                      emergencies.length / emergenciesPerPage
-                    );
-                    const indexOfLastEmergency = emergencyPage * emergenciesPerPage;
-                    const indexOfFirstEmergency = indexOfLastEmergency - emergenciesPerPage;
-                    const currentEmergencies = emergencies.slice(
-                      indexOfFirstEmergency,
-                      indexOfLastEmergency
-                    );
-
-                    return (
-                      <>
-                        {currentEmergencies.map((emergency) => (
-                          <div
-                            key={emergency.id}
-                            className="bg-white rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#005524]/20"
-                          >
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
-                                {emergency.avatar ? (
-                                  <img
-                                    src={emergency.avatar}
-                                    className="w-full h-full rounded-full"
-                                    alt={emergency.name}
-                                  />
-                                ) : (
-                                  <span>🚨</span>
-                                )}
-                              </div>
-                              <div className="flex-1">
-                                <p className="font-bold text-[#005524]">
-                                  {emergency.emergency_type}
-                                </p>
-                                <p className="text-sm text-gray-900">
-                                  {emergency.message}
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                  Reported by {emergency.name} on{" "}
-                                  {new Date(emergency.created_at).toLocaleString()}
-                                </p>
-                              </div>
-                              <div className="flex space-x-2 sm:space-x-3">
-                                <button
-                                  onClick={() => handleViewLocation(emergency)}
-                                  className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
-                                >
-                                  <FaMapMarkerAlt className="mr-1 sm:mr-2" />
-                                  View
-                                </button>
-                                <button
-                                  onClick={() => handleCallAssistance(emergency)}
-                                  className="bg-[#f69f00] hover:bg-[#d88e00] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
-                                >
-                                  <FaPhone className="mr-1 sm:mr-2" />
-                                  Call
-                                </button>
-                                <button
-                                  onClick={() => handleReport(emergency)}
-                                  className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
-                                >
-                                  <FaExclamationTriangle className="mr-1 sm:mr-2" />
-                                  Report
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        <div className="flex justify-center mt-4 space-x-2">
-                          {Array.from({ length: totalEmergencyPages }, (_, i) => (
-                            <button
-                              key={i + 1}
-                              onClick={() => handleEmergencyPageChange(i + 1)}
-                              className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                                emergencyPage === i + 1
-                                  ? "bg-[#005524] text-white"
-                                  : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                              }`}
-                            >
-                              {i + 1}
-                            </button>
-                          ))}
+                  {emergencies.map((emergency) => (
+                    <div
+                      key={emergency.id}
+                      className="bg-white rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#005524]/20"
+                    >
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                        <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
+                          {emergency.avatar ? (
+                            <img
+                              src={emergency.avatar}
+                              className="w-full h-full rounded-full"
+                              alt={emergency.name}
+                            />
+                          ) : (
+                            <span>🚨</span>
+                          )}
                         </div>
-                      </>
-                    );
-                  })()}
+                        <div className="flex-1">
+                          <p className="font-bold text-[#005524]">{emergency.emergency_type}</p>
+                          <p className="text-sm text-gray-900">{emergency.message}</p>
+                          <p className="text-sm text-gray-600">Reported by {emergency.name} on {new Date(emergency.created_at).toLocaleString()}</p>
+                        </div>
+                        <div className="flex space-x-2 sm:space-x-3">
+                          <button
+                            onClick={() => handleViewLocation(emergency)}
+                            className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                          >
+                            <FaMapMarkerAlt className="mr-1 sm:mr-2" />
+                            View
+                          </button>
+                          <button
+                            onClick={() => handleCallAssistance(emergency)}
+                            className="bg-[#f69f00] hover:bg-[#d88e00] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                          >
+                            <FaPhone className="mr-1 sm:mr-2" />
+                            Call
+                          </button>
+                          <button
+                            onClick={() => handleReport(emergency)}
+                            className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                          >
+                            <FaExclamationTriangle className="mr-1 sm:mr-2" />
+                            Report
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <p className="text-gray-600">No emergencies found.</p>
@@ -2639,7 +2609,7 @@ if (notifError) {
             <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
               {showChatList ? (
                 <>
-                  <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+                  <h2 className="flex justify-center text-xl sm:text-2xl font-bold text-[#005524] mb-4">
                     Messages
                   </h2>
                   {isLoading ? (
@@ -2652,7 +2622,7 @@ if (notifError) {
                         onClick={() => handleSelectConnection(connection)}
                       >
                         <div className="flex items-center space-x-4">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                          <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
                             {connection.avatar ? (
                               <img
                                 src={connection.avatar}
@@ -2660,15 +2630,14 @@ if (notifError) {
                                 alt={connection.name}
                               />
                             ) : (
-                              <span>👤</span>
+                              <FaUser className="text-white" />
                             )}
                           </div>
                           <span className="text-gray-900 font-bold">{connection.name}</span>
                         </div>
                         <span
-                          className={`h-3 w-3 rounded-full ${
-                            connection.is_online ? "bg-green-500" : "bg-gray-400"
-                          }`}
+                          className={`h-3 w-3 rounded-full ${connection.is_online ? "bg-green-500" : "bg-gray-400"
+                            }`}
                         ></span>
                       </div>
                     ))
@@ -2684,10 +2653,9 @@ if (notifError) {
                       className="text-[#005524] hover:text-[#004015] flex items-center transition-all duration-300 hover:scale-105"
                     >
                       <FaArrowLeft className="mr-2" />
-                      Back to Chats
                     </button>
                     <h2 className="text-xl sm:text-2xl font-bold text-[#005524]">
-                      Chat with {currentChatRecipient}
+                      {currentChatRecipient}
                     </h2>
                   </div>
                   <div
@@ -2698,18 +2666,16 @@ if (notifError) {
                       (message) => (
                         <div
                           key={message.id}
-                          className={`flex ${
-                            message.sender_id === userProfile?.id
-                              ? "justify-end"
-                              : "justify-start"
-                          } mb-2`}
+                          className={`flex ${message.sender_id === userProfile?.id
+                            ? "justify-end"
+                            : "justify-start"
+                            } mb-2`}
                         >
                           <div
-                            className={`max-w-xs sm:max-w-md p-3 rounded-2xl ${
-                              message.sender_id === userProfile?.id
-                                ? "bg-[#005524] text-white"
-                                : "bg-gray-200 text-gray-900"
-                            }`}
+                            className={`max-w-xs sm:max-w-md p-3 rounded-2xl ${message.sender_id === userProfile?.id
+                              ? "bg-[#005524] text-white"
+                              : "bg-gray-200 text-gray-900"
+                              }`}
                           >
                             <p className="text-sm">{message.content}</p>
                             <p className="text-xs text-gray-400">
@@ -2746,50 +2712,51 @@ if (notifError) {
             </div>
           )}
           {activeTab === "report" && (
-    <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
-      <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
-        Report an Emergency
-      </h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        {[
-          { type: "Medical", icon: FaAmbulance },
-          { type: "General", icon: FaInfoCircle },
-          { type: "Fire", icon: FaFire },
-          { type: "Accident", icon: FaCarCrash },
-          { type: "Crime", icon: FaShieldAlt },
-        ].map(({ type, icon: Icon }) => (
-          <button
-            key={type}
-            onClick={() => {
-              setSelectedAlertType(type);
-              setSelectedCrisisAlert(null); // Reset to ensure new report
-              setShowCrisisModal(true);
-            }}
-            className="bg-gradient-to-r from-[#005524] to-[#f69f00] hover:from-[#004015] hover:to-[#d88e00] text-white p-4 rounded-2xl flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 shadow-lg"
-          >
-            <Icon size={24} className="mb-2" />
-            <span className="text-sm font-bold">{type}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )}
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+              <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+                Report an Emergency
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {[
+                  { type: "Medical", icon: FaAmbulance },
+                  { type: "Flood", icon: FaHouseFloodWater },
+                  { type: "Fire", icon: FaFire },
+                  { type: "Accident", icon: FaCarCrash },
+                  { type: "Crime", icon: FaShieldAlt },
+                ].map(({ type, icon: Icon }) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setSelectedAlertType(type);
+                      setSelectedCrisisAlert(null); // Reset to ensure new report
+                      setShowCrisisModal(true);
+                    }}
+                    className="bg-red-600 text-white p-4 rounded-2xl flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 shadow-lg"
+                  >
+                    <Icon size={24} className="mb-2" />
+                    <span className="text-sm font-bold">{type}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          </div>
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-full lg:w-1/4 flex flex-col space-y-4 sm:space-y-6">
+        <div className="w-full lg:w-1/4 flex flex-col space-y-4 sm:space-y-6 min-h-0">
+          {/* Right sidebar scrollable on hover */}
+          <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
           <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
-              Safe Alerts
-            </h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">Safe Alerts</h2>
             {isLoading ? (
               <p className="text-gray-600">Loading alerts...</p>
             ) : allSafeAlerts.length > 0 ? (
-              <>
-                {currentSafeAlerts.map((alert) => (
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {allSafeAlerts.map((alert) => (
                   <div
                     key={alert.id}
-                    className="flex items-center justify-between space-x-4 mb-2 p-2 rounded-2xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer"
+                    className="flex items-center justify-between space-x-4 p-2 rounded-2xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer"
                     onClick={async () => {
                       setSelectedCrisisAlert(alert);
                       if (alert.type === "Safe" && alert.related_crisis_id) {
@@ -2802,20 +2769,16 @@ if (notifError) {
                     }}
                   >
                     <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                      <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
                         <FaCheck />
                       </div>
                       <div>
                         {alert.user_id === userProfile?.id ? (
                           <p className="text-gray-900 font-bold">You marked yourself safe</p>
                         ) : (
-                          <p className="text-gray-900 font-bold">
-                            {alert.reporter} marked themselves safe
-                          </p>
+                          <p className="text-gray-900 font-bold">{alert.reporter} marked themselves safe</p>
                         )}
-                        <p className="text-sm text-gray-600">
-                          {new Date(alert.created_at).toLocaleString()}
-                        </p>
+                        <p className="text-sm text-gray-600">{new Date(alert.created_at).toLocaleString()}</p>
                       </div>
                     </div>
                     <button
@@ -2823,44 +2786,27 @@ if (notifError) {
                         e.stopPropagation();
                         handleMarkSafe(alert.user_id === userProfile?.id ? alert.related_crisis_id : undefined);
                       }}
-                      className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                      className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-1 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                     >
                       Unmark Safe
                     </button>
                   </div>
                 ))}
-                <div className="flex justify-center mt-4 space-x-2">
-                  {Array.from({ length: totalSafePages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => handleSafeAlertsPageChange(i + 1)}
-                      className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                        safeAlertsPage === i + 1
-                          ? "bg-[#005524] text-white"
-                          : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-              </>
+              </div>
             ) : (
               <p className="text-gray-600">No safe alerts.</p>
             )}
           </div>
           <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
-              Pending Crisis Alerts
-            </h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">Pending Crisis Alerts</h2>
             {isLoading ? (
               <p className="text-gray-600">Loading pending alerts...</p>
             ) : pendingCrisisAlerts.length > 0 ? (
-              <>
-                {currentPendingAlerts.map((alert) => (
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {pendingCrisisAlerts.map((alert) => (
                   <div
                     key={alert.id}
-                    className="flex items-center justify-between space-x-4 mb-2 p-2 rounded-2xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer"
+                    className="flex items-center justify-between space-x-4 p-2 rounded-2xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer"
                     onClick={async () => {
                       setSelectedCrisisAlert(alert);
                       if (alert.type === "Safe" && alert.related_crisis_id) {
@@ -2873,7 +2819,7 @@ if (notifError) {
                     }}
                   >
                     <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+                      <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
                         {iconMap[alert.type] ? (
                           React.createElement(iconMap[alert.type])
                         ) : (
@@ -2882,10 +2828,7 @@ if (notifError) {
                       </div>
                       <div>
                         <p className="text-gray-900 font-bold">{alert.type} Alert</p>
-                        <p className="text-sm text-gray-600">
-                          Reported by {alert.reporter} on{" "}
-                          {new Date(alert.created_at).toLocaleString()}
-                        </p>
+                        <p className="text-sm text-gray-600">Reported by {alert.reporter} on {new Date(alert.created_at).toLocaleString()}</p>
                       </div>
                     </div>
                     <button
@@ -2899,25 +2842,11 @@ if (notifError) {
                     </button>
                   </div>
                 ))}
-                <div className="flex justify-center mt-4 space-x-2">
-                  {Array.from({ length: totalPendingPages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => handlePendingAlertsPageChange(i + 1)}
-                      className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-                        pendingAlertsPage === i + 1
-                          ? "bg-[#005524] text-white"
-                          : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-              </>
+              </div>
             ) : (
               <p className="text-gray-600">No pending crisis alerts.</p>
             )}
+          </div>
           </div>
         </div>
       </div>
@@ -2949,7 +2878,7 @@ if (notifError) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
             <div className="flex items-center space-x-4 mb-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-r from-[#005524] to-[#f69f00] flex items-center justify-center text-white">
+              <div className="w-16 h-16 rounded-full bg-[#005524] flex items-center justify-center text-white">
                 {selectedSearchProfile.avatar ? (
                   <img
                     src={selectedSearchProfile.avatar}
@@ -3177,94 +3106,94 @@ if (notifError) {
         </div>
       )}
       {showCrisisModal && (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
-      {selectedCrisisAlert ? (
-        <>
-          <h2 className="text-xl font-bold text-[#005524] mb-4">
-            Crisis Details
-          </h2>
-          <p className="text-gray-600 mb-2">
-            <strong>Type:</strong> {selectedCrisisAlert.type === "Safe" ? originalCrisisType : selectedCrisisAlert.type}
-          </p>
-          <p className="text-gray-600 mb-2">
-            <strong>Reported by:</strong> {selectedCrisisAlert.reporter}
-          </p>
-          <p className="text-gray-600 mb-2">
-            <strong>Time:</strong>{" "}
-            {new Date(selectedCrisisAlert.created_at).toLocaleString()}
-          </p>
-          <p className="text-gray-600 mb-2">
-            <strong>Location:</strong> Lat: {selectedCrisisAlert.location.lat.toFixed(4)}, Lng: {selectedCrisisAlert.location.lng.toFixed(4)}
-          </p>
-          <div className="text-gray-600 mb-4">
-  <strong>Connections Marked Safe:</strong>
-  {getConnectedSafeUsers(selectedCrisisAlert.marked_safe_users).length > 0 ? (
-    <ul className="list-disc list-inside mt-2">
-      {getConnectedSafeUsers(selectedCrisisAlert.marked_safe_users).map((name, index) => (
-        <li key={index} className="text-sm text-gray-900">{name}</li>
-      ))}
-    </ul>
-  ) : (
-    <p className="text-sm text-gray-600 mt-2">No connections have marked themselves safe.</p>
-  )}
-</div>
-          <div className="flex justify-end space-x-4">
-            <button
-              onClick={() => {
-                setShowCrisisModal(false);
-                setSelectedCrisisAlert(null); // Reset to prevent accidental state retention
-              }}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-            >
-              Close
-            </button>
-            {!selectedCrisisAlert.responded_safe && (
-              <button
-                onClick={() => handleMarkSafe(selectedCrisisAlert.id)}
-                className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-              >
-                Mark Safe
-              </button>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+            {selectedCrisisAlert ? (
+              <>
+                <h2 className="text-xl font-bold text-[#005524] mb-4">
+                  Crisis Details
+                </h2>
+                <p className="text-gray-600 mb-2">
+                  <strong>Type:</strong> {selectedCrisisAlert.type === "Safe" ? originalCrisisType : selectedCrisisAlert.type}
+                </p>
+                <p className="text-gray-600 mb-2">
+                  <strong>Reported by:</strong> {selectedCrisisAlert.reporter}
+                </p>
+                <p className="text-gray-600 mb-2">
+                  <strong>Time:</strong>{" "}
+                  {new Date(selectedCrisisAlert.created_at).toLocaleString()}
+                </p>
+                <p className="text-gray-600 mb-2">
+                  <strong>Location:</strong> Lat: {selectedCrisisAlert.location.lat.toFixed(4)}, Lng: {selectedCrisisAlert.location.lng.toFixed(4)}
+                </p>
+                <div className="text-gray-600 mb-4">
+                  <strong>Connections Marked Safe:</strong>
+                  {getConnectedSafeUsers(selectedCrisisAlert.marked_safe_users).length > 0 ? (
+                    <ul className="list-disc list-inside mt-2">
+                      {getConnectedSafeUsers(selectedCrisisAlert.marked_safe_users).map((name, index) => (
+                        <li key={index} className="text-sm text-gray-900">{name}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-600 mt-2">No connections have marked themselves safe.</p>
+                  )}
+                </div>
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={() => {
+                      setShowCrisisModal(false);
+                      setSelectedCrisisAlert(null); // Reset to prevent accidental state retention
+                    }}
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                  >
+                    Close
+                  </button>
+                  {!selectedCrisisAlert.responded_safe && (
+                    <button
+                      onClick={() => handleMarkSafe(selectedCrisisAlert.id)}
+                      className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                    >
+                      Mark Safe
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-bold text-[#005524] mb-4">
+                  Confirm Emergency
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to trigger a {selectedAlertType} emergency alert at your location (Lat: {userLocation.lat.toFixed(4)}, Lng: {userLocation.lng.toFixed(4)})?
+                </p>
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={() => {
+                      setShowCrisisModal(false);
+                      setSelectedAlertType(null); // Reset to prevent state retention
+                    }}
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (selectedAlertType) {
+                        handleEmergencyAlert(selectedAlertType);
+                        setShowCrisisModal(false);
+                        setSelectedAlertType(null);
+                      }
+                    }}
+                    className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </>
             )}
           </div>
-        </>
-      ) : (
-        <>
-          <h2 className="text-xl font-bold text-[#005524] mb-4">
-            Confirm Emergency
-          </h2>
-          <p className="text-gray-600 mb-6">
-            Are you sure you want to trigger a {selectedAlertType} emergency alert at your location (Lat: {userLocation.lat.toFixed(4)}, Lng: {userLocation.lng.toFixed(4)})?
-          </p>
-          <div className="flex justify-end space-x-4">
-            <button
-              onClick={() => {
-                setShowCrisisModal(false);
-                setSelectedAlertType(null); // Reset to prevent state retention
-              }}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                if (selectedAlertType) {
-                  handleEmergencyAlert(selectedAlertType);
-                  setShowCrisisModal(false);
-                  setSelectedAlertType(null);
-                }
-              }}
-              className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-            >
-              Confirm
-            </button>
-          </div>
-        </>
+        </div>
       )}
-    </div>
-  </div>
-)}
       {showAlertConfirm && crisisAlert && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">

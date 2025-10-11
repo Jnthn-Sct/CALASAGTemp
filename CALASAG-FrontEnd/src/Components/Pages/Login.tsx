@@ -219,21 +219,28 @@ const Login: React.FC = () => {
       console.log('User role:', userData.role);
       await testSupabaseConnection();
       if (userData.role === 'user') {
-        console.log('Redirecting to 2FA step');
-        setIs2FAStep(true);
-        setCooldown(30);
-      } else if (userData.role === 'admin') {
-        console.log('Redirecting to /admin-dashboard');
-        navigate('/admin-dashboard');
-      } else if (userData.role === 'super_admin') {
-        console.log('Redirecting to /super-admin-dashboard');
-        navigate('/super-admin-dashboard');
-      } else {
-        console.error('Unknown role:', userData.role);
-        throw new Error('Unknown user role');
-      }
+  console.log('Redirecting to 2FA step');
+  setIs2FAStep(true);
+  setCooldown(30);
+} else if (userData.role === 'admin') {
+  console.log('Redirecting to /admin-dashboard');
+  navigate('/admin-dashboard');
+} else if (userData.role === 'super_admin') {
+  console.log('Redirecting to /super-admin-dashboard');
+  navigate('/super-admin-dashboard');
+} else {
+  console.error('Unknown role:', userData.role);
+  throw new Error('Unknown user role');
+}
 
-      resetForm();
+// ✅ Update last login timestamp
+await supabase
+  .from("users")
+  .update({ last_login: new Date().toISOString() })
+  .eq("user_id", data.user.id);
+
+resetForm();
+
     } catch (err: unknown) {
       const error = err as AuthError;
       console.error('Login Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));

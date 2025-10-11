@@ -728,7 +728,7 @@ const AdminDashboard: React.FC = () => {
           // Prefer users.last_login if present; otherwise derive from sessions
           const derivedLastLogin =
             lastSeen &&
-              (!u.lastLogin || new Date(lastSeen) > new Date(u.lastLogin))
+            (!u.lastLogin || new Date(lastSeen) > new Date(u.lastLogin))
               ? lastSeen
               : u.lastLogin;
           return {

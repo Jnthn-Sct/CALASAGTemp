@@ -11,6 +11,7 @@ import {
   FaPhone,
   FaExclamationTriangle,
   FaCheck,
+  FaCheckDouble,
   FaTimes,
   FaEnvelope,
   FaPhoneAlt,
@@ -2021,7 +2022,7 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8eed4] flex flex-col">
+  <div className="h-screen overflow-hidden bg-[#f8eed4] flex flex-col">
       {/* Navbar */}
   <div className="bg-[#f8eed4] border-b border-gray-300 p-2 sm:p-3 flex flex-col sm:flex-row items-center justify-between shadow-sm relative">
         <div className="flex items-center w-full sm:w-auto mb-4 sm:mb-0">
@@ -2089,40 +2090,40 @@ const Dashboard: React.FC = () => {
                 {/* Interactive divider between input and results */}
                 <div className="h-px mx-2 bg-gradient-to-r from-transparent via-[#005524]/30 to-transparent transition-opacity duration-300 opacity-60 group-hover:opacity-100" />
                 {searchQuery.trim().length >= 2 && (
-                  <div className="max-h-60 overflow-y-auto py-2">
-                    {searchResults.length > 0 ? (
-                      searchResults.map((user) => (
-                        <div
-                          key={user.id}
-                          className="px-4 py-3 hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer flex items-center space-x-3"
-                          onClick={() => {
-                            setSelectedSearchProfile(user);
-                            setShowProfile(true);
-                            setShowSearchResults(false);
-                            setSearchQuery("");
-                          }}
-                        >
-                          <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
-                            {user.avatar ? (
-                              <img
-                                src={user.avatar}
-                                className="w-full h-full rounded-full"
-                                alt={user.name}
-                              />
-                            ) : (
-                              <FaUser className="text-white" />
-                            )}
+                  <div className="max-h-60 overflow-y-auto overflow-x-hidden py-2">
+                      {searchResults.length > 0 ? (
+                        searchResults.map((user) => (
+                          <div
+                            key={user.id}
+                            className="px-4 h-12 hover:bg-gray-50 transition-colors duration-200 cursor-pointer flex items-center space-x-3 w-full"
+                            onClick={() => {
+                              setSelectedSearchProfile(user);
+                              setShowProfile(true);
+                              setShowSearchResults(false);
+                              setSearchQuery("");
+                            }}
+                          >
+                            <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#005524] flex items-center justify-center text-white">
+                              {user.avatar ? (
+                                <img
+                                  src={user.avatar}
+                                  className="w-full h-full rounded-full"
+                                  alt={user.name}
+                                />
+                              ) : (
+                                <FaUser className="text-white" />
+                              )}
+                            </div>
+                            <div className="min-w-0 w-full flex flex-col justify-center">
+                              <p className="text-[#005524] font-bold truncate">{user.name}</p>
+                              <p className="text-sm text-gray-600 truncate">{user.email}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-[#005524] font-bold">{user.name}</p>
-                            <p className="text-sm text-gray-600">{user.email}</p>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="px-4 py-2 text-gray-600">No users found.</p>
-                    )}
-                  </div>
+                        ))
+                      ) : (
+                        <p className="px-4 py-2 text-gray-600">No users found.</p>
+                      )}
+                    </div>
                 )}
               </div>
             </div>
@@ -2409,7 +2410,7 @@ const Dashboard: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20 overflow-hidden">
             <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
               Connections
             </h2>
@@ -2504,7 +2505,7 @@ const Dashboard: React.FC = () => {
               </div>
               <div>
                 <span className="text-white text-lg sm:text-xl font-bold">
-                  Welcome, {isLoading ? "..." : (userProfile?.first_name || (userProfile?.name || "User").split(" ")[0])}!
+                  Welcome, {isLoading ? "..." : (userProfile?.name || userProfile?.first_name || "User")}!
                 </span>
               </div>
             </div>
@@ -2648,15 +2649,18 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <button
-                      onClick={() => setShowChatList(true)}
-                      className="text-[#005524] hover:text-[#004015] flex items-center transition-all duration-300 hover:scale-105"
-                    >
-                      <FaArrowLeft className="mr-2" />
-                    </button>
-                    <h2 className="text-xl sm:text-2xl font-bold text-[#005524]">
-                      {currentChatRecipient}
-                    </h2>
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => setShowChatList(true)}
+                        className="text-[#005524] hover:text-[#004015] flex items-center transition-all duration-300 hover:scale-105 mr-3"
+                        aria-label="Back to conversations"
+                      >
+                        <FaArrowLeft className="" />
+                      </button>
+                      <h2 className="text-xl sm:text-2xl font-bold text-[#005524]">
+                        {currentChatRecipient}
+                      </h2>
+                    </div>
                   </div>
                   <div
                     ref={chatContainerRef}
@@ -2752,7 +2756,7 @@ const Dashboard: React.FC = () => {
             {isLoading ? (
               <p className="text-gray-600">Loading alerts...</p>
             ) : allSafeAlerts.length > 0 ? (
-              <div className="max-h-64 overflow-y-auto space-y-2">
+              <div className="max-h-64 overflow-y-auto overflow-x-hidden space-y-2">
                 {allSafeAlerts.map((alert) => (
                   <div
                     key={alert.id}
@@ -2768,17 +2772,18 @@ const Dashboard: React.FC = () => {
                       setShowCrisisModal(true);
                     }}
                   >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
-                        <FaCheck />
+                    <div className="flex items-center space-x-3 min-w-0">
+                      {/* Simple green double-check icon (no circular background) */}
+                      <div className="flex items-center justify-center text-green-600">
+                        <FaCheckDouble size={20} />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         {alert.user_id === userProfile?.id ? (
-                          <p className="text-gray-900 font-bold">You marked yourself safe</p>
+                          <p className="text-gray-900 font-bold truncate">You marked yourself safe</p>
                         ) : (
-                          <p className="text-gray-900 font-bold">{alert.reporter} marked themselves safe</p>
+                          <p className="text-gray-900 font-bold truncate">{alert.reporter} marked themselves safe</p>
                         )}
-                        <p className="text-sm text-gray-600">{new Date(alert.created_at).toLocaleString()}</p>
+                        <p className="text-xs text-gray-600 truncate">{new Date(alert.created_at).toLocaleString()}</p>
                       </div>
                     </div>
                     <button
@@ -2797,12 +2802,12 @@ const Dashboard: React.FC = () => {
               <p className="text-gray-600">No safe alerts.</p>
             )}
           </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20 overflow-hidden">
             <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">Pending Crisis Alerts</h2>
             {isLoading ? (
               <p className="text-gray-600">Loading pending alerts...</p>
             ) : pendingCrisisAlerts.length > 0 ? (
-              <div className="max-h-64 overflow-y-auto space-y-2">
+              <div className="max-h-64 overflow-y-auto overflow-x-hidden space-y-2">
                 {pendingCrisisAlerts.map((alert) => (
                   <div
                     key={alert.id}
@@ -2818,17 +2823,18 @@ const Dashboard: React.FC = () => {
                       setShowCrisisModal(true);
                     }}
                   >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      {/* Simple green exclamation-triangle icon (no circular background) */}
+                      <div className="flex items-center justify-center text-green-600">
                         {iconMap[alert.type] ? (
-                          React.createElement(iconMap[alert.type])
+                          React.createElement(iconMap[alert.type], { size: 20, className: 'text-green-600' })
                         ) : (
-                          <FaExclamationTriangle />
+                          <FaExclamationTriangle size={20} />
                         )}
                       </div>
-                      <div>
-                        <p className="text-gray-900 font-bold">{alert.type} Alert</p>
-                        <p className="text-sm text-gray-600">Reported by {alert.reporter} on {new Date(alert.created_at).toLocaleString()}</p>
+                      <div className="min-w-0">
+                        <p className="text-gray-900 font-bold truncate">{alert.type} Alert</p>
+                        <p className="text-xs text-gray-600 truncate">Reported by {alert.reporter} on {new Date(alert.created_at).toLocaleString()}</p>
                       </div>
                     </div>
                     <button
@@ -2836,7 +2842,7 @@ const Dashboard: React.FC = () => {
                         e.stopPropagation();
                         handleMarkSafe(alert.id);
                       }}
-                      className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                      className="bg-[#005524] hover:bg-[#004015] text-white px-1 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                     >
                       Mark Safe
                     </button>

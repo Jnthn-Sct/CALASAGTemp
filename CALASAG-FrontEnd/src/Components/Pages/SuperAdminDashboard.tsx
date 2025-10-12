@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import logoImage from "../Images/no-bg-logo.png";
+import logoImage from "../Images/nobg-logo.png";
 import {
   FaUserCircle,
   FaBell,
@@ -1045,10 +1045,10 @@ const SuperAdminDashboard: React.FC = () => {
     switch (activeTab) {
       case "dashboard":
         return (
-          <div className="space-y-8">
+          <div className="space-y-4">
             {/* Top Metric Cards */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-[#005524]/20">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="group bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100 hover:border-[#005524]/20">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
@@ -1067,7 +1067,7 @@ const SuperAdminDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-blue-500/20">
+              <div className="group bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100 hover:border-blue-500/20">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
@@ -1092,7 +1092,7 @@ const SuperAdminDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-500/20">
+              <div className="group bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100 hover:border-red-500/20">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
@@ -1111,7 +1111,7 @@ const SuperAdminDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-green-500/20">
+              <div className="group bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100 hover:border-green-500/20">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
@@ -1131,7 +1131,7 @@ const SuperAdminDashboard: React.FC = () => {
 
             {/* Charts Section */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100">
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
@@ -1172,7 +1172,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
                     Admin Activity
@@ -1200,7 +1200,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
                     Report Distribution
@@ -1230,7 +1230,7 @@ const SuperAdminDashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
                     Recent Admins
@@ -1281,7 +1281,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
                     Recent System Reports
@@ -1364,7 +1364,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
                     System Status
@@ -1480,7 +1480,7 @@ const SuperAdminDashboard: React.FC = () => {
         );
       case "admin-management":
         return (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Header with Stats */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6">
@@ -1590,7 +1590,7 @@ const SuperAdminDashboard: React.FC = () => {
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="w-10 h-10 bg-gradient-to-br from-[#005524] to-[#f69f00] rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3">
+                              <div className="w-10 h-10 bg-[#005524] rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3">
                                 {admin.name.charAt(0)}
                               </div>
                               <div>
@@ -1682,7 +1682,7 @@ const SuperAdminDashboard: React.FC = () => {
         );
       case "feature-updates":
         return (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Header with Stats */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6">
@@ -1888,7 +1888,7 @@ const SuperAdminDashboard: React.FC = () => {
         );
       case "system-reports":
         return (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Header with Stats */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6">
@@ -2132,11 +2132,11 @@ const SuperAdminDashboard: React.FC = () => {
         );
       case "settings":
         return (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Profile Header */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100">
               <div className="flex items-center space-x-4 mb-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-[#005524] to-[#f69f00] rounded-full flex items-center justify-center text-white font-bold text-xl">
+                <div className="w-16 h-16 bg-[#005524] rounded-full flex items-center justify-center text-white font-bold text-xl">
                   {userProfile?.name?.charAt(0) || "S"}
                 </div>
                 <div>
@@ -2474,11 +2474,11 @@ const SuperAdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+  <div className="flex h-screen bg-[#f8eed4]">
       <div
-        className={`bg-white shadow-sm border-r border-gray-200 transition-all duration-300 ${
+        className={`flex-shrink-0 transition-all duration-300 transform-gpu ${
           isSidebarCollapsed ? "w-16" : "w-64"
-        }`}
+        } mx-4 my-6 p-2 rounded-3xl backdrop-blur-sm bg-white/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
       >
         <div className="flex items-center justify-between p-4">
           {!isSidebarCollapsed && (
@@ -2500,12 +2500,15 @@ const SuperAdminDashboard: React.FC = () => {
             <li>
               <button
                 onClick={() => setActiveTab("dashboard")}
-                className={`flex items-center w-full p-3 text-sm font-medium ${
+                className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
                   activeTab === "dashboard"
-                    ? "bg-[#005524] text-white"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-[#005524]"
+                    ? "bg-[#005524] text-white scale-100 shadow-inner"
+                    : "text-gray-700 hover:bg-white/10 hover:text-[#005524] hover:scale-102"
                 }`}
+                onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
+                onMouseUp={(e) => (e.currentTarget.style.transform = '')}
               >
+                <span className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/0 to-black/2 opacity-0 transition-opacity"></span>
                 <FaHome
                   size={16}
                   className={isSidebarCollapsed ? "" : "mr-3"}
@@ -2516,11 +2519,13 @@ const SuperAdminDashboard: React.FC = () => {
             <li>
               <button
                 onClick={() => setActiveTab("admin-management")}
-                className={`flex items-center w-full p-3 text-sm font-medium ${
+                className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
                   activeTab === "admin-management"
-                    ? "bg-[#005524] text-white"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-[#005524]"
+                    ? "bg-[#005524] text-white scale-100 shadow-inner"
+                    : "text-gray-700 hover:bg-white/10 hover:text-[#005524] hover:scale-102"
                 }`}
+                onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
+                onMouseUp={(e) => (e.currentTarget.style.transform = '')}
               >
                 <FaTable
                   size={16}
@@ -2532,11 +2537,13 @@ const SuperAdminDashboard: React.FC = () => {
             <li>
               <button
                 onClick={() => setActiveTab("feature-updates")}
-                className={`flex items-center w-full p-3 text-sm font-medium ${
+                className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
                   activeTab === "feature-updates"
-                    ? "bg-[#005524] text-white"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-[#005524]"
+                    ? "bg-[#005524] text-white scale-100 shadow-inner"
+                    : "text-gray-700 hover:bg-white/10 hover:text-[#005524] hover:scale-102"
                 }`}
+                onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
+                onMouseUp={(e) => (e.currentTarget.style.transform = '')}
               >
                 <FaCubes
                   size={16}
@@ -2548,11 +2555,13 @@ const SuperAdminDashboard: React.FC = () => {
             <li>
               <button
                 onClick={() => setActiveTab("system-reports")}
-                className={`flex items-center w-full p-3 text-sm font-medium ${
+                className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
                   activeTab === "system-reports"
-                    ? "bg-[#005524] text-white"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-[#005524]"
+                    ? "bg-[#005524] text-white scale-100 shadow-inner"
+                    : "text-gray-700 hover:bg-white/10 hover:text-[#005524] hover:scale-102"
                 }`}
+                onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
+                onMouseUp={(e) => (e.currentTarget.style.transform = '')}
               >
                 <FaFileAlt
                   size={16}
@@ -2564,11 +2573,13 @@ const SuperAdminDashboard: React.FC = () => {
             <li>
               <button
                 onClick={() => setActiveTab("settings")}
-                className={`flex items-center w-full p-3 text-sm font-medium ${
+                className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
                   activeTab === "settings"
-                    ? "bg-[#005524] text-white"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-[#005524]"
+                    ? "bg-[#005524] text-white scale-100 shadow-inner"
+                    : "text-gray-700 hover:bg-white/10 hover:text-[#005524] hover:scale-102"
                 }`}
+                onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
+                onMouseUp={(e) => (e.currentTarget.style.transform = '')}
               >
                 <FaCog size={16} className={isSidebarCollapsed ? "" : "mr-3"} />
                 {!isSidebarCollapsed && "Settings"}
@@ -2579,22 +2590,20 @@ const SuperAdminDashboard: React.FC = () => {
       </div>
 
       <div className="flex-1 flex flex-col">
-        <div className="bg-white shadow-sm border-b border-gray-200 p-4 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <div className="mx-1 my-6 p-4 rounded-2xl bg-white/80 backdrop-blur-sm border border-white/10 shadow-lg flex items-center justify-between">
+          <div className="flex items-center space-x-2">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 text-gray-600 hover:text-[#005524] hover:bg-gray-50 rounded-full lg:hidden"
+              className="p-2 text-gray-700 hover:text-green-700 hover:bg-gray-100 rounded-lg lg:hidden transition-colors"
             >
               <FaChevronRight size={16} />
             </button>
-            <h1 className="text-xl font-semibold text-gray-900">
-              Super Admin Dashboard
-            </h1>
+            <h1 className="text-lg font-semibold text-gray-900">Super Admin Dashboard</h1>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 text-gray-600 hover:text-[#005524] hover:bg-gray-50 rounded-full"
+              className="relative p-2 text-gray-700 hover:text-green-700 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <FaBell size={16} />
               {notificationsList.some((notification) => !notification.read) && (
@@ -2604,12 +2613,10 @@ const SuperAdminDashboard: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                className="flex items-center space-x-2 text-gray-600 hover:text-[#005524]"
+                className="flex items-center space-x-2 text-gray-700 hover:text-green-700 rounded-lg px-2 py-1 transition-colors"
               >
-                <FaUserCircle size={24} />
-                <span className="hidden md:inline text-sm font-medium">
-                  {userProfile?.name || "Super Admin"}
-                </span>
+                <FaUserCircle size={22} />
+                <span className="hidden md:inline text-sm font-medium text-gray-800">{userProfile?.name || 'Super Admin'}</span>
                 <FaChevronDown size={12} />
               </button>
               {isProfileDropdownOpen && (
@@ -2701,7 +2708,7 @@ const SuperAdminDashboard: React.FC = () => {
       </div>
 
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Confirm Logout

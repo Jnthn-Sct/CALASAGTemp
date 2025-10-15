@@ -97,6 +97,7 @@ interface UiUser {
   reports?: number; // incident reports
   crisis?: number; // crisis alerts
   role?: string; // user role (admin, user, etc.)
+  icon: string; // optional icon URL
 }
 
 interface EmergencyReport {
@@ -3164,19 +3165,28 @@ const AdminDashboard: React.FC = () => {
                   required
                 />
               </div>
-              {/* Icon input optional */}
+              {/* Icon dropdown selection */}
               <div>
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Icon (optional)
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g., FaShieldAlt"
-                  onChange={() => {
-                    /* noop, not stored in local since we are not editing icon on create for now */
-                  }}
+                <select
+                  value={newSafetyTip.icon || ""}
+                  onChange={e => setNewSafetyTip({ ...newSafetyTip, icon: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
-                />
+                >
+                  <option value="">Select an icon</option>
+                  <option value="FaShieldAlt">Shield</option>
+                  <option value="FaFirstAid">First Aid</option>
+                  <option value="FaFireExtinguisher">Fire Extinguisher</option>
+                  <option value="FaBell">Bell</option>
+                  <option value="FaExclamationTriangle">Warning</option>
+                  <option value="FaInfoCircle">Info</option>
+                  <option value="FaUserShield">User Shield</option>
+                  <option value="FaHeartbeat">Heartbeat</option>
+                  <option value="FaAmbulance">Ambulance</option>
+                  <option value="FaHandsHelping">Helping Hands</option>
+                </select>
               </div>
               <div className="flex justify-end space-x-4">
                 <button

@@ -2723,7 +2723,7 @@ const Dashboard: React.FC = () => {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {[
                   { type: "Medical", icon: FaAmbulance },
-                  { type: "Flood", icon: FaHouseFloodWater },
+                  { type: "General", icon: FaInfoCircle },
                   { type: "Fire", icon: FaFire },
                   { type: "Accident", icon: FaCarCrash },
                   { type: "Crime", icon: FaShieldAlt },

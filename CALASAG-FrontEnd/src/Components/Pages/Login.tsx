@@ -324,43 +324,15 @@ resetForm();
       </div>
 
       {/* Right Side - Form with Animated Background */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#005524] relative overflow-hidden">
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#2B2B2B] relative overflow-hidden">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Floating Orbs */}
-          <div 
-            className="absolute w-64 h-64 bg-[#f9a01b] rounded-full opacity-20 blur-3xl" 
-            style={{ 
-              top: '10%', 
-              left: '10%',
-              animation: 'float-slow 15s ease-in-out infinite'
-            }} 
-          />
-          <div 
-            className="absolute w-96 h-96 bg-[#F9C835] rounded-full opacity-15 blur-3xl" 
-            style={{ 
-              bottom: '10%', 
-              right: '10%',
-              animation: 'float-medium 12s ease-in-out infinite',
-              animationDelay: '2s'
-            }} 
-          />
-          <div 
-            className="absolute w-48 h-48 bg-[#f9a01b] rounded-full opacity-25 blur-2xl" 
-            style={{ 
-              top: '50%', 
-              right: '20%',
-              animation: 'float-fast 8s ease-in-out infinite',
-              animationDelay: '1s'
-            }} 
-          />
-          
           {/* Animated Grid Pattern */}
           <div className="absolute inset-0 opacity-5">
             <div 
               className="w-full h-full" 
               style={{
-                backgroundImage: 'linear-gradient(#f9a01b 1px, transparent 1px), linear-gradient(90deg, #f9a01b 1px, transparent 1px)',
+                backgroundImage: 'linear-gradient(#FFD166 1px, transparent 1px), linear-gradient(90deg, #FFD166 1px, transparent 1px)',
                 backgroundSize: '50px 50px',
                 animation: 'grid-move 20s linear infinite'
               }} 
@@ -383,7 +355,7 @@ resetForm();
           <form
             key={isRegistering ? 'register' : is2FAStep ? '2fa' : 'login'}
             ref={formRef}
-            className="bg-[#f8eed4] p-6 md:p-8 rounded-lg shadow-xl w-full border border-gray-800 text-[#005524] transition-all duration-500 ease-out hover:-translate-y-1 hover:shadow-2xl focus-within:shadow-2xl hover:ring-2 hover:ring-[#f9a01b] ring-offset-2 ring-offset-[#005524]"
+            className="bg-[#f8eed4] p-6 md:p-8 rounded-lg shadow-xl w-full border border-gray-800 text-[#005524] transition-all duration-500 ease-out hover:-translate-y-1 hover:shadow-2xl focus-within:shadow-2xl hover:ring-2 hover:ring-[#FFD166] ring-offset-2 ring-offset-[#005524]"
             onSubmit={(e) => {
               console.log('Form submitted');
               is2FAStep ? handle2FASubmit(e) : isRegistering ? handleRegisterSubmit(e) : handleLoginSubmit(e);
@@ -422,7 +394,7 @@ resetForm();
               <>
                 <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.2s backwards' }}>
                   <input
-                    className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#f9a01b] focus:border-transparent"
+                    className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
                     type="email"
                     placeholder="Email"
                     required
@@ -435,7 +407,7 @@ resetForm();
                   <>
                     <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.25s backwards' }}>
                       <input
-                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#f9a01b] focus:border-transparent"
+                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
                         type="text"
                         placeholder="Username"
                         required
@@ -446,7 +418,7 @@ resetForm();
 
                     <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.3s backwards' }}>
                       <input
-                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#f9a01b] focus:border-transparent"
+                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
                         type="text"
                         placeholder="First Name"
                         required
@@ -457,7 +429,7 @@ resetForm();
 
                     <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.35s backwards' }}>
                       <input
-                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#f9a01b] focus:border-transparent"
+                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
                         type="text"
                         placeholder="Middle Initial"
                         maxLength={2}
@@ -468,7 +440,7 @@ resetForm();
 
                     <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.4s backwards' }}>
                       <input
-                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#f9a01b] focus:border-transparent"
+                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
                         type="text"
                         placeholder="Last Name"
                         required
@@ -479,7 +451,7 @@ resetForm();
 
                     <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.45s backwards' }}>
                       <input
-                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#f9a01b] focus:border-transparent"
+                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
                         type="tel"
                         placeholder="Mobile Number"
                         required
@@ -492,7 +464,7 @@ resetForm();
 
                 <div className="mb-4" style={{ animation: `slide-in 0.5s ease-out ${isRegistering ? '0.5s' : '0.3s'} backwards` }}>
                   <input
-                    className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#f9a01b] focus:border-transparent"
+                    className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
                     type="password"
                     placeholder="Password"
                     required
@@ -504,7 +476,7 @@ resetForm();
                 {isRegistering && (
                   <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.55s backwards' }}>
                     <input
-                      className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#f9a01b] focus:border-transparent"
+                      className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
                       type="password"
                       placeholder="Confirm Password"
                       required
@@ -518,7 +490,7 @@ resetForm();
               <>
                 <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.2s backwards' }}>
                   <input
-                    className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#f9a01b] focus:border-transparent text-center text-lg tracking-widest"
+                    className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent text-center text-lg tracking-widest"
                     type="text"
                     placeholder="Enter OTP Code"
                     value={otpCode}
@@ -552,7 +524,7 @@ resetForm();
 
             <button
               type="submit"
-              className="w-full bg-[#f9a01b] hover:bg-[#F9C835] text-white font-medium py-2 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#FFD166] hover:bg-[#F9C835] text-white font-medium py-2 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ animation: `slide-in 0.5s ease-out ${isRegistering ? '0.6s' : '0.4s'} backwards` }}
               disabled={isSubmitting}
             >

@@ -141,6 +141,9 @@ const SuperAdminDashboard: React.FC = () => {
   const [isSubmittingFeature, setIsSubmittingFeature] =
     useState<boolean>(false);
   const [isSubmittingReport, setIsSubmittingReport] = useState<boolean>(false);
+  const [notificationTab, setNotificationTab] = useState<"unread" | "all">(
+    "unread"
+  );
   const [isSubmittingReportAction, setIsSubmittingReportAction] =
     useState<boolean>(false);
 
@@ -475,7 +478,6 @@ const SuperAdminDashboard: React.FC = () => {
         .select("id, message, created_at, read")
         .eq("user_id", user.id) // Fetch only for the current super admin
         .order("created_at", { ascending: false })
-        .limit(5)
         .returns<
           { id: number; message: string; created_at: string; read: boolean }[]
         >();
@@ -635,6 +637,26 @@ const SuperAdminDashboard: React.FC = () => {
     }
   };
 
+  const markAllNotificationsAsRead = async () => {
+    if (!userProfile) return;
+    const unreadIds = notificationsList
+      .filter(n => !n.read)
+      .map(n => n.id);
+
+    if (unreadIds.length === 0) return;
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .in('id', unreadIds)
+      .eq('user_id', userProfile.id);
+
+    if (error) {
+      setError(`Error marking notifications as read: ${error.message}`);
+    } else {
+      fetchNotifications();
+    }
+  };
   // Handle logout
   const handleLogout = async () => {
     try {
@@ -2539,7 +2561,7 @@ const SuperAdminDashboard: React.FC = () => {
             >
               <FaBell size={16} />
               {notificationsList.some((notification) => !notification.read) && (
-                <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
+                <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white/80"></span>
               )}
             </button>
             <div className="relative">
@@ -2573,42 +2595,74 @@ const SuperAdminDashboard: React.FC = () => {
 
         {showNotifications && (
           <div className="absolute right-4 top-16 w-80 bg-white rounded-lg shadow-lg border border-gray-100 p-4 z-50">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">
-              Notifications
-            </h3>
-            {notificationsList.length === 0 ? (
-              <p className="text-sm text-gray-500">No new notifications</p>
-            ) : (
-              notificationsList.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg ${
-                    notification.read ? "bg-gray-50" : "bg-white"
-                  }`}
-                  onClick={() => markNotificationAsRead(notification.id)}
+            <div className="px-4 py-3 border-b border-gray-100">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Notifications
+                </h3>
+                <button
+                  onClick={markAllNotificationsAsRead}
+                  className="text-sm text-blue-600 hover:text-blue-700"
                 >
-                  <div className="flex items-center space-x-2">
-                    {!notification.read && (
-                      <span className="h-2 w-2 bg-red-500 rounded-full"></span>
-                    )}
-                    <div>
-                      <p
-                        className={`text-sm ${
-                          notification.read
-                            ? "text-gray-600"
-                            : "text-gray-800 font-medium"
-                        }`}
-                      >
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {notification.time}
-                      </p>
+                  Mark all as read
+                </button>
+              </div>
+              <div className="flex border-b border-gray-200 mt-2">
+                <button
+                  onClick={() => setNotificationTab("unread")}
+                  className={`flex-1 py-2 text-sm font-medium ${notificationTab === "unread"
+                    ? "border-b-2 border-[#005524] text-[#005524]"
+                    : "text-gray-500 hover:text-gray-700"
+                    }`}
+                >
+                  Unread
+                </button>
+                <button
+                  onClick={() => setNotificationTab("all")}
+                  className={`flex-1 py-2 text-sm font-medium ${notificationTab === "all"
+                    ? "border-b-2 border-[#005524] text-[#005524]"
+                    : "text-gray-500 hover:text-gray-700"
+                    }`}
+                >
+                  All
+                </button>
+              </div>
+            </div>
+            <div className="max-h-96 overflow-y-auto">
+              {(() => {
+                const filteredNotifications =
+                  notificationTab === "unread"
+                    ? notificationsList.filter((n) => !n.read)
+                    : notificationsList;
+
+                if (filteredNotifications.length === 0) {
+                  return (
+                    <div className="px-4 py-3 text-center text-gray-500">
+                      No {notificationTab} notifications
                     </div>
+                  );
+                }
+
+                return filteredNotifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors cursor-pointer ${notification.read ? "bg-gray-50" : "bg-white"
+                      }`}
+                    onClick={() => markNotificationAsRead(notification.id)}
+                  >
+                    <p
+                      className={`text-sm ${notification.read
+                        ? "text-gray-600"
+                        : "text-gray-800 font-medium"
+                        }`}
+                    >
+                      {notification.message}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
                   </div>
-                </div>
-              ))
-            )}
+                ));
+              })()}
+            </div>
           </div>
         )}
 

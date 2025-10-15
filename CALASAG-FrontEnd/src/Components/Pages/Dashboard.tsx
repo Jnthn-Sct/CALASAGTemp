@@ -533,45 +533,14 @@ const Dashboard: React.FC = () => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user");
 
-      // Find the connection between the current user and the selected user
-      let connectionData = null;
-      let connectionError = null;
-
-      // Try first direction (user is user1, selected profile is user2)
-      const { data: firstDirectionData, error: firstDirectionError } = await supabase
-        .from("connections")
-        .select("id")
-        .eq("user1_id", user.id)
-        .eq("user2_id", userId)
-        .maybeSingle();
-
-      if (firstDirectionData) {
-        connectionData = firstDirectionData;
-        connectionError = firstDirectionError;
-      } else {
-        // Try reverse direction (user is user2, selected profile is user1)
-        const { data: secondDirectionData, error: secondDirectionError } = await supabase
-          .from("connections")
-          .select("id")
-          .eq("user1_id", userId)
-          .eq("user2_id", user.id)
-          .maybeSingle();
-
-        if (secondDirectionData) {
-          connectionData = secondDirectionData;
-          connectionError = secondDirectionError;
-        }
-      }
-
-      if (connectionError || !connectionData) {
-        throw new Error(`Connection not found: ${connectionError?.message || "Unknown error"}`);
-      }
-
-      // Delete the connection
+      // This is correct for your table structure. It deletes the record
+      // regardless of who initiated the connection.
       const { error: deleteError } = await supabase
         .from("connections")
         .delete()
-        .eq("id", connectionData.id);
+        .or(
+          `and(user1_id.eq.${user.id},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${user.id})`
+        );
 
       if (deleteError) {
         throw new Error(`Failed to remove connection: ${deleteError.message}`);
@@ -703,6 +672,7 @@ const Dashboard: React.FC = () => {
         const { data: connectionsData, error: connectionsError } =
           await supabase
             .from("connections")
+            // Corrected to fetch bidirectionally
             .select("id, user1_id, user2_id")
             .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
         if (connectionsError) {

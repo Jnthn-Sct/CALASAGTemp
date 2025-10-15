@@ -2103,7 +2103,7 @@ const Dashboard: React.FC = () => {
                               setSearchQuery("");
                             }}
                           >
-                            <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
+                            <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white">
                               {user.avatar ? (
                                 <img
                                   src={user.avatar}
@@ -2115,7 +2115,7 @@ const Dashboard: React.FC = () => {
                               )}
                             </div>
                             <div className="min-w-0 w-full flex flex-col justify-center">
-                              <p className="text-[#4ECDC4] font-bold truncate">{user.name}</p>
+                              <p className="text-[#2B2B2B] font-bold truncate">{user.name}</p>
                               <p className="text-sm text-gray-600 truncate">{user.email}</p>
                             </div>
                           </div>
@@ -2158,7 +2158,7 @@ const Dashboard: React.FC = () => {
                         className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 hover:scale-105 transition-all duration-300 rounded-2xl"
                       >
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
+                          <div className="w-10 h-10 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white">
                             {request.sender_avatar ? (
                               <img
                                 src={request.sender_avatar}
@@ -2315,7 +2315,7 @@ const Dashboard: React.FC = () => {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center space-x-2 focus:outline-none hover:bg-gray-100 rounded-2xl px-3 py-2 transition-all duration-300 hover:scale-105"
             >
-              <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
+              <div className="w-10 h-10 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white">
                 {userProfile?.avatar ? (
                   <img
                     src={userProfile.avatar}
@@ -2326,7 +2326,7 @@ const Dashboard: React.FC = () => {
                   <FaUser className="text-white" />
                 )}
               </div>
-              <div className="flex items-center text-[#4ECDC4]">
+              <div className="flex items-center text-[#2B2B2B]">
                 <span className="font-bold">
                   {isLoading ? "Loading..." : activeUser || "User"}
                 </span>
@@ -2411,14 +2411,14 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className="bg-[#FAFAFA] border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20 overflow-hidden">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4] mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-4">
               Connections
             </h2>
             {isLoading ? (
               <p className="text-gray-600">Loading connections...</p>
             ) : connections.length > 0 ? (
               connections.map((connection) => (
-                <div
+                <div  
                   key={connection.id}
                   className="flex items-center justify-between space-x-4 mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded-2xl hover:scale-105 transition-all duration-300"
                   onClick={() => handleSelectConnection(connection)}
@@ -2454,7 +2454,7 @@ const Dashboard: React.FC = () => {
             )}
           </div>
           <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4] mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-4">
               Safety Tips
             </h2>
             {isLoading ? (
@@ -2492,7 +2492,7 @@ const Dashboard: React.FC = () => {
           <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
           <div className="bg-gradient-to-br from-[#FFD166] to-[#FFD166] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-center shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20 border border-gray-100">
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-14 rounded-full bg-white/20 flex items-center justify-center text-white text-xl">
+              <div className="w-12 h-14 rounded-full bg-black/20 flex items-center justify-center text-black text-xl">
                 {userProfile?.avatar ? (
                   <img
                     src={userProfile.avatar}
@@ -2516,9 +2516,9 @@ const Dashboard: React.FC = () => {
             </div>
           )}
           {activeTab === "home" && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#2B2B2B]/20">
               <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4]">
+                <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B]">
                   Recent Emergencies
                 </h2>
                 <div className="flex flex-wrap space-x-2 mt-2 sm:mt-0">
@@ -2610,7 +2610,7 @@ const Dashboard: React.FC = () => {
             <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
               {showChatList ? (
                 <>
-                  <h2 className="flex justify-center text-xl sm:text-2xl font-bold text-[#4ECDC4] mb-4">
+                  <h2 className="flex justify-center text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-4">
                     Messages
                   </h2>
                   {isLoading ? (
@@ -2717,8 +2717,8 @@ const Dashboard: React.FC = () => {
           )}
           {activeTab === "report" && (
             <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
-              <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4] mb-4">
-                Report an Emergency
+              <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-4">
+               Report an Emergency
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {[
@@ -2752,7 +2752,7 @@ const Dashboard: React.FC = () => {
           {/* Right sidebar scrollable on hover */}
           <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
           <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4] mb-4">Safe Alerts</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-4">Safe Alerts</h2>
             {isLoading ? (
               <p className="text-gray-600">Loading alerts...</p>
             ) : allSafeAlerts.length > 0 ? (
@@ -2803,7 +2803,7 @@ const Dashboard: React.FC = () => {
             )}
           </div>
           <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20 overflow-hidden">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4] mb-4">Pending Crisis Alerts</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-4">Pending Crisis Alerts</h2>
             {isLoading ? (
               <p className="text-gray-600">Loading pending alerts...</p>
             ) : pendingCrisisAlerts.length > 0 ? (

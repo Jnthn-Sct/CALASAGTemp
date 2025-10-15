@@ -319,7 +319,7 @@ resetForm();
   return (
     <div className="min-h-screen w-screen flex flex-col lg:flex-row overflow-hidden">
       {/* Left Side - Logo */}
-      <div className="w-full lg:w-1/2 bg-[#f8eed4] flex flex-col items-center justify-center p-8">
+      <div className="w-full lg:w-1/2 bg-[#FAFAFA] flex flex-col items-center justify-center p-8">
         <img src={logo} alt="CALASAG Logo" className="w-900 md:w-900 mb-8" />
       </div>
 

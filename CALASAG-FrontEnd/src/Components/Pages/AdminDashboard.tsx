@@ -546,44 +546,6 @@ const AdminDashboard: React.FC = () => {
       }
     };
 
-    // Load admin notifications
-    const loadNotifications = async () => {
-      if (!currentUser?.id) return;
-
-      // Fetch all notifications for the current admin
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", currentUser.id)
-        .eq("notification_type", "admin");
-
-      if (error) {
-        console.error("Error loading notifications:", error);
-        return;
-      }
-
-      if (data) {
-        const formattedNotifications = data.map((notification) => {
-          return {
-            id: notification.id,
-            message: notification.message,
-            time: new Date(notification.created_at).toLocaleString(),
-            read: notification.read,
-            type: notification.type || "general",
-            sourceId: notification.source_id,
-            forAdminId: notification.for_admin_id,
-            clearedBy: notification.cleared_by,
-          };
-        });
-
-        // Sort by creation date descending
-        const sorted = formattedNotifications.sort(
-          (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
-        );
-        setNotificationsList(sorted);
-      }
-    };
-
     // Define loadIncidentActions at the top level of useEffect to avoid duplicate declarations
     const loadIncidentActions = async (page = 1) => {
       setIsLoadingActions(true);
@@ -710,37 +672,6 @@ const AdminDashboard: React.FC = () => {
       }
     };
 
-    const loadPresence = async () => {
-      const { data } = await supabase
-        .from("user_sessions")
-        .select("user_id, last_seen");
-      if (!data) return;
-      const lastSeenMap = new Map<string, string | null>();
-      for (const row of data as any[]) {
-        const prev = lastSeenMap.get(row.user_id);
-        if (!prev || new Date(row.last_seen) > new Date(prev || 0)) {
-          lastSeenMap.set(row.user_id, row.last_seen);
-        }
-      }
-      setUsers((prev) =>
-        prev.map((u) => {
-          const lastSeen = lastSeenMap.get(u.id) || null;
-          const computedPresence = computeOnlineStatus(lastSeen);
-          // Prefer users.last_login if present; otherwise derive from sessions
-          const derivedLastLogin =
-            lastSeen &&
-            (!u.lastLogin || new Date(lastSeen) > new Date(u.lastLogin))
-              ? lastSeen
-              : u.lastLogin;
-          return {
-            ...u,
-            onlineStatus: computedPresence,
-            lastLogin: derivedLastLogin || u.lastLogin,
-          };
-        })
-      );
-    };
-
     const loadIncidentCounts = async () => {
       const { data } = await supabase.from("emergencies").select("user_id");
       if (!data) return;
@@ -776,7 +707,6 @@ const AdminDashboard: React.FC = () => {
           loadEmergencies(),
           loadCrisis(),
           loadUsersBase(),
-          loadPresence(),
           loadIncidentCounts(),
           loadCrisisCounts(),
           loadIncidentActions(),
@@ -920,8 +850,7 @@ const AdminDashboard: React.FC = () => {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications" },
-        () => {
-          // Reload notifications
+        (payload) => {
           loadNotifications();
         }
       )
@@ -940,17 +869,6 @@ const AdminDashboard: React.FC = () => {
           loadUsersBase();
           loadPresence();
           loadIncidentCounts();
-        }
-      )
-      .subscribe();
-
-    const sessionsChannel = supabase
-      .channel("user_sessions")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "user_sessions" },
-        () => {
-          loadPresence();
         }
       )
       .subscribe();
@@ -1015,13 +933,52 @@ const AdminDashboard: React.FC = () => {
       supabase.removeChannel(safetyTipsChannel);
       supabase.removeChannel(emergenciesChannel);
       supabase.removeChannel(usersChannel);
-      supabase.removeChannel(sessionsChannel);
       supabase.removeChannel(crisisChannel);
       supabase.removeChannel(activityChannel);
       supabase.removeChannel(notificationsChannel);
       supabase.removeChannel(incidentActionsChannel); // Make sure to remove this channel as well
     };
-  }, [currentUser?.id]); // Re-run if currentUser changes
+  }, []); // Re-run if currentUser changes
+
+  // Add this below the main useEffect
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    const loadNotifications = async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .eq("notification_type", "admin")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading notifications:", error);
+        return;
+      }
+
+      if (data) {
+        const formatted = data.map((notification) => ({
+          id: notification.id,
+          message: notification.message,
+          time: new Date(notification.created_at).toLocaleString(),
+          read: notification.read,
+          type: notification.type || "general",
+          sourceId: notification.source_id,
+          forAdminId: notification.for_admin_id,
+          clearedBy: notification.cleared_by,
+        }));
+        setNotificationsList(formatted);
+      }
+    };
+
+    loadNotifications();
+
+    const notificationsChannel = supabase.channel('custom-notification-channel').on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentUser.id}` }, payload => {
+      loadNotifications();
+    }).subscribe();
+    return () => { supabase.removeChannel(notificationsChannel) }
+  }, [currentUser?.id]);
 
   useEffect(() => {
     loadEmergencies();

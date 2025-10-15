@@ -193,7 +193,7 @@ const Dashboard: React.FC = () => {
   const emergenciesPerPage = 6;
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  const iconMap: { [key: string]: React.ElementType } = {
+  const iconMap: { [key: string]: React.ElementType | undefined } = {
     FaAmbulance,
     FaInfoCircle,
     FaFire,
@@ -201,11 +201,6 @@ const Dashboard: React.FC = () => {
     FaShieldAlt,
   };
 
-  // Memoized unread notification count
-  const unreadNotificationCount = useMemo(
-    () => notifications.filter((n) => !n.read).length,
-    [notifications]
-  );
 
   // Memoized combined safe alerts list
   const allSafeAlerts = useMemo(() => {
@@ -215,6 +210,11 @@ const Dashboard: React.FC = () => {
     return uniqueAlerts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [userSafeAlerts, crisisAlerts]);
 
+  // Memoized unread notification count
+  const unreadNotifications = useMemo(
+    () => notifications.filter((n) => !n.read),
+    [notifications]
+  );
   // Calculate total pages and current page alerts for safe alerts
   const totalSafePages = Math.ceil(allSafeAlerts.length / alertsPerPage);
   const indexOfLastSafeAlert = safeAlertsPage * alertsPerPage;
@@ -625,20 +625,19 @@ const Dashboard: React.FC = () => {
           .eq("user_id", requestData.recipient_id)
           .single();
 
-        // Add notification for the current user
-        setNotifications((prev) => [
+        // Create notification for the current user (the one who accepted)
+        const { error: selfNotificationError } = await supabase.rpc(
+          "create_notification",
           {
-            id: Date.now(),
-            user_id: user.id,
-            type: "connection_accepted",
+            recipient_id: user.id,
             notification_type: "connection_accepted",
-            message: `You accepted a connection with ${senderData?.name || "User"}.`,
-            read: false,
-            created_at: new Date().toISOString(),
-          },
-          ...prev,
-        ]);
-
+            message_text: `You are now connected with ${senderData?.name || "User"}.`,
+            sender_id: requestData.sender_id,
+          }
+        );
+        if (selfNotificationError) {
+          console.error("Self-notification error:", selfNotificationError);
+        }
         // Send notification to the sender that their request was accepted
         const { error: notificationError } = await supabase
           .rpc('create_notification', {
@@ -2200,9 +2199,9 @@ const Dashboard: React.FC = () => {
               className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-all duration-300 hover:scale-110"
             >
               <FaBell size={20} className="text-[#FFD166]" />
-              {unreadNotificationCount > 0 && (
+              {unreadNotifications.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-[#E63946] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
-                  {unreadNotificationCount}
+                  {unreadNotifications.length}
                 </span>
               )}
             </button>
@@ -2214,7 +2213,11 @@ const Dashboard: React.FC = () => {
                   </h3>
                   <button
                     onClick={markAllAsRead}
-                    className="text-sm text-blue-600 hover:text-blue-800 transition-colors duration-200"
+                    className={`text-sm text-blue-600 hover:text-blue-800 transition-colors duration-200 ${
+                      unreadNotifications.length === 0
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
                   >
                     Mark all as read
                   </button>
@@ -2243,10 +2246,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="max-h-96 overflow-y-auto">
                   {(() => {
-                     const filteredNotifications =
-                       notificationTab === "unread"
-                         ? notifications.filter((n) => !n.read)
-                         : notifications;
+                     const filteredNotifications = notificationTab === "unread" ? unreadNotifications : notifications;
  
                      if (filteredNotifications.length === 0) {
                        return (
@@ -2295,58 +2295,7 @@ const Dashboard: React.FC = () => {
                      ));
                   })()}
                   {connectionRequests.length > 0 && (
-                    <div className="border-t border-gray-100 py-2">
-                      <h3 className="px-4 py-2 text-lg font-bold text-[#004ECDC45524]">
-                        Connection Requests
-                      </h3>
-                      {connectionRequests.map((request) => (
-                        <div
-                          key={request.id}
-                          className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 hover:scale-105 transition-all duration-300 rounded-2xl"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
-                              {request.sender_avatar ? (
-                                <img
-                                  src={request.sender_avatar}
-                                  className="w-full h-full rounded-full"
-                                  alt={request.sender_name}
-                                />
-                              ) : (
-                                <FaUser className="text-white" />
-                              )}
-                            </div>
-                            <p className="text-gray-900 text-sm">
-                              {request.sender_name} wants to connect
-                            </p>
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() =>
-                                handleConnectionRequestAction(
-                                  request.id,
-                                  "accepted"
-                                )
-                              }
-                              className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
-                            >
-                              <FaCheck className="inline mr-1" /> Accept
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleConnectionRequestAction(
-                                  request.id,
-                                  "rejected"
-                                )
-                              }
-                              className="bg-[#E63946] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
-                            >
-                              <FaTimes className="inline mr-1" /> Reject
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <div className="px-4 py-3 text-center text-gray-500 border-t border-gray-100">You have {connectionRequests.length} pending connection request{connectionRequests.length > 1 ? 's' : ''}.</div>
                   )}
                 </div>
               </div>

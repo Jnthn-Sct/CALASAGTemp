@@ -60,7 +60,6 @@ interface Admin {
   status: "active" | "inactive";
   lastLogin: string;
   last_login?: string; // Database field
-  permissions: string[];
 }
 
 interface FeatureUpdate {
@@ -109,8 +108,6 @@ const SuperAdminDashboard: React.FC = () => {
   const [showFeatureUpdateModal, setShowFeatureUpdateModal] =
     useState<boolean>(false);
   const [showReportDetails, setShowReportDetails] = useState<boolean>(false);
-  const [showPermissionsModal, setShowPermissionsModal] =
-    useState<boolean>(false);
   const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null);
   const [selectedReport, setSelectedReport] = useState<SystemReport | null>(
     null
@@ -273,7 +270,7 @@ const SuperAdminDashboard: React.FC = () => {
     try {
       let { data, error } = await supabase
         .from("users")
-        .select("user_id, name, email, role, status, last_login, permissions")
+        .select("user_id, name, email, role, status, last_login")
         .eq("role", "admin")
         .returns<Admin[]>();
       if (error) {
@@ -282,7 +279,7 @@ const SuperAdminDashboard: React.FC = () => {
           const { data: retryData, error: retryError } = await supabase
             .from("users")
             .select(
-              "user_id, name, email, role, status, last_login, permissions"
+              "user_id, name, email, role, status, last_login"
             )
             .eq("role", "admin")
             .returns<Admin[]>();
@@ -303,7 +300,6 @@ const SuperAdminDashboard: React.FC = () => {
           ? new Date(user.last_login).toLocaleString()
           : "N/A",
         last_login: user.last_login,
-        permissions: user.permissions || [],
       }));
       setAdmins(adminsData);
     } catch (error: any) {
@@ -843,38 +839,6 @@ const SuperAdminDashboard: React.FC = () => {
     }
   };
 
-  // Handle update permissions
-  const handleUpdatePermissions = async (
-    e: React.FormEvent<HTMLFormElement>,
-    adminId: number
-  ) => {
-    e.preventDefault();
-    try {
-      const formData = new FormData(e.currentTarget);
-      const permissions = [
-        "view_reports",
-        "manage_admins",
-        "approve_features",
-      ].filter((perm) => formData.get(perm));
-
-      const admin = admins.find((admin) => admin.id === adminId);
-      if (!admin) throw new Error("Admin not found");
-
-      const { error } = await supabase
-        .from("users")
-        .update({ permissions })
-        .eq("user_id", admin.user_id);
-
-      if (error) throw error;
-
-      await fetchAllUsers();
-      setShowPermissionsModal(false);
-      setSuccessMessage("Permissions updated successfully");
-    } catch (error: any) {
-      setError(`Failed to update permissions: ${error.message}`);
-    }
-  };
-
   // Handle toggle admin status
   const handleToggleAdminStatus = async (adminId: number) => {
     try {
@@ -1254,7 +1218,6 @@ const SuperAdminDashboard: React.FC = () => {
                         className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer group"
                         onClick={() => {
                           setSelectedAdmin(admin);
-                          setShowPermissionsModal(true);
                         }}
                       >
                         <div className="flex items-center space-x-3">
@@ -1489,7 +1452,7 @@ const SuperAdminDashboard: React.FC = () => {
                     Admin Management
                   </h2>
                   <p className="text-sm text-gray-600 mt-1">
-                    Manage admin accounts and permissions
+                    Manage admin accounts
                   </p>
                 </div>
                 <button
@@ -1560,10 +1523,7 @@ const SuperAdminDashboard: React.FC = () => {
                         Last Login
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Permissions
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Actions
+                        Action
                       </th>
                     </tr>
                   </thead>
@@ -1625,24 +1585,6 @@ const SuperAdminDashboard: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {admin.lastLogin}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex flex-wrap gap-1">
-                              {admin.permissions.length > 0 ? (
-                                admin.permissions.map((perm, index) => (
-                                  <span
-                                    key={index}
-                                    className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                                  >
-                                    {perm.replace("_", " ")}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                                  No permissions
-                                </span>
-                              )}
-                            </div>
-                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                             <button
                               onClick={() => handleToggleAdminStatus(admin.id)}
@@ -1656,19 +1598,6 @@ const SuperAdminDashboard: React.FC = () => {
                               {admin.status === "active"
                                 ? "Deactivate"
                                 : "Activate"}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedAdmin(admin);
-                                setShowPermissionsModal(true);
-                              }}
-                              className="px-3 py-1.5 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors text-xs font-medium"
-                            >
-                              <FaPermissions
-                                size={10}
-                                className="inline mr-1"
-                              />
-                              Permissions
                             </button>
                           </td>
                         </tr>
@@ -2447,12 +2376,6 @@ const SuperAdminDashboard: React.FC = () => {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-sm font-medium text-gray-600">
-                      Permissions
-                    </span>
-                    <span className="text-sm text-gray-900">Full Access</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-sm font-medium text-gray-600">
                       Session Timeout
                     </span>
                     <span className="text-sm text-gray-900">24 hours</span>
@@ -2478,7 +2401,7 @@ const SuperAdminDashboard: React.FC = () => {
       <div
         className={`flex-shrink-0 transition-all duration-300 transform-gpu ${
           isSidebarCollapsed ? "w-16" : "w-64"
-        } mx-4 my-6 p-2 rounded-3xl backdrop-blur-sm bg-white/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
+        } mx-4 my-4 p-2 rounded-2xl backdrop-blur-sm bg-white/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
       >
         <div className="flex items-center justify-between p-4">
           {!isSidebarCollapsed && (
@@ -2598,7 +2521,16 @@ const SuperAdminDashboard: React.FC = () => {
             >
               <FaChevronRight size={16} />
             </button>
-            <h1 className="text-lg font-semibold text-gray-900">Super Admin Dashboard</h1>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>Dashboard</span>
+                <FaChevronRight size={12} />
+                <span className="text-gray-900 font-medium">
+                  {activeTab === "admin-management" && "Admin Management"}
+                  {activeTab === "feature-updates" && "Feature Updates"}
+                  {activeTab === "system-reports" && "System Reports"}
+                  {activeTab === "settings" && "Settings"}
+              </span>
+            </div>
           </div>
           <div className="flex items-center space-x-3">
             <button
@@ -2709,7 +2641,7 @@ const SuperAdminDashboard: React.FC = () => {
 
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
+          <div className="bg-white rounded-xl p-6 w-96">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Confirm Logout
             </h3>
@@ -3011,73 +2943,6 @@ const SuperAdminDashboard: React.FC = () => {
                 Archive
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {showPermissionsModal && selectedAdmin && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Manage Permissions for {selectedAdmin.name}
-            </h3>
-            <form
-              onSubmit={(e) => handleUpdatePermissions(e, selectedAdmin.id)}
-              className="space-y-4"
-            >
-              <div className="space-y-2">
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    name="view_reports"
-                    defaultChecked={selectedAdmin.permissions.includes(
-                      "view_reports"
-                    )}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-sm text-gray-700">View Reports</span>
-                </label>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    name="manage_admins"
-                    defaultChecked={selectedAdmin.permissions.includes(
-                      "manage_admins"
-                    )}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-sm text-gray-700">Manage Admins</span>
-                </label>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    name="approve_features"
-                    defaultChecked={selectedAdmin.permissions.includes(
-                      "approve_features"
-                    )}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-sm text-gray-700">
-                    Approve Features
-                  </span>
-                </label>
-              </div>
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowPermissionsModal(false)}
-                  className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20]"
-                >
-                  Save Permissions
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

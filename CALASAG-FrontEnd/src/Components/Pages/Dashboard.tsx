@@ -2022,9 +2022,9 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-  <div className="h-screen overflow-hidden bg-[#f8eed4] flex flex-col">
+  <div className="h-screen overflow-hidden bg-[#FAFAFA] flex flex-col">
       {/* Navbar */}
-  <div className="bg-[#f8eed4] border-b border-gray-300 p-2 sm:p-3 flex flex-col sm:flex-row items-center justify-between shadow-sm relative">
+  <div className="bg-[#FAFAFA] border-b border-gray-300 p-2 sm:p-3 flex flex-col sm:flex-row items-center justify-between shadow-sm relative">
         <div className="flex items-center w-full sm:w-auto mb-4 sm:mb-0">
           <img src={logoImage} className="h-10 w-auto sm:h-16 md:h-20" alt="Logo" />
         </div>
@@ -2033,8 +2033,8 @@ const Dashboard: React.FC = () => {
           <button
             onClick={() => handleNavigation("home")}
             className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 ${activeTab === "home"
-              ? "text-[#005524] border-[#005524] bg-[#005524]/10 font-bold shadow-sm"
-              : "text-gray-600 border-transparent hover:text-[#005524] hover:border-[#005524]/50 hover:bg-[#005524]/5 hover:scale-105"
+              ? "text-[#4ECDC4] border-[#4ECDC4] bg-[#4ECDC4]/10 font-bold shadow-sm"
+              : "text-gray-600 border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105"
               }`}
           >
             <FaHome size={20} />
@@ -2043,8 +2043,8 @@ const Dashboard: React.FC = () => {
           <button
             onClick={() => handleNavigation("message")}
             className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 ${activeTab === "message"
-              ? "text-[#005524] border-[#005524] bg-[#005524]/10 font-bold shadow-sm"
-              : "text-gray-600 border-transparent hover:text-[#005524] hover:border-[#005524]/50 hover:bg-[#005524]/5 hover:scale-105"
+              ? "text-[#4ECDC4] border-[#4ECDC4] bg-[#4ECDC4]/10 font-bold shadow-sm"
+              : "text-gray-600 border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105"
               }`}
           >
             <FaEnvelope size={20} />
@@ -2053,8 +2053,8 @@ const Dashboard: React.FC = () => {
           <button
             onClick={() => handleNavigation("report")}
             className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 ${activeTab === "report"
-              ? "text-[#005524] border-[#005524] bg-[#005524]/10 font-bold shadow-sm"
-              : "text-gray-600 border-transparent hover:text-[#005524] hover:border-[#005524]/50 hover:bg-[#005524]/5 hover:scale-105"
+              ? "text-[#4ECDC4] border-[#4ECDC4] bg-[#4ECDC4]/10 font-bold shadow-sm"
+              : "text-gray-600 border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105"
               }`}
           >
             <FaExclamationTriangle size={20} />
@@ -2070,7 +2070,7 @@ const Dashboard: React.FC = () => {
               title="Search users"
               className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-all duration-300 hover:scale-110"
             >
-              <FaSearch size={20} className="text-[#005524]" />
+              <FaSearch size={20} className="text-[#4ECDC4]" />
             </button>
             <div className="absolute right-10 top-0 z-70">
               <div
@@ -2083,12 +2083,12 @@ const Dashboard: React.FC = () => {
                     placeholder="Search users..."
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full bg-white px-3 py-2 text-sm focus:ring-[#005524] focus:border-[#005524] outline-none"
+                    className="w-full bg-white px-3 py-2 text-sm focus:ring-[#4ECDC4] focus:border-[#4ECDC4] outline-none"
                     autoFocus={showSearchResults}
                   />
                 </div>
                 {/* Interactive divider between input and results */}
-                <div className="h-px mx-2 bg-gradient-to-r from-transparent via-[#005524]/30 to-transparent transition-opacity duration-300 opacity-60 group-hover:opacity-100" />
+                <div className="h-px mx-2 bg-gradient-to-r from-transparent via-[#4ECDC4]/30 to-transparent transition-opacity duration-300 opacity-60 group-hover:opacity-100" />
                 {searchQuery.trim().length >= 2 && (
                   <div className="max-h-60 overflow-y-auto overflow-x-hidden py-2">
                       {searchResults.length > 0 ? (
@@ -2103,7 +2103,7 @@ const Dashboard: React.FC = () => {
                               setSearchQuery("");
                             }}
                           >
-                            <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#005524] flex items-center justify-center text-white">
+                            <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
                               {user.avatar ? (
                                 <img
                                   src={user.avatar}
@@ -2115,7 +2115,7 @@ const Dashboard: React.FC = () => {
                               )}
                             </div>
                             <div className="min-w-0 w-full flex flex-col justify-center">
-                              <p className="text-[#005524] font-bold truncate">{user.name}</p>
+                              <p className="text-[#4ECDC4] font-bold truncate">{user.name}</p>
                               <p className="text-sm text-gray-600 truncate">{user.email}</p>
                             </div>
                           </div>
@@ -2136,17 +2136,17 @@ const Dashboard: React.FC = () => {
               }}
               className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-all duration-300 hover:scale-110"
             >
-              <FaUserPlus size={20} className="text-[#005524]" />
+              <FaUserPlus size={20} className="text-[#4ECDC4]" />
               {connectionRequests.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#005524] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
+                <span className="absolute -top-1 -right-1 bg-[#4ECDC4] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
                   {connectionRequests.length}
                 </span>
               )}
             </button>
             {showConnectionRequestsMenu && (
-              <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#005524]/20">
+              <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#4ECDC4]/20">
                 <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
-                  <h3 className="text-lg font-bold text-[#005524]">
+                  <h3 className="text-lg font-bold text-[#4ECDC4]">
                     Connection Requests
                   </h3>
                 </div>
@@ -2158,7 +2158,7 @@ const Dashboard: React.FC = () => {
                         className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 hover:scale-105 transition-all duration-300 rounded-2xl"
                       >
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
+                          <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
                             {request.sender_avatar ? (
                               <img
                                 src={request.sender_avatar}
@@ -2181,7 +2181,7 @@ const Dashboard: React.FC = () => {
                                 "accepted"
                               )
                             }
-                            className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                            className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                           >
                             <FaCheck className="inline mr-1" /> Accept
                           </button>
@@ -2192,7 +2192,7 @@ const Dashboard: React.FC = () => {
                                 "rejected"
                               )
                             }
-                            className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                            className="bg-[#E63946] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                           >
                             <FaTimes className="inline mr-1" /> Reject
                           </button>
@@ -2214,22 +2214,22 @@ const Dashboard: React.FC = () => {
               }}
               className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-all duration-300 hover:scale-110"
             >
-              <FaBell size={20} className="text-[#f69f00]" />
+              <FaBell size={20} className="text-[#FFD166]" />
               {unreadNotificationCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#be4c1d] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
+                <span className="absolute -top-1 -right-1 bg-[#E63946] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
                   {unreadNotificationCount}
                 </span>
               )}
             </button>
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#005524]/20">
+              <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#4ECDC4]/20">
                 <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
-                  <h3 className="text-lg font-bold text-[#005524]">
+                  <h3 className="text-lg font-bold text-[#4ECDC4]">
                     Notifications
                   </h3>
                   <button
                     onClick={clearAllNotifications}
-                    className="text-sm text-[#be4c1d] hover:text-[#a33d16] transition-colors duration-200"
+                    className="text-sm text-[#E63946] hover:text-[#a33d16] transition-colors duration-200"
                   >
                     Clear All
                   </button>
@@ -2239,7 +2239,7 @@ const Dashboard: React.FC = () => {
                     notifications.map((notification) => (
                       <div
                         key={notification.id}
-                        className={`px-4 py-3 hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer rounded-2xl ${!notification.read ? "bg-[#005524]/5" : ""
+                        className={`px-4 py-3 hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer rounded-2xl ${!notification.read ? "bg-[#4ECDC4]/5" : ""
                           }`}
                         onClick={() => markNotificationAsRead(notification.id)}
                       >
@@ -2254,7 +2254,7 @@ const Dashboard: React.FC = () => {
                   )}
                   {connectionRequests.length > 0 && (
                     <div className="border-t border-gray-100 py-2">
-                      <h3 className="px-4 py-2 text-lg font-bold text-[#005524]">
+                      <h3 className="px-4 py-2 text-lg font-bold text-[#004ECDC45524]">
                         Connection Requests
                       </h3>
                       {connectionRequests.map((request) => (
@@ -2263,7 +2263,7 @@ const Dashboard: React.FC = () => {
                           className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 hover:scale-105 transition-all duration-300 rounded-2xl"
                         >
                           <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
+                            <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
                               {request.sender_avatar ? (
                                 <img
                                   src={request.sender_avatar}
@@ -2286,7 +2286,7 @@ const Dashboard: React.FC = () => {
                                   "accepted"
                                 )
                               }
-                              className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                              className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                             >
                               <FaCheck className="inline mr-1" /> Accept
                             </button>
@@ -2297,7 +2297,7 @@ const Dashboard: React.FC = () => {
                                   "rejected"
                                 )
                               }
-                              className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                              className="bg-[#E63946] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                             >
                               <FaTimes className="inline mr-1" /> Reject
                             </button>
@@ -2315,7 +2315,7 @@ const Dashboard: React.FC = () => {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center space-x-2 focus:outline-none hover:bg-gray-100 rounded-2xl px-3 py-2 transition-all duration-300 hover:scale-105"
             >
-              <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
+              <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
                 {userProfile?.avatar ? (
                   <img
                     src={userProfile.avatar}
@@ -2326,7 +2326,7 @@ const Dashboard: React.FC = () => {
                   <FaUser className="text-white" />
                 )}
               </div>
-              <div className="flex items-center text-[#005524]">
+              <div className="flex items-center text-[#4ECDC4]">
                 <span className="font-bold">
                   {isLoading ? "Loading..." : activeUser || "User"}
                 </span>
@@ -2339,7 +2339,7 @@ const Dashboard: React.FC = () => {
               </div>
             </button>
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#005524]/20">
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#4ECDC4]/20">
                 <button
                   onClick={() => handleProfileAction("profile")}
                   className="w-full px-4 py-2 text-left text-gray-900 hover:bg-gray-50 hover:scale-105 transition-all duration-300 flex items-center rounded-2xl"
@@ -2357,7 +2357,7 @@ const Dashboard: React.FC = () => {
                 <div className="border-t border-gray-100 my-1"></div>
                 <button
                   onClick={() => handleProfileAction("logout")}
-                  className="w-full px-4 py-2 text-left text-[#be4c1d] hover:bg-gray-50 hover:scale-105 transition-all duration-300 flex items-center rounded-2xl"
+                  className="w-full px-4 py-2 text-left text-[#E63946] hover:bg-gray-50 hover:scale-105 transition-all duration-300 flex items-center rounded-2xl"
                 >
                   <FaSignOutAlt size={16} className="mr-2" />
                   Logout
@@ -2374,7 +2374,7 @@ const Dashboard: React.FC = () => {
         <div className="w-full lg:w-1/4 flex flex-col space-y-4 sm:space-y-6 min-h-0">
           {/* Make the left sidebar content fixed in layout but scrollable on hover */}
           <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
-          <div className="bg-gradient-to-br from-[#005524] to-[#005524] rounded-2xl shadow-xl p-4 sm:p-6">
+          <div className="bg-[#2B2B2B] rounded-2xl shadow-xl p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl sm:text-2xl font-bold text-white">Your Device</h2>
               <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
@@ -2410,8 +2410,8 @@ const Dashboard: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20 overflow-hidden">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+          <div className="bg-[#FAFAFA] border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20 overflow-hidden">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4] mb-4">
               Connections
             </h2>
             {isLoading ? (
@@ -2424,7 +2424,7 @@ const Dashboard: React.FC = () => {
                   onClick={() => handleSelectConnection(connection)}
                 >
                   <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
+                    <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
                       {connection.avatar ? (
                         <img
                           src={connection.avatar}
@@ -2443,7 +2443,7 @@ const Dashboard: React.FC = () => {
                       setSelectedConnection(connection);
                       setShowConnectionOptions(true);
                     }}
-                    className="text-gray-600 hover:text-[#005524] transition-colors duration-200"
+                    className="text-gray-600 hover:text-[#4ECDC4] transition-colors duration-200"
                   >
                     <FaCog size={16} />
                   </button>
@@ -2453,8 +2453,8 @@ const Dashboard: React.FC = () => {
               <p className="text-gray-600">No connections found.</p>
             )}
           </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4] mb-4">
               Safety Tips
             </h2>
             {isLoading ? (
@@ -2469,7 +2469,7 @@ const Dashboard: React.FC = () => {
                     setShowSafetyTipModal(true);
                   }}
                 >
-                  <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
+                  <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
                     {iconMap[tip.icon] ? (
                       React.createElement(iconMap[tip.icon])
                     ) : (
@@ -2490,7 +2490,7 @@ const Dashboard: React.FC = () => {
         <div className="w-full lg:w-2/4 p-4 sm:p-6 min-h-0">
           {/* Center column: fixed in page layout, inner content scrolls on hover */}
           <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
-          <div className="bg-gradient-to-br from-[#005524] to-[#005524] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-center shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20 border border-gray-100">
+          <div className="bg-gradient-to-br from-[#FFD166] to-[#FFD166] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-center shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20 border border-gray-100">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-14 rounded-full bg-white/20 flex items-center justify-center text-white text-xl">
                 {userProfile?.avatar ? (
@@ -2505,7 +2505,7 @@ const Dashboard: React.FC = () => {
               </div>
               <div>
                 <span className="text-white text-lg sm:text-xl font-bold">
-                  Welcome, {isLoading ? "..." : (userProfile?.name || userProfile?.first_name || "User")}!
+                  Welcome, {isLoading ? "..." : (userProfile?.first_name || userProfile?.first_name || "User")}!
                 </span>
               </div>
             </div>
@@ -2516,16 +2516,16 @@ const Dashboard: React.FC = () => {
             </div>
           )}
           {activeTab === "home" && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
               <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-[#005524]">
+                <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4]">
                   Recent Emergencies
                 </h2>
                 <div className="flex flex-wrap space-x-2 mt-2 sm:mt-0">
                   <button
                     onClick={() => setEmergencyFilter("nearby")}
                     className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${emergencyFilter === "nearby"
-                      ? "bg-[#005524] hover:bg-[#004015] text-white"
+                      ? "bg-[#4ECDC4] hover:bg-[#3abfb2] text-white"
                       : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                       }`}
                   >
@@ -2534,7 +2534,7 @@ const Dashboard: React.FC = () => {
                   <button
                     onClick={() => setEmergencyFilter("all")}
                     className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${emergencyFilter === "all"
-                      ? "bg-[#005524] hover:bg-[#004015] text-white"
+                      ? "bg-[#4ECDC4] hover:bg-[#3abfb2] text-white"
                       : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                       }`}
                   >
@@ -2542,7 +2542,7 @@ const Dashboard: React.FC = () => {
                   </button>
                   <button
                     onClick={refreshFeed}
-                    className="bg-[#f69f00] hover:bg-[#d88e00] text-white px-3 py-1 rounded-lg hover:scale-105 transition-all duration-300"
+                    className="bg-[#FFD166] hover:bg-[#d88e00] text-white px-3 py-1 rounded-lg hover:scale-105 transition-all duration-300"
                   >
                     Refresh
                   </button>
@@ -2555,10 +2555,10 @@ const Dashboard: React.FC = () => {
                   {emergencies.map((emergency) => (
                     <div
                       key={emergency.id}
-                      className="bg-white rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#005524]/20"
+                      className="bg-white rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#4ECDC4]/20"
                     >
                       <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                        <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
+                        <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
                           {emergency.avatar ? (
                             <img
                               src={emergency.avatar}
@@ -2570,28 +2570,28 @@ const Dashboard: React.FC = () => {
                           )}
                         </div>
                         <div className="flex-1">
-                          <p className="font-bold text-[#005524]">{emergency.emergency_type}</p>
+                          <p className="font-bold text-[#4ECDC4]">{emergency.emergency_type}</p>
                           <p className="text-sm text-gray-900">{emergency.message}</p>
                           <p className="text-sm text-gray-600">Reported by {emergency.name} on {new Date(emergency.created_at).toLocaleString()}</p>
                         </div>
                         <div className="flex space-x-2 sm:space-x-3">
                           <button
                             onClick={() => handleViewLocation(emergency)}
-                            className="bg-[#005524] hover:bg-[#004015] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                            className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
                           >
                             <FaMapMarkerAlt className="mr-1 sm:mr-2" />
                             View
                           </button>
                           <button
                             onClick={() => handleCallAssistance(emergency)}
-                            className="bg-[#f69f00] hover:bg-[#d88e00] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                            className="bg-[#FFD166] hover:bg-[#d88e00] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
                           >
                             <FaPhone className="mr-1 sm:mr-2" />
                             Call
                           </button>
                           <button
                             onClick={() => handleReport(emergency)}
-                            className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                            className="bg-[#E63946] hover:bg-[#a33d16] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
                           >
                             <FaExclamationTriangle className="mr-1 sm:mr-2" />
                             Report
@@ -2607,10 +2607,10 @@ const Dashboard: React.FC = () => {
             </div>
           )}
           {activeTab === "message" && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
               {showChatList ? (
                 <>
-                  <h2 className="flex justify-center text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+                  <h2 className="flex justify-center text-xl sm:text-2xl font-bold text-[#4ECDC4] mb-4">
                     Messages
                   </h2>
                   {isLoading ? (
@@ -2623,7 +2623,7 @@ const Dashboard: React.FC = () => {
                         onClick={() => handleSelectConnection(connection)}
                       >
                         <div className="flex items-center space-x-4">
-                          <div className="w-10 h-10 rounded-full bg-[#005524] flex items-center justify-center text-white">
+                          <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
                             {connection.avatar ? (
                               <img
                                 src={connection.avatar}
@@ -2652,12 +2652,12 @@ const Dashboard: React.FC = () => {
                     <div className="flex items-center">
                       <button
                         onClick={() => setShowChatList(true)}
-                        className="text-[#005524] hover:text-[#004015] flex items-center transition-all duration-300 hover:scale-105 mr-3"
+                        className="text-[#4ECDC4] hover:text-[#3abfb2] flex items-center transition-all duration-300 hover:scale-105 mr-3"
                         aria-label="Back to conversations"
                       >
                         <FaArrowLeft className="" />
                       </button>
-                      <h2 className="text-xl sm:text-2xl font-bold text-[#005524]">
+                      <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4]">
                         {currentChatRecipient}
                       </h2>
                     </div>
@@ -2677,7 +2677,7 @@ const Dashboard: React.FC = () => {
                         >
                           <div
                             className={`max-w-xs sm:max-w-md p-3 rounded-2xl ${message.sender_id === userProfile?.id
-                              ? "bg-[#005524] text-white"
+                              ? "bg-[#4ECDC4] text-white"
                               : "bg-gray-200 text-gray-900"
                               }`}
                           >
@@ -2697,11 +2697,11 @@ const Dashboard: React.FC = () => {
                       value={messageText}
                       onChange={(e) => setMessageText(e.target.value)}
                       onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                      className="flex-1 bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
+                      className="flex-1 bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300"
                     />
                     <button
                       onClick={handleSendMessage}
-                      className="bg-[#005524] hover:bg-[#004015] text-white p-2 rounded-full hover:scale-105 transition-all duration-300"
+                      className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white p-2 rounded-full hover:scale-105 transition-all duration-300"
                     >
                       <FaPaperPlane size={16} />
                     </button>
@@ -2716,8 +2716,8 @@ const Dashboard: React.FC = () => {
             </div>
           )}
           {activeTab === "report" && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
-              <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
+              <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4] mb-4">
                 Report an Emergency
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -2735,7 +2735,7 @@ const Dashboard: React.FC = () => {
                       setSelectedCrisisAlert(null); // Reset to ensure new report
                       setShowCrisisModal(true);
                     }}
-                    className="bg-red-600 text-white p-4 rounded-2xl flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 shadow-lg"
+                    className="bg-[#E63946] text-white p-4 rounded-2xl flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 shadow-lg"
                   >
                     <Icon size={24} className="mb-2" />
                     <span className="text-sm font-bold">{type}</span>
@@ -2751,8 +2751,8 @@ const Dashboard: React.FC = () => {
         <div className="w-full lg:w-1/4 flex flex-col space-y-4 sm:space-y-6 min-h-0">
           {/* Right sidebar scrollable on hover */}
           <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">Safe Alerts</h2>
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4] mb-4">Safe Alerts</h2>
             {isLoading ? (
               <p className="text-gray-600">Loading alerts...</p>
             ) : allSafeAlerts.length > 0 ? (
@@ -2774,7 +2774,7 @@ const Dashboard: React.FC = () => {
                   >
                     <div className="flex items-center space-x-3 min-w-0">
                       {/* Simple green double-check icon (no circular background) */}
-                      <div className="flex items-center justify-center text-green-600">
+                      <div className="flex items-center justify-center text-[#4ECDC4]">
                         <FaCheckDouble size={20} />
                       </div>
                       <div className="min-w-0">
@@ -2791,7 +2791,7 @@ const Dashboard: React.FC = () => {
                         e.stopPropagation();
                         handleMarkSafe(alert.user_id === userProfile?.id ? alert.related_crisis_id : undefined);
                       }}
-                      className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-1 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                      className="bg-[#E63946] hover:bg-[#a33d16] text-white px-1 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                     >
                       Unmark Safe
                     </button>
@@ -2802,8 +2802,8 @@ const Dashboard: React.FC = () => {
               <p className="text-gray-600">No safe alerts.</p>
             )}
           </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#005524]/20 overflow-hidden">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#005524] mb-4">Pending Crisis Alerts</h2>
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20 overflow-hidden">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4] mb-4">Pending Crisis Alerts</h2>
             {isLoading ? (
               <p className="text-gray-600">Loading pending alerts...</p>
             ) : pendingCrisisAlerts.length > 0 ? (
@@ -2825,9 +2825,9 @@ const Dashboard: React.FC = () => {
                   >
                     <div className="flex items-center space-x-3 min-w-0">
                       {/* Simple green exclamation-triangle icon (no circular background) */}
-                      <div className="flex items-center justify-center text-green-600">
+                      <div className="flex items-center justify-center text-[#4ECDC4]">
                         {iconMap[alert.type] ? (
-                          React.createElement(iconMap[alert.type], { size: 20, className: 'text-green-600' })
+                          React.createElement(iconMap[alert.type], { size: 20, className: 'text-[#4ECDC4]' })
                         ) : (
                           <FaExclamationTriangle size={20} />
                         )}
@@ -2842,7 +2842,7 @@ const Dashboard: React.FC = () => {
                         e.stopPropagation();
                         handleMarkSafe(alert.id);
                       }}
-                      className="bg-[#005524] hover:bg-[#004015] text-white px-1 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                      className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-1 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                     >
                       Mark Safe
                     </button>
@@ -2861,7 +2861,7 @@ const Dashboard: React.FC = () => {
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">Confirm Logout</h2>
+            <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">Confirm Logout</h2>
             <p className="text-gray-600 mb-6">Are you sure you want to log out?</p>
             <div className="flex justify-end space-x-4">
               <button
@@ -2872,7 +2872,7 @@ const Dashboard: React.FC = () => {
               </button>
               <button
                 onClick={handleLogout}
-                className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className="bg-[#E63946] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
                 Logout
               </button>
@@ -2884,7 +2884,7 @@ const Dashboard: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
             <div className="flex items-center space-x-4 mb-4">
-              <div className="w-16 h-16 rounded-full bg-[#005524] flex items-center justify-center text-white">
+              <div className="w-16 h-16 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
                 {selectedSearchProfile.avatar ? (
                   <img
                     src={selectedSearchProfile.avatar}
@@ -2896,7 +2896,7 @@ const Dashboard: React.FC = () => {
                 )}
               </div>
               <div>
-                <h2 className="text-xl font-bold text-[#005524]">
+                <h2 className="text-xl font-bold text-[#4ECDC4]">
                   {selectedSearchProfile.name}
                 </h2>
                 <p className="text-gray-600">{selectedSearchProfile.email}</p>
@@ -2907,7 +2907,7 @@ const Dashboard: React.FC = () => {
                 {isConnected(selectedSearchProfile.id) ? (
                   <button
                     onClick={() => handleRemoveConnection(selectedSearchProfile.id)}
-                    className="w-full bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex items-center justify-center"
+                    className="w-full bg-[#E63946] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex items-center justify-center"
                   >
                     <FaUserMinus className="mr-2" />
                     Remove Connection
@@ -2922,7 +2922,7 @@ const Dashboard: React.FC = () => {
                     ) : (
                       <button
                         onClick={() => handleSendConnectionRequest(selectedSearchProfile.id)}
-                        className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex items-center justify-center"
+                        className="w-full bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex items-center justify-center"
                       >
                         <FaUserPlus className="mr-2" />
                         Send Connection Request
@@ -2942,7 +2942,7 @@ const Dashboard: React.FC = () => {
                     avatar: userProfile?.avatar,
                   });
                 }}
-                className="w-full bg-[#f69f00] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex items-center justify-center"
+                className="w-full bg-[#FFD166] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 flex items-center justify-center"
               >
                 <FaEdit className="mr-2" />
                 Edit Profile
@@ -2960,7 +2960,7 @@ const Dashboard: React.FC = () => {
       {showEditProfile && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">Edit Profile</h2>
+            <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">Edit Profile</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-gray-600 mb-1">Name</label>
@@ -2970,7 +2970,7 @@ const Dashboard: React.FC = () => {
                   onChange={(e) =>
                     setEditProfileData({ ...editProfileData, name: e.target.value })
                   }
-                  className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
+                  className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300"
                 />
               </div>
               <div>
@@ -2981,7 +2981,7 @@ const Dashboard: React.FC = () => {
                   onChange={(e) =>
                     setEditProfileData({ ...editProfileData, avatar: e.target.value })
                   }
-                  className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300"
+                  className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300"
                 />
               </div>
             </div>
@@ -2994,7 +2994,7 @@ const Dashboard: React.FC = () => {
               </button>
               <button
                 onClick={handleEditProfile}
-                className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
                 Save
               </button>
@@ -3005,18 +3005,18 @@ const Dashboard: React.FC = () => {
       {showSettings && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">Settings</h2>
+            <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">Settings</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-gray-600 mb-1">Notifications</label>
-                <select className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300">
+                <select className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300">
                   <option>Enabled</option>
                   <option>Disabled</option>
                 </select>
               </div>
               <div>
                 <label className="block text-gray-600 mb-1">Theme</label>
-                <select className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#005524] focus:border-[#005524] transition-all duration-300">
+                <select className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300">
                   <option>Light</option>
                   <option>Dark</option>
                 </select>
@@ -3034,7 +3034,7 @@ const Dashboard: React.FC = () => {
       {showLocationView && selectedEmergency && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">
+            <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
               Emergency Location
             </h2>
             <p className="text-gray-600 mb-4">
@@ -3062,7 +3062,7 @@ const Dashboard: React.FC = () => {
       {showCallConfirm && selectedEmergencyForAction && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">
+            <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
               Confirm Call
             </h2>
             <p className="text-gray-600 mb-6">
@@ -3077,7 +3077,7 @@ const Dashboard: React.FC = () => {
               </button>
               <button
                 onClick={initiateCall}
-                className="bg-[#f69f00] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className="bg-[#FFD166] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
                 Call
               </button>
@@ -3088,7 +3088,7 @@ const Dashboard: React.FC = () => {
       {showReportConfirm && selectedEmergencyForAction && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">
+            <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
               Confirm Report
             </h2>
             <p className="text-gray-600 mb-6">
@@ -3103,7 +3103,7 @@ const Dashboard: React.FC = () => {
               </button>
               <button
                 onClick={submitReport}
-                className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className="bg-[#E63946] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
                 Report
               </button>
@@ -3116,7 +3116,7 @@ const Dashboard: React.FC = () => {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
             {selectedCrisisAlert ? (
               <>
-                <h2 className="text-xl font-bold text-[#005524] mb-4">
+                <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
                   Crisis Details
                 </h2>
                 <p className="text-gray-600 mb-2">
@@ -3157,7 +3157,7 @@ const Dashboard: React.FC = () => {
                   {!selectedCrisisAlert.responded_safe && (
                     <button
                       onClick={() => handleMarkSafe(selectedCrisisAlert.id)}
-                      className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                      className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
                     >
                       Mark Safe
                     </button>
@@ -3166,7 +3166,7 @@ const Dashboard: React.FC = () => {
               </>
             ) : (
               <>
-                <h2 className="text-xl font-bold text-[#005524] mb-4">
+                <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
                   Confirm Emergency
                 </h2>
                 <p className="text-gray-600 mb-6">
@@ -3190,7 +3190,7 @@ const Dashboard: React.FC = () => {
                         setSelectedAlertType(null);
                       }
                     }}
-                    className="bg-[#be4c1d] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                    className="bg-[#E63946] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
                   >
                     Confirm
                   </button>
@@ -3203,7 +3203,7 @@ const Dashboard: React.FC = () => {
       {showAlertConfirm && crisisAlert && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">
+            <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
               Emergency Alert Triggered
             </h2>
             <p className="text-gray-600 mb-2">
@@ -3227,7 +3227,7 @@ const Dashboard: React.FC = () => {
               {!isSafe && (
                 <button
                   onClick={() => handleMarkSafe(crisisAlert.id)}
-                  className="bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                  className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
                 >
                   Mark Safe
                 </button>
@@ -3239,7 +3239,7 @@ const Dashboard: React.FC = () => {
       {showSafetyTipModal && selectedSafetyTip && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">{selectedSafetyTip.name}</h2>
+            <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">{selectedSafetyTip.name}</h2>
             <p className="text-gray-600 mb-6">{selectedSafetyTip.content}</p>
             <button
               onClick={() => setShowSafetyTipModal(false)}
@@ -3253,19 +3253,19 @@ const Dashboard: React.FC = () => {
       {showConnectionOptions && selectedConnection && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
-            <h2 className="text-xl font-bold text-[#005524] mb-4">
+            <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
               Connection Options
             </h2>
             <button
               onClick={() => handleConnectionAction("message", selectedConnection)}
-              className="w-full bg-[#005524] hover:bg-[#004015] text-white px-4 py-2 rounded-lg mb-2 hover:scale-105 transition-all duration-300 flex items-center"
+              className="w-full bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-4 py-2 rounded-lg mb-2 hover:scale-105 transition-all duration-300 flex items-center"
             >
               <FaEnvelope className="mr-2" />
               Message
             </button>
             <button
               onClick={() => handleConnectionAction("profile", selectedConnection)}
-              className="w-full bg-[#f69f00] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg mb-2 hover:scale-105 transition-all duration-300 flex items-center"
+              className="w-full bg-[#FFD166] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg mb-2 hover:scale-105 transition-all duration-300 flex items-center"
             >
               <FaUser className="mr-2" />
               View Profile

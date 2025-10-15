@@ -185,6 +185,7 @@ const AdminDashboard: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<UiUser | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   // Enhanced notification structure with admin-specific fields
   const [notificationTab, setNotificationTab] = useState<"unread" | "all">(
     "unread"
@@ -1349,11 +1350,11 @@ const AdminDashboard: React.FC = () => {
     switch (activeTab) {
       case "dashboard":
         return (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* Top Metric Cards */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {/* Total Users */}
-              <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-[#005524]/20">
+              <div className="group bg-gradient-to-br from-white to-white/95 rounded-2xl p-6 shadow-md transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl border border-gray-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
@@ -1370,7 +1371,7 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Active Users */}
-              <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-[#f69f00]/20">
+              <div className="group bg-gradient-to-br from-white to-white/95 rounded-2xl p-6 shadow-md transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl border border-gray-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
@@ -1387,7 +1388,7 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Pending Users */}
-              <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-yellow-500/20">
+              <div className="group bg-gradient-to-br from-white to-white/95 rounded-2xl p-6 shadow-md transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl border border-gray-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
@@ -1404,7 +1405,7 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Critical Emergencies */}
-              <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-500/20">
+              <div className="group bg-gradient-to-br from-white to-white/95 rounded-2xl p-6 shadow-md transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl border border-gray-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
@@ -1424,7 +1425,7 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Presence Summary */}
-              <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-blue-500/20">
+              <div className="group bg-gradient-to-br from-white to-white/95 rounded-2xl p-6 shadow-md transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl border border-gray-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
@@ -1445,7 +1446,7 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Crisis Alerts Total */}
-              <div className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-400/20">
+              <div className="group bg-gradient-to-br from-white to-white/95 rounded-2xl p-6 shadow-md transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl border border-gray-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
@@ -1466,7 +1467,7 @@ const AdminDashboard: React.FC = () => {
             {/* Charts Section */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* Sales Overview Chart */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white/95 rounded-2xl p-6 shadow-md border border-gray-100 transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
@@ -1515,7 +1516,7 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* User Status Distribution */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white/95 rounded-2xl p-6 shadow-md border border-gray-100 transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
                     User Status Distribution
@@ -1533,7 +1534,7 @@ const AdminDashboard: React.FC = () => {
             {/* Bottom Section */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {/* Recent Users */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
                     Recent Users
@@ -1573,7 +1574,7 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Recent Activity */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
                     Recent Activity
@@ -1635,7 +1636,7 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* System Status */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
                     System Status
@@ -2374,7 +2375,7 @@ const AdminDashboard: React.FC = () => {
         );
       case "settings":
         return (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Profile Settings */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex justify-between items-center mb-6">
@@ -2596,13 +2597,13 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="flex h-screen bg-[#f8eed4]">
       {/* Sidebar */}
-      <aside
-        className={`transition-all duration-300 ${isSidebarCollapsed ? "w-20" : "w-64"
-          } bg-white border-r border-gray-200 min-h-screen flex flex-col shadow-sm z-30 fixed inset-y-0 left-0`}
+      <div
+        className={`flex-shrink-0 transition-all duration-300 transform-gpu ${isSidebarCollapsed ? "w-16" : "w-64"
+          } mx-4 my-4 p-2 rounded-2xl backdrop-blur-sm bg-white/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
       >
-        <div className="flex items-center justify-between px-6 py-6 border-b border-gray-100">
+        <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
             <img
               src={logoImage}
@@ -2610,7 +2611,7 @@ const AdminDashboard: React.FC = () => {
               className="h-8 w-auto object-contain"
             />
             {!isSidebarCollapsed && (
-              <span className="text-xl font-bold text-gray-900">CALASAG</span>
+              <span className="text-xl font-bold text-gray-900"></span>
             )}
           </div>
           <button
@@ -2625,213 +2626,191 @@ const AdminDashboard: React.FC = () => {
           </button>
         </div>
 
-        <nav className="flex-1 flex flex-col gap-1 p-4 bg-white/60 backdrop-blur-sm rounded-r-3xl shadow-inner border-r border-gray-100">
-          <button
-            onClick={() => setActiveTab("dashboard")}
-            className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium overflow-hidden group
-                        ${activeTab === "dashboard"
-                ? "bg-[#E7F6EE] text-[#005524]"
-                : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
-              }
-                        `}
-          >
-            <span
-              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "dashboard"
-                ? "bg-[#005524]"
-                : "bg-transparent group-hover:bg-[#CDE6D3]"
-                }`}
-            />
-            <div className="relative flex items-center gap-3 z-10">
-              <FaHome size={18} />
-              {!isSidebarCollapsed && "Dashboard"}
-            </div>
-          </button>
+  <nav className="mt-4">
+          <ul className="space-y-2">
+            <li>
+              <button
+                onClick={() => setActiveTab("dashboard")}
+                className={`relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-200 text-sm font-medium ${activeTab === "dashboard" ? "bg-[#E7F6EE] text-[#005524]" : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"} ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}
+              >
+                <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "dashboard" 
+                  ? "bg-[#005524]" 
+                  : "bg-transparent group-hover:bg-[#CDE6D3]"}`} />
+                <div className="relative z-10 w-full">
+                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <FaHome size={18} />
+                    {!isSidebarCollapsed && <span>Dashboard</span>}
+                  </div>
+                </div>
+              </button>
+            </li>
 
-          <button
-            onClick={() => {
-              if (isSidebarCollapsed) {
-                setOpenSidebarDropdown("users-management");
-              } else {
-                setOpenSidebarDropdown(
-                  openSidebarDropdown === "users-management"
-                    ? null
-                    : "users-management"
-                );
-              }
-            }}
-            className={`relative flex items-center w-full gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                        ${[
-                "users",
-                "total-users-list",
-                "active-users-list",
-              ].includes(activeTab)
-                ? "bg-[#E7F6EE] text-[#005524]"
-                : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
-              }
-                        ${isSidebarCollapsed
-                ? "justify-center"
-                : "justify-between"
-              }`}
-          >
-            <span
-              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${["users", "total-users-list", "active-users-list"].includes(
-                activeTab
-              )
-                ? "bg-[#005524]"
-                : "bg-transparent group-hover:bg-[#CDE6D3]"
-                }`}
-            />
-            <div className="relative flex items-center gap-3 z-10">
-              <FaUser size={18} />
-              {!isSidebarCollapsed && "Users Management"}
-            </div>
-            {!isSidebarCollapsed && (
-              <FaChevronDown
-                className={`transform transition-transform duration-200 ${openSidebarDropdown === "users-management" ? "rotate-180" : ""
-                  }`}
-              />
-            )}
-          </button>
-          {openSidebarDropdown === "users-management" &&
-            !isSidebarCollapsed && (
-              <div className="ml-6 mt-2 space-y-1">
+            <li>
+              <div>
                 <button
-                  onClick={() => setActiveTab("users")}
-                  className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6
-                                ${activeTab === "users"
-                      ? "text-[#005524] font-medium bg-[#E7F6EE]"
-                      : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"
-                    }`}
+                  onClick={() => {
+                    if (isSidebarCollapsed) {
+                      setOpenSidebarDropdown("users-management");
+                    } else {
+                      setOpenSidebarDropdown(
+                        openSidebarDropdown === "users-management"
+                          ? null
+                          : "users-management"
+                      );
+                    }
+                  }}
+                  className={`relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-200 text-sm font-medium ${["users","total-users-list","active-users-list"].includes(activeTab) ? "bg-[#E7F6EE] text-[#005524]" : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"} ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}
                 >
-                  View Full User Table
+                  <span
+                    className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${["users", "total-users-list", "active-users-list"].includes(
+                      activeTab
+                    )
+                      ? "bg-[#005524]"
+                      : "bg-transparent group-hover:bg-[#CDE6D3]"
+                      }`}
+                  />
+                  <div className="relative z-10 w-full">
+                    <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                      <FaUser size={18} />
+                      {!isSidebarCollapsed && <span>Users Management</span>}
+                    </div>
+                  </div>
+                  {!isSidebarCollapsed && (
+                    <FaChevronDown
+                      className={`transform transition-transform duration-200 ${openSidebarDropdown === "users-management" ? "rotate-180" : ""
+                        }`}
+                    />
+                  )}
                 </button>
-                <button
-                  onClick={() => setActiveTab("total-users-list")}
-                  className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6
-                                ${activeTab === "total-users-list"
-                      ? "text-[#005524] font-medium bg-[#E7F6EE]"
-                      : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"
-                    }`}
-                >
-                  Total Users List
-                </button>
-                <button
-                  onClick={() => setActiveTab("active-users-list")}
-                  className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6
-                                ${activeTab === "active-users-list"
-                      ? "text-[#005524] font-medium bg-[#E7F6EE]"
-                      : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"
-                    }`}
-                >
-                  Active Users List
-                </button>
+
+                {openSidebarDropdown === "users-management" &&
+                  !isSidebarCollapsed && (
+                    <div className="ml-6 mt-2 space-y-1">
+                      <button
+                        onClick={() => setActiveTab("users")}
+                        className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6 ${activeTab === "users" ? "text-[#005524] font-medium bg-[#E7F6EE]" : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"}`}
+                      >
+                        Full User Table
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("total-users-list")}
+                        className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6 ${activeTab === "total-users-list" ? "text-[#005524] font-medium bg-[#E7F6EE]" : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"}`}
+                      >
+                        Total Users List
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("active-users-list")}
+                        className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6 ${activeTab === "active-users-list" ? "text-[#005524] font-medium bg-[#E7F6EE]" : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"}`}
+                      >
+                        Active Users List
+                      </button>
+                    </div>
+                  )}
               </div>
-            )}
+            </li>
 
-          <button
-            onClick={() => setActiveTab("emergencies")}
-            className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                        ${activeTab === "emergencies"
-                ? "bg-[#E7F6EE] text-[#005524]"
-                : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
-              }
-                        `}
-          >
-            <span
-              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "emergencies"
-                ? "bg-[#005524]"
-                : "bg-transparent group-hover:bg-[#CDE6D3]"
-                }`}
-            />
-            <div className="relative flex items-center gap-3 z-10">
-              <FaBell size={18} />
-              {!isSidebarCollapsed && "Incident Reports"}
-            </div>
-          </button>
+            <li>
+              <button
+                onClick={() => setActiveTab("emergencies")}
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
+                            ${activeTab === "emergencies"
+                    ? "bg-[#E7F6EE] text-[#005524]"
+                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+                  }
+                            `}
+              >
+                <span
+                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "emergencies"
+                    ? "bg-[#005524]"
+                    : "bg-transparent group-hover:bg-[#CDE6D3]"
+                    }`}
+                />
+                <div className="relative flex items-center gap-3 z-10">
+                  <FaBell size={18} />
+                  {!isSidebarCollapsed && "Incident Reports"}
+                </div>
+              </button>
+            </li>
 
-          <button
-            onClick={() => setActiveTab("safety-tips")}
-            className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                        ${activeTab === "safety-tips"
-                ? "bg-[#E7F6EE] text-[#005524]"
-                : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
-              }
-                        `}
-          >
-            <span
-              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "safety-tips"
-                ? "bg-[#005524]"
-                : "bg-transparent group-hover:bg-[#CDE6D3]"
-                }`}
-            />
-            <div className="relative flex items-center gap-3 z-10">
-              <FaFileAlt size={18} />
-              {!isSidebarCollapsed && "Safety Tips"}
-            </div>
-          </button>
+            <li>
+              <button
+                onClick={() => setActiveTab("safety-tips")}
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
+                            ${activeTab === "safety-tips"
+                    ? "bg-[#E7F6EE] text-[#005524]"
+                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+                  }
+                            `}
+              >
+                <span
+                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "safety-tips"
+                    ? "bg-[#005524]"
+                    : "bg-transparent group-hover:bg-[#CDE6D3]"
+                    }`}
+                />
+                <div className="relative flex items-center gap-3 z-10">
+                  <FaFileAlt size={18} />
+                  {!isSidebarCollapsed && "Safety Tips"}
+                </div>
+              </button>
+            </li>
 
-          <button
-            onClick={() => setActiveTab("activity-log")}
-            className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                        ${activeTab === "activity-log"
-                ? "bg-[#E7F6EE] text-[#005524]"
-                : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
-              }
-                        `}
-          >
-            <span
-              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "activity-log"
-                ? "bg-[#005524]"
-                : "bg-transparent group-hover:bg-[#CDE6D3]"
-                }`}
-            />
-            <div className="relative flex items-center gap-3 z-10">
-              <FaHistory size={18} />
-              {!isSidebarCollapsed && "Activity Log"}
-            </div>
-          </button>
+            <li>
+              <button
+                onClick={() => setActiveTab("activity-log")}
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
+                            ${activeTab === "activity-log"
+                    ? "bg-[#E7F6EE] text-[#005524]"
+                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+                  }
+                            `}
+              >
+                <span
+                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "activity-log"
+                    ? "bg-[#005524]"
+                    : "bg-transparent group-hover:bg-[#CDE6D3]"
+                    }`}
+                />
+                <div className="relative flex items-center gap-3 z-10">
+                  <FaHistory size={18} />
+                  {!isSidebarCollapsed && "Activity Log"}
+                </div>
+              </button>
+            </li>
 
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                        ${activeTab === "settings"
-                ? "bg-[#E7F6EE] text-[#005524]"
-                : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
-              }
-                        `}
-          >
-            <span
-              className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "settings"
-                ? "bg-[#005524]"
-                : "bg-transparent group-hover:bg-[#CDE6D3]"
-                }`}
-            />
-            <div className="relative flex items-center gap-3 z-10">
-              <FaCog size={18} />
-              {!isSidebarCollapsed && "Settings"}
-            </div>
-          </button>
+            <li>
+              <button
+                onClick={() => setActiveTab("settings")}
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
+                            ${activeTab === "settings"
+                    ? "bg-[#E7F6EE] text-[#005524]"
+                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+                  }
+                            `}
+              >
+                <span
+                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "settings"
+                    ? "bg-[#005524]"
+                    : "bg-transparent group-hover:bg-[#CDE6D3]"
+                    }`}
+                />
+                <div className="relative flex items-center gap-3 z-10">
+                  <FaCog size={18} />
+                  {!isSidebarCollapsed && "Settings"}
+                </div>
+              </button>
+            </li>
+          </ul>
         </nav>
 
-        <div className="p-4 border-t border-gray-100">
-          <button
-            onClick={() => setShowLogoutConfirm(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-gray-900 rounded-xl transition-all duration-200 group"
-          >
-            <FaLock size={18} />
-            {!isSidebarCollapsed && "Logout"}
-          </button>
-        </div>
-      </aside>
+  <div className="p-4 border-t border-transparent" />
+      </div>
 
       {/* Main Content */}
-      <div
-        className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? "ml-20" : "ml-64"
-          }`}
-      >
-        {/* Top Navigation Bar */}
-        <header className="sticky top-0 z-20 bg-white border-b border-gray-200 flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
+        <div className="flex-1 flex flex-col transition-all duration-300">
+        {/* Top Navigation Bar - rounded inline */}
+        <header className="mx-1 my-4 p-2 rounded-2xl bg-white/80 backdrop-blur-sm border border-white/10 shadow-lg flex items-center justify-between">
+            <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               className="md:hidden text-gray-400 hover:text-gray-600 transition-colors"
@@ -2855,7 +2834,7 @@ const AdminDashboard: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setShowNotifications((prev) => !prev)}
-                className="text-gray-400 hover:text-gray-600 transition-colors relative"
+                className="text-gray-500 hover:text-green-700 hover:bg-gray-100 rounded-lg p-2 transition-colors relative"
               >
                 <FaBell size={18} />
                 {notificationsList.some((n) => !n.read) && (
@@ -2991,9 +2970,7 @@ const AdminDashboard: React.FC = () => {
             {/* Profile */}
             <div className="relative">
               <button
-                onClick={() => {
-                  /* settings modal not implemented */
-                }}
+                onClick={() => setIsProfileDropdownOpen((s) => !s)}
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none"
               >
                 {currentUser && (
@@ -3008,13 +2985,37 @@ const AdminDashboard: React.FC = () => {
                 <span className="hidden md:inline text-gray-700 font-medium">
                   {currentUser?.name || "Loading..."}
                 </span>
+                <FaChevronDown size={12} />
               </button>
+
+              {isProfileDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-2 z-50">
+                  <button
+                    onClick={() => {
+                      setActiveTab("settings");
+                      setIsProfileDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Profile Settings
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowLogoutConfirm(true);
+                      setIsProfileDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
+                  >
+                    Log Out
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-6 bg-gray-50">
+  <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-7xl mx-auto">{renderContent()}</div>
         </main>
       </div>
@@ -3364,8 +3365,8 @@ const AdminDashboard: React.FC = () => {
 
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg border border-gray-200">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-lg border border-gray-200">
             <h2 className="text-2xl font-bold text-[#005524] mb-4">
               Confirm Logout
             </h2>

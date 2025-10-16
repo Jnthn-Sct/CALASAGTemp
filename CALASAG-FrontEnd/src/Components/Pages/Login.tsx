@@ -106,13 +106,7 @@ const Login: React.FC = () => {
         name: fullName,
         role: 'user',
         status: data.user.email_confirmed_at ? 'active' : 'pending',
-        avatar: null,
-        device_token: mobileNumber || '',
-        notifications_enabled: true,
-        email_notifications_enabled: true,
-        notification_preferences: { system_reports: true, feature_updates: true },
-        temp_notifications_enabled: null,
-        temp_email_notifications_enabled: null,
+        device_token: mobileNumber || ''
       });
 
       if (upsertError) {

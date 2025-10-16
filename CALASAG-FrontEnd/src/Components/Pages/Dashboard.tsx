@@ -186,11 +186,14 @@ const Dashboard: React.FC = () => {
   const [emergencyPage, setEmergencyPage] = useState<number>(1);
   const [safeAlertsPage, setSafeAlertsPage] = useState<number>(1);
   const [pendingAlertsPage, setPendingAlertsPage] = useState<number>(1);
+  const [notificationTab, setNotificationTab] = useState<"unread" | "all">(
+    "unread"
+  );
   const alertsPerPage = 4;
   const emergenciesPerPage = 6;
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  const iconMap: { [key: string]: React.ElementType } = {
+  const iconMap: { [key: string]: React.ElementType | undefined } = {
     FaAmbulance,
     FaInfoCircle,
     FaFire,
@@ -198,11 +201,6 @@ const Dashboard: React.FC = () => {
     FaShieldAlt,
   };
 
-  // Memoized unread notification count
-  const unreadNotificationCount = useMemo(
-    () => notifications.filter((n) => !n.read).length,
-    [notifications]
-  );
 
   // Memoized combined safe alerts list
   const allSafeAlerts = useMemo(() => {
@@ -212,6 +210,11 @@ const Dashboard: React.FC = () => {
     return uniqueAlerts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [userSafeAlerts, crisisAlerts]);
 
+  // Memoized unread notification count
+  const unreadNotifications = useMemo(
+    () => notifications.filter((n) => !n.read),
+    [notifications]
+  );
   // Calculate total pages and current page alerts for safe alerts
   const totalSafePages = Math.ceil(allSafeAlerts.length / alertsPerPage);
   const indexOfLastSafeAlert = safeAlertsPage * alertsPerPage;
@@ -530,45 +533,14 @@ const Dashboard: React.FC = () => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user");
 
-      // Find the connection between the current user and the selected user
-      let connectionData = null;
-      let connectionError = null;
-
-      // Try first direction (user is user1, selected profile is user2)
-      const { data: firstDirectionData, error: firstDirectionError } = await supabase
-        .from("connections")
-        .select("id")
-        .eq("user1_id", user.id)
-        .eq("user2_id", userId)
-        .maybeSingle();
-
-      if (firstDirectionData) {
-        connectionData = firstDirectionData;
-        connectionError = firstDirectionError;
-      } else {
-        // Try reverse direction (user is user2, selected profile is user1)
-        const { data: secondDirectionData, error: secondDirectionError } = await supabase
-          .from("connections")
-          .select("id")
-          .eq("user1_id", userId)
-          .eq("user2_id", user.id)
-          .maybeSingle();
-
-        if (secondDirectionData) {
-          connectionData = secondDirectionData;
-          connectionError = secondDirectionError;
-        }
-      }
-
-      if (connectionError || !connectionData) {
-        throw new Error(`Connection not found: ${connectionError?.message || "Unknown error"}`);
-      }
-
-      // Delete the connection
+      // This is correct for your table structure. It deletes the record
+      // regardless of who initiated the connection.
       const { error: deleteError } = await supabase
         .from("connections")
         .delete()
-        .eq("id", connectionData.id);
+        .or(
+          `and(user1_id.eq.${user.id},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${user.id})`
+        );
 
       if (deleteError) {
         throw new Error(`Failed to remove connection: ${deleteError.message}`);
@@ -653,20 +625,19 @@ const Dashboard: React.FC = () => {
           .eq("user_id", requestData.recipient_id)
           .single();
 
-        // Add notification for the current user
-        setNotifications((prev) => [
+        // Create notification for the current user (the one who accepted)
+        const { error: selfNotificationError } = await supabase.rpc(
+          "create_notification",
           {
-            id: Date.now(),
-            user_id: user.id,
-            type: "connection_accepted",
+            recipient_id: user.id,
             notification_type: "connection_accepted",
-            message: `You accepted a connection with ${senderData?.name || "User"}.`,
-            read: false,
-            created_at: new Date().toISOString(),
-          },
-          ...prev,
-        ]);
-
+            message_text: `You are now connected with ${senderData?.name || "User"}.`,
+            sender_id: requestData.sender_id,
+          }
+        );
+        if (selfNotificationError) {
+          console.error("Self-notification error:", selfNotificationError);
+        }
         // Send notification to the sender that their request was accepted
         const { error: notificationError } = await supabase
           .rpc('create_notification', {
@@ -700,6 +671,7 @@ const Dashboard: React.FC = () => {
         const { data: connectionsData, error: connectionsError } =
           await supabase
             .from("connections")
+            // Corrected to fetch bidirectionally
             .select("id, user1_id, user2_id")
             .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
         if (connectionsError) {
@@ -991,10 +963,7 @@ const Dashboard: React.FC = () => {
         const { data: notificationsData, error: notificationsError } =
           await supabase
             .from("notifications")
-            .select(
-              "id, user_id, type, notification_type, message, read, created_at"
-            )
-            .or(`user_id.eq.${user.id},notification_type.in.(emergency,safe_status)`)
+            .select("id, user_id, type, notification_type, message, read, created_at").eq("user_id", user.id)
             .order("created_at", { ascending: false });
         if (notificationsError) {
           throw new Error(
@@ -1102,11 +1071,12 @@ const Dashboard: React.FC = () => {
             {
               event: "INSERT",
               schema: "public",
-              table: "notifications"
+              table: "notifications",
+              filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
               console.log("Raw notification payload:", payload);
-              if ([user.id, ...connectionIds].includes(payload.new.user_id)) {
+              if (payload.new.user_id === user.id) {
                 setNotifications((prev) => {
                   if (prev.some((n) => n.id === payload.new.id)) {
                     return prev;
@@ -1122,7 +1092,7 @@ const Dashboard: React.FC = () => {
               event: "UPDATE",
               schema: "public",
               table: "notifications",
-              filter: `user_id=eq.${user.id}`
+              filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
               // Only process if this notification is for the current user
@@ -1146,7 +1116,8 @@ const Dashboard: React.FC = () => {
             {
               event: "INSERT",
               schema: "public",
-              table: "connection_requests"
+              table: "connection_requests",
+              filter: `recipient_id=eq.${user.id}`,
             },
             async (payload) => {
               console.log("Raw connection request payload:", payload);
@@ -1163,7 +1134,7 @@ const Dashboard: React.FC = () => {
                 );
                 return;
               }
-              if ([user.id, ...connectionIds].includes(payload.new.recipient_id)) {
+              if (newRequest.recipient_id === user.id) {
                 setConnectionRequests((prev) => [
                   {
                     id: newRequest.id,
@@ -1199,7 +1170,7 @@ const Dashboard: React.FC = () => {
               event: "UPDATE",
               schema: "public",
               table: "connection_requests",
-              filter: `recipient_id=eq.${user.id}`,
+              filter: `recipient_id=eq.${user.id}`
             },
             (payload) => {
               setConnectionRequests((prev) =>
@@ -1222,11 +1193,11 @@ const Dashboard: React.FC = () => {
             {
               event: "INSERT",
               schema: "public",
-              table: "messages"
+              table: "messages",
+              filter: `receiver_id=eq.${user.id}`,
             },
             async (payload) => {
               console.log("Raw message payload:", payload);
-              if ([user.id, ...connectionIds].includes(payload.new.receiver_id)) {
                 const newMessage = payload.new as any;
                 const { data: senderData } = await supabase
                   .from("users")
@@ -1251,7 +1222,6 @@ const Dashboard: React.FC = () => {
                   ...prev,
                 ]);
               }
-            }
           )
           .subscribe((status, err) => {
             console.log("Message status:", status, err || "");
@@ -1264,19 +1234,12 @@ const Dashboard: React.FC = () => {
             {
               event: "INSERT",
               schema: "public",
-              table: "crisis_alerts"
+              table: "crisis_alerts",
+              filter: `user_id=in.(${[user.id, ...connectionIds].join(',')})`,
             },
             async (payload) => {
               console.log("Raw crisis alert payload:", payload);
               const newAlert = payload.new as CrisisAlert;
-
-              // Client-side filtering because `in` filter is not supported
-              // for realtime postgres_changes subscriptions.
-              if ([user.id, ...connectionIds].includes(payload.new.user_id)) {
-                if (!newAlert.user_id) {
-                  return;
-                }
-              }
 
               const { data: userData, error: userError } = await supabase
                 .from("users")
@@ -1822,6 +1785,27 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const markAllAsRead = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+
+      const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+      if (unreadIds.length === 0) return;
+
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .in("id", unreadIds);
+
+      if (error) throw new Error(`Mark all as read error: ${error.message}`);
+    } catch (error: any) {
+      console.error("Error marking all notifications as read:", error);
+      setError(`Failed to mark all as read: ${error.message}`);
+    }
+  };
   const resetCrisisAlert = () => {
     setCrisisAlert(null);
     setIsSafe(false);
@@ -2215,96 +2199,103 @@ const Dashboard: React.FC = () => {
               className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-all duration-300 hover:scale-110"
             >
               <FaBell size={20} className="text-[#FFD166]" />
-              {unreadNotificationCount > 0 && (
+              {unreadNotifications.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-[#E63946] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
-                  {unreadNotificationCount}
+                  {unreadNotifications.length}
                 </span>
               )}
             </button>
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#4ECDC4]/20">
+              <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-xl z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#4ECDC4]/20">
                 <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
                   <h3 className="text-lg font-bold text-[#4ECDC4]">
                     Notifications
                   </h3>
                   <button
-                    onClick={clearAllNotifications}
-                    className="text-sm text-[#E63946] hover:text-[#a33d16] transition-colors duration-200"
+                    onClick={markAllAsRead}
+                    className={`text-sm text-blue-600 hover:text-blue-800 transition-colors duration-200 ${
+                      unreadNotifications.length === 0
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
                   >
-                    Clear All
+                    Mark all as read
+                  </button>
+                </div>
+                <div className="flex border-b border-gray-200">
+                  <button
+                    onClick={() => setNotificationTab("unread")}
+                    className={`flex-1 py-2 text-sm font-medium ${
+                      notificationTab === "unread"
+                        ? "border-b-2 border-[#005524] text-[#005524]"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Unread
+                  </button>
+                  <button
+                    onClick={() => setNotificationTab("all")}
+                    className={`flex-1 py-2 text-sm font-medium ${
+                      notificationTab === "all"
+                        ? "border-b-2 border-[#005524] text-[#005524]"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    All
                   </button>
                 </div>
                 <div className="max-h-96 overflow-y-auto">
-                  {notifications.length > 0 ? (
-                    notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={`px-4 py-3 hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer rounded-2xl ${!notification.read ? "bg-[#4ECDC4]/5" : ""
-                          }`}
-                        onClick={() => markNotificationAsRead(notification.id)}
-                      >
-                        <p className="text-gray-900 text-sm">{notification.message}</p>
-                        <p className="text-xs text-gray-600">
-                          {new Date(notification.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="px-4 py-3 text-gray-600">No notifications.</p>
-                  )}
+                  {(() => {
+                     const filteredNotifications = notificationTab === "unread" ? unreadNotifications : notifications;
+ 
+                     if (filteredNotifications.length === 0) {
+                       return (
+                         <div className="px-4 py-3 text-center text-gray-500">
+                           No {notificationTab} notifications
+                         </div>
+                       );
+                     }
+ 
+                     return filteredNotifications.map((notification) => (
+                       <div
+                         key={notification.id}
+                         className={`px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
+                           notification.read ? "bg-gray-50" : "bg-white"
+                         }`}
+                       >
+                         <div className="flex items-start justify-between">
+                           <div>
+                             <p
+                               className={`text-sm ${
+                                 notification.read
+                                   ? "text-gray-600"
+                                   : "text-gray-800 font-medium"
+                               }`}
+                             >
+                               {notification.message}
+                             </p>
+                             <p className="text-xs text-gray-500 mt-1">
+                               {new Date(
+                                 notification.created_at
+                               ).toLocaleString()}
+                             </p>
+                           </div>
+                           {!notification.read && (
+                             <button
+                               onClick={() =>
+                                 markNotificationAsRead(notification.id)
+                               }
+                               className="ml-2 text-xs text-blue-600 hover:underline"
+                             >
+                               Mark as read
+                             </button>
+                           )}
+                         </div>
+                       </div>
+                     ));
+                  })()}
                   {connectionRequests.length > 0 && (
-                    <div className="border-t border-gray-100 py-2">
-                      <h3 className="px-4 py-2 text-lg font-bold text-[#004ECDC45524]">
-                        Connection Requests
-                      </h3>
-                      {connectionRequests.map((request) => (
-                        <div
-                          key={request.id}
-                          className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 hover:scale-105 transition-all duration-300 rounded-2xl"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
-                              {request.sender_avatar ? (
-                                <img
-                                  src={request.sender_avatar}
-                                  className="w-full h-full rounded-full"
-                                  alt={request.sender_name}
-                                />
-                              ) : (
-                                <FaUser className="text-white" />
-                              )}
-                            </div>
-                            <p className="text-gray-900 text-sm">
-                              {request.sender_name} wants to connect
-                            </p>
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() =>
-                                handleConnectionRequestAction(
-                                  request.id,
-                                  "accepted"
-                                )
-                              }
-                              className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
-                            >
-                              <FaCheck className="inline mr-1" /> Accept
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleConnectionRequestAction(
-                                  request.id,
-                                  "rejected"
-                                )
-                              }
-                              className="bg-[#E63946] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
-                            >
-                              <FaTimes className="inline mr-1" /> Reject
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <div className="px-4 py-3 text-center text-gray-500 border-t border-gray-100">You have {connectionRequests.length} pending connection request{connectionRequests.length > 1 ? 's' : ''}.</div>
                   )}
                 </div>
               </div>

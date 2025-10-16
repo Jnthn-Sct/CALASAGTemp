@@ -70,21 +70,21 @@ export const presenceBadge = (status?: string) => {
 };
 
 export const accountBadge = (status?: string) => {
-  const common = "px-2 py-1 rounded-full text-xs font-medium";
+  const common = "px-2 py-1 rounded-full text-xs text-center font-medium";
   if (status === "active")
     return (
-      <span className={`${common} bg-green-100 text-green-800`}>
+      <span className={`${common} text-[#4ECDC4]`}>
         ACCOUNT ACTIVE
       </span>
     );
   if (status === "pending")
     return (
-      <span className={`${common} bg-yellow-100 text-yellow-800`}>
+      <span className={`${common} text-[#FFD166]`}>
         ACCOUNT PENDING
       </span>
     );
   return (
-    <span className={`${common} bg-red-100 text-red-800`}>
+    <span className={`${common} text-[#E63946]`}>
       ACCOUNT INACTIVE
     </span>
   );
@@ -1496,7 +1496,7 @@ const AdminDashboard: React.FC = () => {
 
             {/* Bottom Section */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {/* Recent Users */}
+                            {/* Recent Users */}
               <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -1512,22 +1512,22 @@ const AdminDashboard: React.FC = () => {
                       key={user.id}
                       className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer group"
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-[#4ECDC4] to-[#f69f00] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                      <div className="flex items-center space-x-3 min-w-0 flex-1">
+                        <div className="w-10 h-10 bg-gradient-to-br from-[#4ECDC4] to-[#f69f00] rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
                           {user.name.charAt(0)}
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-gray-900 truncate">
                             {user.name}
                           </p>
                           {user.email && (
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-gray-500 truncate">
                               {user.email}
                             </p>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
                         {presenceBadge(user.onlineStatus)}
                         {accountBadge(user.status)}
                       </div>
@@ -1710,7 +1710,7 @@ const AdminDashboard: React.FC = () => {
           </div>
         );
 
-      case "users": // Original case for the full user table
+        case "users": // Original case for the full user table
         return (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex justify-between items-center mb-6">
@@ -1737,32 +1737,32 @@ const AdminDashboard: React.FC = () => {
                 {usersLoadError}
               </div>
             )}
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
+            <div className="overflow-hidden">
+              <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="w-[18%] px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Name
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="w-[16%] px-3 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Email
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Account Status
+                    <th className="w-[12%] px-3 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Status
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="w-[10%] px-3 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Presence
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="w-[12%] px-3 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Last Login
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Incident Reports
+                    <th className="w-[8%] px-3 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Reports
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Crisis Alerts
+                    <th className="w-[8%] px-3 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Alerts
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="w-[16%] px-3 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -1773,61 +1773,67 @@ const AdminDashboard: React.FC = () => {
                       key={user.id}
                       className="hover:bg-gray-50 transition-colors"
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4">
                         <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gradient-to-br from-[#4ECDC4] to-[#FFD166] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                          <div className="w-9 h-9 bg-[#2B2B2B] rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                             {user.name.charAt(0)}
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
+                          <div className="ml-3 overflow-hidden">
+                            <div className="text-sm font-medium text-gray-900 truncate">
                               {user.name}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {user.email || "—"}
+                      <td className="px-3 py-4 text-sm text-gray-600">
+                        <div className="truncate">{user.email || "—"}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {accountBadge(user.status)}
+                      <td className="px-3 py-4">
+                        <div className="flex justify-center">
+                          {accountBadge(user.status)}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {presenceBadge(user.onlineStatus)}
+                      <td className="px-3 py-4">
+                        <div className="flex justify-center">
+                          {presenceBadge(user.onlineStatus)}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {user.lastLogin
-                          ? new Date(user.lastLogin).toLocaleString()
-                          : "—"}
+                      <td className="px-3 py-4 text-xs text-gray-600">
+                        <div className="truncate">
+                          {user.lastLogin
+                            ? new Date(user.lastLogin).toLocaleDateString()
+                            : "—"}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-3 py-4 text-sm text-gray-600 text-center">
                         {user.reports ?? 0}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-3 py-4 text-sm text-gray-600 text-center">
                         {user.crisis ?? 0}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        {appRole === "super_admin" && (
+                      <td className="px-3 py-4 text-center">
+                        <div className="flex justify-center gap-1">
+                          {appRole === "super_admin" && (
+                            <button
+                              onClick={() => handleToggleUserStatus(user.id)}
+                              className={`px-2 py-1 text-xs rounded-lg transition-colors ${user.status === "active"
+                                ? "text-red-600 hover:text-red-800 hover:bg-red-50"
+                                : "text-green-600 hover:text-green-800 hover:bg-green-50"
+                                }`}
+                            >
+                              {user.status === "active" ? "Deactivate" : "Activate"}
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleToggleUserStatus(user.id)}
-                            className={`px-3 py-1 rounded-lg transition-colors ${user.status === "active"
-                              ? "text-red-600 hover:text-red-800 hover:bg-red-50"
-                              : "text-green-600 hover:text-green-800 hover:bg-green-50"
-                              }`}
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setShowUserDetails(true);
+                            }}
+                            className="px-2 py-1 text-xs rounded-lg text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
                           >
-                            {user.status === "active"
-                              ? "Deactivate"
-                              : "Activate"}
+                            View
                           </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setShowUserDetails(true);
-                          }}
-                          className="px-3 py-1 rounded-lg text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
-                        >
-                          View Details
-                        </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1853,7 +1859,7 @@ const AdminDashboard: React.FC = () => {
                     }`}
                 >
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-[#4ECDC4] rounded-full flex items-center justify-center text-white font-semibold">
+                    <div className="w-12 h-12 bg-[#2B2B2B] rounded-full flex items-center justify-center text-white font-semibold">
                       {user.name.charAt(0)}
                     </div>
                     <div>
@@ -1895,7 +1901,7 @@ const AdminDashboard: React.FC = () => {
                       }`}
                   >
                     <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-[#4ECDC4] to-[#FFD166] rounded-full flex items-center justify-center text-white font-semibold">
+                      <div className="w-12 h-12 bg-[#2B2B2B] rounded-full flex items-center justify-center text-white font-semibold">
                         {user.name.charAt(0)}
                       </div>
                       <div>
@@ -2601,7 +2607,7 @@ const AdminDashboard: React.FC = () => {
               >
                 <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "dashboard" 
                   ? "bg-[#4ECDC4]" 
-                  : "bg-transparent group-hover:bg-[#FFD166]"}`} />
+                  : "bg-transparent group-hover:bg-[#4ECDC4]"}`} />
                 <div className="relative z-10 w-full">
                   <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
                     <FaHome size={18} />
@@ -2694,9 +2700,11 @@ const AdminDashboard: React.FC = () => {
                     : "bg-transparent group-hover:bg-[#CDE6D3]"
                     }`}
                 />
-                <div className="relative flex items-center gap-3 z-10">
+                <div className="relative z-10 w-full">
+                  <div className="relative flex items-center gap-3 z-10">
                   <FaBell size={18} />
                   {!isSidebarCollapsed && "Incident Reports"}
+                  </div>
                 </div>
               </button>
             </li>
@@ -2717,9 +2725,11 @@ const AdminDashboard: React.FC = () => {
                     : "bg-transparent group-hover:bg-[#4ECDC4]"
                     }`}
                 />
-                <div className="relative flex items-center gap-3 z-10">
+                <div className="relative z-10 w-full">
+                  <div className="relative flex items-center gap-3 z-10">
                   <FaFileAlt size={18} />
                   {!isSidebarCollapsed && "Safety Tips"}
+                  </div>
                 </div>
               </button>
             </li>
@@ -2730,14 +2740,14 @@ const AdminDashboard: React.FC = () => {
                 className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
                             ${activeTab === "activity-log"
                     ? "bg-[#E7F6EE] text-[#2B2B2B]"
-                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#4ECDC4]"
+                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B]"
                   }
                             `}
               >
                 <span
                   className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "activity-log"
                     ? "bg-[#4ECDC4]"
-                    : "bg-transparent group-hover:bg-[#CDE6D3]"
+                    : "bg-transparent group-hover:bg-[#4ECDC4]"
                     }`}
                 />
                 <div className="relative flex items-center gap-3 z-10">
@@ -2760,7 +2770,7 @@ const AdminDashboard: React.FC = () => {
                 <span
                   className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "settings"
                     ? "bg-[#4ECDC4]"
-                    : "bg-transparent group-hover:bg-[#CDE6D3]"
+                    : "bg-transparent group-hover:bg-[#4ECDC4]"
                     }`}
                 />
                 <div className="relative flex items-center gap-3 z-10">
@@ -3371,7 +3381,7 @@ const AdminDashboard: React.FC = () => {
 
       {/* User Details Modal */}
       {showUserDetails && selectedUser && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-2xl font-bold text-[#2B2B2B] mb-4">
               User Details

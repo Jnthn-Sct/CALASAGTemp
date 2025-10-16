@@ -2128,36 +2128,36 @@ const Dashboard: React.FC = () => {
               )}
             </button>
             {showConnectionRequestsMenu && (
-              <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#4ECDC4]/20">
+              <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#4ECDC4]/20 overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
                   <h3 className="text-lg font-bold text-[#4ECDC4]">
                     Connection Requests
                   </h3>
                 </div>
-                <div className="max-h-96 overflow-y-auto">
+                <div className="max-h-96 overflow-y-auto overflow-x-hidden">
                   {connectionRequests.length > 0 ? (
                     connectionRequests.map((request) => (
                       <div
                         key={request.id}
-                        className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 hover:scale-105 transition-all duration-300 rounded-2xl"
+                        className="px-3 py-3 flex items-center justify-between gap-2 hover:bg-gray-50 transition-all duration-300"
                       >
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white">
+                        <div className="flex items-center space-x-3 min-w-0 flex-1">
+                          <div className="w-10 h-10 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white flex-shrink-0 overflow-hidden">
                             {request.sender_avatar ? (
                               <img
                                 src={request.sender_avatar}
-                                className="w-full h-full rounded-full"
+                                className="w-full h-full rounded-full object-cover"
                                 alt={request.sender_name}
                               />
                             ) : (
                               <FaUser className="text-white" />
                             )}
                           </div>
-                          <p className="text-gray-900 text-sm">
+                          <p className="text-gray-900 text-sm truncate">
                             {request.sender_name} wants to connect
                           </p>
                         </div>
-                        <div className="flex space-x-2">
+                        <div className="flex space-x-1 flex-shrink-0">
                           <button
                             onClick={() =>
                               handleConnectionRequestAction(
@@ -2165,7 +2165,7 @@ const Dashboard: React.FC = () => {
                                 "accepted"
                               )
                             }
-                            className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                            className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-2 py-1 rounded-lg text-xs hover:scale-105 transition-all duration-300"
                           >
                             <FaCheck className="inline mr-1" /> Accept
                           </button>
@@ -2176,7 +2176,7 @@ const Dashboard: React.FC = () => {
                                 "rejected"
                               )
                             }
-                            className="bg-[#E63946] hover:bg-[#a33d16] text-white px-3 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                            className="bg-[#E63946] hover:bg-[#a33d16] text-white px-2 py-1 rounded-lg text-xs hover:scale-105 transition-all duration-300"
                           >
                             <FaTimes className="inline mr-1" /> Reject
                           </button>

@@ -160,7 +160,7 @@ const SuperAdminDashboard: React.FC = () => {
       {
         label: "System Uptime (%)",
         data: [0, 0, 0, 0, 0, 0],
-        borderColor: "#005524",
+        borderColor: "#4ECDC4",
         backgroundColor: "rgba(0, 85, 36, 0.1)",
         tension: 0.4,
         fill: true,
@@ -174,7 +174,7 @@ const SuperAdminDashboard: React.FC = () => {
       {
         label: "Admin Status",
         data: [0, 0],
-        backgroundColor: ["#005524", "#f9a01b"],
+        backgroundColor: ["#4ECDC4", "#f9a01b"],
       },
     ],
   });
@@ -184,7 +184,7 @@ const SuperAdminDashboard: React.FC = () => {
     datasets: [
       {
         data: [0, 0, 0],
-        backgroundColor: ["#005524", "#f9a01b", "#ff4d4f"],
+        backgroundColor: ["#4ECDC4", "#f9a01b", "#ff4d4f"],
         borderWidth: 0,
       },
     ],
@@ -344,7 +344,7 @@ const SuperAdminDashboard: React.FC = () => {
           {
             label: "Admin Status",
             data: [activeCount, inactiveCount],
-            backgroundColor: ["#005524", "#f9a01b"],
+            backgroundColor: ["#4ECDC4", "#E63946"],
           },
         ],
       });
@@ -414,7 +414,7 @@ const SuperAdminDashboard: React.FC = () => {
           datasets: [
             {
               data: [performance, usage, security],
-              backgroundColor: ["#005524", "#f9a01b", "#ff4d4f"],
+              backgroundColor: ["#4ECDC4", "#E63946", "#FFD166"],
               borderWidth: 0,
             },
           ],
@@ -452,7 +452,7 @@ const SuperAdminDashboard: React.FC = () => {
           {
             label: "System Uptime (%)",
             data: monthlyUptime,
-            borderColor: "#005524",
+            borderColor: "#4ECDC4",
             backgroundColor: "rgba(0, 85, 36, 0.1)",
             tension: 0.4,
             fill: true,
@@ -1034,7 +1034,7 @@ const SuperAdminDashboard: React.FC = () => {
           <div className="space-y-4">
             {/* Top Metric Cards */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <div className="group bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100 hover:border-[#005524]/20">
+              <div className="group bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100 hover:border-[#4ECDC4]">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
@@ -1048,12 +1048,12 @@ const SuperAdminDashboard: React.FC = () => {
                       active
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-[#005524] to-[#004015] rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-12 h-12 bg-[#4ECDC4] rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <FaUser size={20} />
                   </div>
                 </div>
               </div>
-              <div className="group bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100 hover:border-blue-500/20">
+              <div className="group bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100 hover:border-[#4ECDC4]">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">
@@ -1065,7 +1065,7 @@ const SuperAdminDashboard: React.FC = () => {
                           .length
                       }
                     </p>
-                    <p className="text-sm text-blue-600 mt-1">
+                    <p className="text-sm text-[#2B2B2B]-600 mt-1">
                       {
                         featureUpdates.filter((fu) => fu.status === "approved")
                           .length
@@ -1073,7 +1073,7 @@ const SuperAdminDashboard: React.FC = () => {
                       approved
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#2B2B2B] to-[#2B2B2B] rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <FaCog size={20} />
                   </div>
                 </div>
@@ -1087,7 +1087,7 @@ const SuperAdminDashboard: React.FC = () => {
                     <p className="text-3xl font-bold text-gray-900">
                       {reports.length}
                     </p>
-                    <p className="text-sm text-red-600 mt-1">
+                    <p className="text-sm text-[#E63946]-600 mt-1">
                       {reports.filter((r) => r.status === "generated").length}{" "}
                       generated
                     </p>
@@ -1117,47 +1117,6 @@ const SuperAdminDashboard: React.FC = () => {
 
             {/* Charts Section */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      System Performance Trends
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      Uptime metrics for 2025
-                    </p>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
-                      Week
-                    </button>
-                    <button className="px-3 py-1 text-xs bg-[#005524] text-white rounded-lg">
-                      Month
-                    </button>
-                    <button className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
-                      Year
-                    </button>
-                  </div>
-                </div>
-                <div style={{ height: "300px" }}>
-                  <Line
-                    data={performanceData}
-                    options={{
-                      ...chartOptions,
-                      plugins: {
-                        legend: {
-                          position: "bottom" as const,
-                          labels: {
-                            usePointStyle: true,
-                            padding: 20,
-                          },
-                        },
-                      },
-                    }}
-                  />
-                </div>
-              </div>
-
               <div className="bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -1223,7 +1182,7 @@ const SuperAdminDashboard: React.FC = () => {
                   </h3>
                   <button
                     onClick={() => setActiveTab("admin-management")}
-                    className="text-[#005524] hover:text-[#004015] text-sm font-medium"
+                    className="text-[#4ECDC4] hover:text-[#004015] text-sm font-medium"
                   >
                     View all
                   </button>
@@ -1243,7 +1202,7 @@ const SuperAdminDashboard: React.FC = () => {
                         }}
                       >
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-[#005524] to-[#f69f00] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                          <div className="w-10 h-10 bg-[#2B2B2B] rounded-full flex items-center justify-center text-white font-semibold text-sm">
                             {admin.name.charAt(0)}
                           </div>
                           <div>
@@ -1256,7 +1215,7 @@ const SuperAdminDashboard: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <button className="p-1 text-gray-400 hover:text-[#005524] opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <button className="p-1 text-gray-400 hover:text-[#4ECDC4] opacity-0 group-hover:opacity-100 transition-all duration-300">
                             <FaPlus size={12} />
                           </button>
                         </div>
@@ -1273,7 +1232,7 @@ const SuperAdminDashboard: React.FC = () => {
                   </h3>
                   <button
                     onClick={() => setActiveTab("system-reports")}
-                    className="text-[#005524] hover:text-[#004015] text-sm font-medium"
+                    className="text-[#4ECDC4] hover:text-[#2B2B2B] text-sm font-medium"
                   >
                     View all
                   </button>
@@ -1298,20 +1257,20 @@ const SuperAdminDashboard: React.FC = () => {
                           <div
                             className={`w-8 h-8 rounded-full flex items-center justify-center ${
                               report.type === "performance"
-                                ? "bg-green-100"
+                                ? "bg-[#4ECDC4]-100"
                                 : report.type === "usage"
-                                ? "bg-blue-100"
-                                : "bg-red-100"
+                                ? "bg-[#FFD166]-100"
+                                : "bg-[#E63946]-100"
                             }`}
                           >
                             <FaChartBar
                               size={12}
                               className={
                                 report.type === "performance"
-                                  ? "text-green-600"
-                                  : report.type === "usage"
-                                  ? "text-blue-600"
-                                  : "text-red-600"
+                                  ? "bg-[#4ECDC4]-600"
+                                : report.type === "usage"
+                                ? "bg-[#FFD166]-600"
+                                : "bg-[#E63946]-600"
                               }
                             />
                           </div>
@@ -1330,16 +1289,16 @@ const SuperAdminDashboard: React.FC = () => {
                           <span
                             className={`text-xs px-2 py-1 rounded-full ${
                               report.status === "archived"
-                                ? "bg-green-100 text-green-800"
+                                ? "bg-[#4ECDC4]-100 text-[#4ECDC4]-800"
                                 : report.status === "reviewed"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-yellow-100 text-yellow-800"
+                                ? "bg-[#2B2B2B]-100 text-[#2B2B2B]-800"
+                                : "bg-[#FFD166]-100 text-[#FFD166]-800"
                             }`}
                           >
                             {report.status.charAt(0).toUpperCase() +
                               report.status.slice(1)}
                           </span>
-                          <button className="p-1 text-gray-400 hover:text-[#005524] opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <button className="p-1 text-gray-400 hover:text-[#4ECDC4] opacity-0 group-hover:opacity-100 transition-all duration-300">
                             <FaEye size={12} />
                           </button>
                         </div>
@@ -1356,7 +1315,7 @@ const SuperAdminDashboard: React.FC = () => {
                   </h3>
                   <button
                     onClick={() => setActiveTab("system-reports")}
-                    className="text-[#005524] hover:text-[#004015] text-sm font-medium"
+                    className="text-[#4ECDC4] hover:text-[#004015] text-sm font-medium"
                   >
                     View Details
                   </button>
@@ -1365,8 +1324,8 @@ const SuperAdminDashboard: React.FC = () => {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <FaKey size={12} className="text-blue-600" />
+                        <div className="w-8 h-8 bg-[#2B2B2B]-100 rounded-lg flex items-center justify-center">
+                          <FaKey size={12} className="text-[#2B2B2B]" />
                         </div>
                         <span className="text-sm font-medium text-gray-900">
                           Security System
@@ -1381,7 +1340,7 @@ const SuperAdminDashboard: React.FC = () => {
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div // This progress bar is decorative. The number is the key metric.
-                        className="bg-blue-500 h-2 rounded-full"
+                        className="bg-[#2B2B2B]-500 h-2 rounded-full"
                         style={{ width: "98%" }}
                       ></div>
                     </div>
@@ -1479,7 +1438,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowAddAdmin(true)}
-                  className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] transition-colors flex items-center gap-2"
                 >
                   <FaPlus size={14} /> Add New Admin
                 </button>
@@ -1572,7 +1531,7 @@ const SuperAdminDashboard: React.FC = () => {
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="w-10 h-10 bg-[#005524] rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3">
+                              <div className="w-10 h-10 bg-[#4ECDC4] rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3">
                                 {admin.name.charAt(0)}
                               </div>
                               <div>
@@ -1647,7 +1606,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowFeatureUpdateModal(true)}
-                  className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
                 >
                   <FaPlus size={14} /> Add New Update
                 </button>
@@ -1754,7 +1713,7 @@ const SuperAdminDashboard: React.FC = () => {
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm mr-3">
+                              <div className="w-10 h-10 bg-gradient-to-br from-[#2B2B2B]-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm mr-3">
                                 <FaCubes size={16} />
                               </div>
                               <div>
@@ -1853,7 +1812,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowGenerateReportModal(true)}
-                  className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] transition-colors flex items-center gap-2"
                 >
                   <FaPlus size={14} /> Generate Report
                 </button>
@@ -1887,17 +1846,17 @@ const SuperAdminDashboard: React.FC = () => {
                     <FaChartBar className="text-yellow-400" size={20} />
                   </div>
                 </div>
-                <div className="bg-blue-50 rounded-lg p-4">
+                <div className="bg-[#2B2B2B]-50 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">
                         Reviewed
                       </p>
-                      <p className="text-2xl font-bold text-blue-600">
+                      <p className="text-2xl font-bold text-[#2B2B2B]-600">
                         {reports.filter((r) => r.status === "reviewed").length}
                       </p>
                     </div>
-                    <FaEye className="text-blue-400" size={20} />
+                    <FaEye className="text-[#2B2B2B]-400" size={20} />
                   </div>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4">
@@ -1968,10 +1927,10 @@ const SuperAdminDashboard: React.FC = () => {
                               <div
                                 className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm mr-3 ${
                                   report.type === "performance"
-                                    ? "bg-gradient-to-br from-green-500 to-green-600"
+                                    ? "bg-gradient-to-br from-[#4ECDC4] to-[#4ECDC4]"
                                     : report.type === "usage"
-                                    ? "bg-gradient-to-br from-blue-500 to-blue-600"
-                                    : "bg-gradient-to-br from-red-500 to-red-600"
+                                    ? "bg-gradient-to-br from-[#2B2B2B] to-[#2B2B2B]"
+                                    : "bg-gradient-to-br from-[#FFD166] to-[#FFD166]"
                                 }`}
                               >
                                 <FaChartBar size={16} />
@@ -1990,10 +1949,10 @@ const SuperAdminDashboard: React.FC = () => {
                             <span
                               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                 report.type === "performance"
-                                  ? "bg-green-100 text-green-800"
+                                  ? "bg-[#4ECDC4]-100 text-[#4ECDC4]-800"
                                   : report.type === "usage"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-red-100 text-red-800"
+                                  ? "bg-[#2B2B2B]-100 text-[#2B2B2B]-800"
+                                  : "bg-[#FFD166]-100 text-[#FFD166]-800"
                               }`}
                             >
                               {report.type.charAt(0).toUpperCase() +
@@ -2004,19 +1963,19 @@ const SuperAdminDashboard: React.FC = () => {
                             <span
                               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                 report.status === "archived"
-                                  ? "bg-green-100 text-green-800"
+                                  ? "bg-[#4ECDC4]-100 text-[#4ECDC4]-800"
                                   : report.status === "reviewed"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-yellow-100 text-yellow-800"
+                                  ? "bg-[#2B2B2B]-100 text-[#2B2B2B]-800"
+                                  : "bg-[#FFD166]-100 text-[#FFD166]-800"
                               }`}
                             >
                               <div
                                 className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
                                   report.status === "archived"
-                                    ? "bg-green-400"
+                                    ? "bg-[#4ECDC4]"
                                     : report.status === "reviewed"
-                                    ? "bg-blue-400"
-                                    : "bg-yellow-400"
+                                    ? "bg-[#2B2B2B]"
+                                    : "bg-[#FFD166]"
                                 }`}
                               ></div>
                               {report.status.charAt(0).toUpperCase() +
@@ -2044,7 +2003,7 @@ const SuperAdminDashboard: React.FC = () => {
                                     onClick={() =>
                                       handleReportAction(report.id, "review")
                                     }
-                                    className={`px-3 py-1.5 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors text-xs font-medium flex items-center ${
+                                    className={`px-3 py-1.5 bg-[#2B2B2B]-100 text-[#2B2B2B]-800 rounded-lg hover:bg-[#2B2B2B]-200 transition-colors text-xs font-medium flex items-center ${
                                       isSubmittingReportAction
                                         ? "opacity-50 cursor-not-allowed"
                                         : ""
@@ -2087,7 +2046,7 @@ const SuperAdminDashboard: React.FC = () => {
             {/* Profile Header */}
             <div className="bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100">
               <div className="flex items-center space-x-4 mb-6">
-                <div className="w-16 h-16 bg-[#005524] rounded-full flex items-center justify-center text-white font-bold text-xl">
+                <div className="w-16 h-16 bg-[#4ECDC4] rounded-full flex items-center justify-center text-white font-bold text-xl">
                   {userProfile?.name?.charAt(0) || "S"}
                 </div>
                 <div>
@@ -2116,7 +2075,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setIsEditingPersonal(!isEditingPersonal)}
-                  className="px-4 py-2 text-sm font-medium text-[#005524] hover:text-[#004d20] hover:bg-green-50 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#4ECDC4] hover:text-[#004d20] hover:bg-green-50 rounded-lg transition-colors"
                 >
                   {isEditingPersonal ? "Cancel" : "Edit Profile"}
                 </button>
@@ -2144,7 +2103,7 @@ const SuperAdminDashboard: React.FC = () => {
                       className={`w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 transition-colors ${
                         !isEditingPersonal
                           ? "bg-gray-50 text-gray-500 cursor-not-allowed"
-                          : "bg-white border-gray-300 focus:border-[#005524] focus:ring-1 focus:ring-[#005524]"
+                          : "bg-white border-gray-300 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
                       }`}
                     />
                   </div>
@@ -2169,7 +2128,7 @@ const SuperAdminDashboard: React.FC = () => {
                       className={`w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 transition-colors ${
                         !isEditingPersonal
                           ? "bg-gray-50 text-gray-500 cursor-not-allowed"
-                          : "bg-white border-gray-300 focus:border-[#005524] focus:ring-1 focus:ring-[#005524]"
+                          : "bg-white border-gray-300 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
                       }`}
                     />
                   </div>
@@ -2179,7 +2138,7 @@ const SuperAdminDashboard: React.FC = () => {
                     <button
                       type="button"
                       onClick={handlePersonalInfoUpdate}
-                      className="px-6 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors font-medium"
+                      className="px-6 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] transition-colors font-medium"
                     >
                       Save Changes
                     </button>
@@ -2201,7 +2160,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setIsEditingSecurity(!isEditingSecurity)}
-                  className="px-4 py-2 text-sm font-medium text-[#005524] hover:text-[#004d20] hover:bg-red-50 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#4ECDC4] hover:text-[#2B2B2B] hover:bg-red-50 rounded-lg transition-colors"
                 >
                   {isEditingSecurity ? "Cancel" : "Change Password"}
                 </button>
@@ -2227,7 +2186,7 @@ const SuperAdminDashboard: React.FC = () => {
                               currentPassword: e.target.value,
                             })
                           }
-                          className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#005524] focus:ring-1 focus:ring-[#005524]"
+                          className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
                           placeholder="Enter current password"
                         />
                       </div>
@@ -2248,7 +2207,7 @@ const SuperAdminDashboard: React.FC = () => {
                               newPassword: e.target.value,
                             })
                           }
-                          className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#005524] focus:ring-1 focus:ring-[#005524]"
+                          className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
                           placeholder="Enter new password"
                         />
                       </div>
@@ -2269,7 +2228,7 @@ const SuperAdminDashboard: React.FC = () => {
                               confirmPassword: e.target.value,
                             })
                           }
-                          className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#005524] focus:ring-1 focus:ring-[#005524]"
+                          className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
                           placeholder="Confirm new password"
                         />
                       </div>
@@ -2310,8 +2269,8 @@ const SuperAdminDashboard: React.FC = () => {
               <div className="space-y-6">
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <FaBell className="text-blue-600" size={16} />
+                    <div className="w-10 h-10 bg-[#2B2B2B]-100 rounded-lg flex items-center justify-center">
+                      <FaBell className="text-[#2B2B2B]" size={16} />
                     </div>
                     <div>
                       <h4 className="text-sm font-medium text-gray-900">
@@ -2325,7 +2284,7 @@ const SuperAdminDashboard: React.FC = () => {
                   <button
                     onClick={() => setNotifications(!notifications)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-                      notifications ? "bg-[#005524]" : "bg-gray-200"
+                      notifications ? "bg-[#4ECDC4]" : "bg-gray-200"
                     }`}
                   >
                     <span
@@ -2352,7 +2311,7 @@ const SuperAdminDashboard: React.FC = () => {
                   <button
                     onClick={() => setEmailNotifications(!emailNotifications)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-                      emailNotifications ? "bg-[#005524]" : "bg-gray-200"
+                      emailNotifications ? "bg-[#4ECDC4]" : "bg-gray-200"
                     }`}
                   >
                     <span
@@ -2419,11 +2378,12 @@ const SuperAdminDashboard: React.FC = () => {
   };
 
   return (
-  <div className="flex h-screen bg-[#f8eed4]">
+  <div className="flex h-screen bg-[#4ECDC4]/70">
+    {/* Sidebar */}
       <div
         className={`flex-shrink-0 transition-all duration-300 transform-gpu ${
           isSidebarCollapsed ? "w-16" : "w-64"
-        } mx-4 my-4 p-2 rounded-2xl backdrop-blur-sm bg-white/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
+        } mx-4 my-4 p-2 rounded-2xl backdrop-blur-sm bg-[#FAFAFA]/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
       >
         <div className="flex items-center justify-between p-4">
           {!isSidebarCollapsed && (
@@ -2431,7 +2391,7 @@ const SuperAdminDashboard: React.FC = () => {
           )}
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="p-2 text-gray-600 hover:text-[#005524] hover:bg-gray-50 rounded-full"
+            className="p-2 text-gray-600 hover:text-[#4ECDC4] hover:bg-gray-50 rounded-full"
           >
             {isSidebarCollapsed ? (
               <FaChevronRight size={16} />
@@ -2447,8 +2407,8 @@ const SuperAdminDashboard: React.FC = () => {
                 onClick={() => setActiveTab("dashboard")}
                 className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
                   activeTab === "dashboard"
-                    ? "bg-[#005524] text-white scale-100 shadow-inner"
-                    : "text-gray-700 hover:bg-white/10 hover:text-[#005524] hover:scale-102"
+                    ? "bg-[#4ECDC4] text-[#2B2B2B] scale-100 shadow-inner"
+                    : "text-gray-700 hover:bg-white/10 hover:text-[#4ECDC4] hover:scale-102"
                 }`}
                 onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
                 onMouseUp={(e) => (e.currentTarget.style.transform = '')}
@@ -2466,8 +2426,8 @@ const SuperAdminDashboard: React.FC = () => {
                 onClick={() => setActiveTab("admin-management")}
                 className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
                   activeTab === "admin-management"
-                    ? "bg-[#005524] text-white scale-100 shadow-inner"
-                    : "text-gray-700 hover:bg-white/10 hover:text-[#005524] hover:scale-102"
+                    ? "bg-[#4ECDC4] text-[#2B2B2B] scale-100 shadow-inner"
+                    : "text-gray-700 hover:bg-white/10 hover:text-[#4ECDC4] hover:scale-102"
                 }`}
                 onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
                 onMouseUp={(e) => (e.currentTarget.style.transform = '')}
@@ -2484,8 +2444,8 @@ const SuperAdminDashboard: React.FC = () => {
                 onClick={() => setActiveTab("feature-updates")}
                 className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
                   activeTab === "feature-updates"
-                    ? "bg-[#005524] text-white scale-100 shadow-inner"
-                    : "text-gray-700 hover:bg-white/10 hover:text-[#005524] hover:scale-102"
+                    ? "bg-[#4ECDC4] text-[#2B2B2B] scale-100 shadow-inner"
+                    : "text-gray-700 hover:bg-white/10 hover:text-[#4ECDC4] hover:scale-102"
                 }`}
                 onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
                 onMouseUp={(e) => (e.currentTarget.style.transform = '')}
@@ -2502,8 +2462,8 @@ const SuperAdminDashboard: React.FC = () => {
                 onClick={() => setActiveTab("system-reports")}
                 className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
                   activeTab === "system-reports"
-                    ? "bg-[#005524] text-white scale-100 shadow-inner"
-                    : "text-gray-700 hover:bg-white/10 hover:text-[#005524] hover:scale-102"
+                    ? "bg-[#4ECDC4] text-[#2B2B2B] scale-100 shadow-inner"
+                    : "text-gray-700 hover:bg-white/10 hover:text-[#4ECDC4] hover:scale-102"
                 }`}
                 onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
                 onMouseUp={(e) => (e.currentTarget.style.transform = '')}
@@ -2520,8 +2480,8 @@ const SuperAdminDashboard: React.FC = () => {
                 onClick={() => setActiveTab("settings")}
                 className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
                   activeTab === "settings"
-                    ? "bg-[#005524] text-white scale-100 shadow-inner"
-                    : "text-gray-700 hover:bg-white/10 hover:text-[#005524] hover:scale-102"
+                    ? "bg-[#4ECDC4] text-[#2B2B2B] scale-100 shadow-inner"
+                    : "text-gray-700 hover:bg-white/10 hover:text-[#4ECDC4] hover:scale-102"
                 }`}
                 onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
                 onMouseUp={(e) => (e.currentTarget.style.transform = '')}
@@ -2534,8 +2494,9 @@ const SuperAdminDashboard: React.FC = () => {
         </nav>
       </div>
 
+      {/* Top Navbar */}
       <div className="flex-1 flex flex-col">
-        <div className="mx-1 my-6 p-4 rounded-2xl bg-white/80 backdrop-blur-sm border border-white/10 shadow-lg flex items-center justify-between">
+        <div className="mx-1 my-6 p-4 rounded-2xl bg-[#FAFAFA]/80 backdrop-blur-sm border border-white/10 shadow-lg flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -2602,7 +2563,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </h3>
                 <button
                   onClick={markAllNotificationsAsRead}
-                  className="text-sm text-blue-600 hover:text-blue-700"
+                  className="text-sm text-[#2B2B2B] hover:text-[#2B2B2B]"
                 >
                   Mark all as read
                 </button>
@@ -2611,7 +2572,7 @@ const SuperAdminDashboard: React.FC = () => {
                 <button
                   onClick={() => setNotificationTab("unread")}
                   className={`flex-1 py-2 text-sm font-medium ${notificationTab === "unread"
-                    ? "border-b-2 border-[#005524] text-[#005524]"
+                    ? "border-b-2 border-[#4ECDC4] text-[#2B2B2B]"
                     : "text-gray-500 hover:text-gray-700"
                     }`}
                 >
@@ -2620,7 +2581,7 @@ const SuperAdminDashboard: React.FC = () => {
                 <button
                   onClick={() => setNotificationTab("all")}
                   className={`flex-1 py-2 text-sm font-medium ${notificationTab === "all"
-                    ? "border-b-2 border-[#005524] text-[#005524]"
+                    ? "border-b-2 border-[#4ECDC4] text-[#2B2B2B]"
                     : "text-gray-500 hover:text-gray-700"
                     }`}
                 >
@@ -2711,7 +2672,7 @@ const SuperAdminDashboard: React.FC = () => {
               </button>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                className="px-4 py-2 bg-[#E63946] text-white rounded-lg hover:bg-[#D62839]"
               >
                 Log Out
               </button>
@@ -2721,7 +2682,7 @@ const SuperAdminDashboard: React.FC = () => {
       )}
 
       {showAddAdmin && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Add New Admin
@@ -2783,7 +2744,7 @@ const SuperAdminDashboard: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmittingAdmin}
-                  className={`px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] ${
+                  className={`px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] ${
                     isSubmittingAdmin ? "opacity-50 cursor-not-allowed" : ""
                   }`}
                 >
@@ -2796,7 +2757,7 @@ const SuperAdminDashboard: React.FC = () => {
       )}
 
       {showFeatureUpdateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Add Feature Update
@@ -2842,7 +2803,7 @@ const SuperAdminDashboard: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmittingFeature}
-                  className={`px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] ${
+                  className={`px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] ${
                     isSubmittingFeature ? "opacity-50 cursor-not-allowed" : ""
                   }`}
                 >
@@ -2855,7 +2816,7 @@ const SuperAdminDashboard: React.FC = () => {
       )}
 
       {showGenerateReportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Generate Report
@@ -2905,7 +2866,7 @@ const SuperAdminDashboard: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmittingReport}
-                  className={`px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] ${
+                  className={`px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] ${
                     isSubmittingReport ? "opacity-50 cursor-not-allowed" : ""
                   }`}
                 >
@@ -2918,7 +2879,7 @@ const SuperAdminDashboard: React.FC = () => {
       )}
 
       {showReportDetails && selectedReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               {selectedReport.title}
@@ -2976,7 +2937,7 @@ const SuperAdminDashboard: React.FC = () => {
               </button>
               <button
                 onClick={() => handleReportAction(selectedReport.id, "review")}
-                className={`px-4 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 ${
+                className={`px-4 py-2 bg-[#2B2B2B]-100 text-[#2B2B2B]-800 rounded-lg hover:bg-[#2B2B2B]-200 ${
                   isSubmittingReportAction
                     ? "opacity-50 cursor-not-allowed"
                     : ""

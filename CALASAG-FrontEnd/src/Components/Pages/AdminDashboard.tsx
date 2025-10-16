@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaBell,
@@ -17,6 +17,11 @@ import {
   FaFilter,
   FaDownload,
   FaHistory,
+  FaAmbulance,
+  FaFireExtinguisher,
+  FaInfoCircle,
+  FaHeartbeat,
+  FaHandsHelping,
   FaFirstAid,
   FaFire,
   FaCheckCircle,
@@ -97,7 +102,6 @@ interface UiUser {
   reports?: number; // incident reports
   crisis?: number; // crisis alerts
   role?: string; // user role (admin, user, etc.)
-  icon: string; // optional icon URL
 }
 
 interface EmergencyReport {
@@ -261,6 +265,7 @@ const AdminDashboard: React.FC = () => {
   const [newSafetyTip, setNewSafetyTip] = useState({
     name: "",
     content: "",
+    icon: null,
   });
 
   const loadEmergencies = async () => {
@@ -1180,7 +1185,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleAddSafetyTip = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = { name: newSafetyTip.name, content: newSafetyTip.content };
+    const payload = { name: newSafetyTip.name, content: newSafetyTip.content, icon: newSafetyTip.icon || null, };
     const { data, error } = await supabase
       .from("safety_tips")
       .insert(payload)
@@ -1191,7 +1196,7 @@ const AdminDashboard: React.FC = () => {
     } else if (data) {
       setSafetyTips((prev) => [data as SafetyTip, ...prev]);
       setShowSafetyTipModal(false);
-      setNewSafetyTip({ name: "", content: "" });
+      setNewSafetyTip({ name: "", content: "", icon: null });
     }
   };
 
@@ -1254,7 +1259,7 @@ const AdminDashboard: React.FC = () => {
             users.filter((u) => u.status === "inactive").length,
             users.filter((u) => u.status === "pending").length,
           ],
-          backgroundColor: ["#005524", "#f69f00", "#d97706"],
+          backgroundColor: ["#4ECDC4", "#E63946", "#FFD166"],
           borderColor: ["#ffffff", "#ffffff", "#ffffff"],
           borderWidth: 2,
         },
@@ -1267,7 +1272,7 @@ const AdminDashboard: React.FC = () => {
         {
           label: "Incident Reports",
           data: incidentData.length > 0 ? incidentData : new Array(12).fill(0),
-          borderColor: "#005524",
+          borderColor: "#4ECDC4",
           backgroundColor: "rgba(0, 85, 36, 0.1)",
           tension: 0.4,
           fill: true,
@@ -1322,7 +1327,7 @@ const AdminDashboard: React.FC = () => {
                       {users.length}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-[#005524] to-[#004015] rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#4ECDC4] to-[#3abfb2] rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <FaUser size={20} />
                   </div>
                 </div>
@@ -1442,7 +1447,7 @@ const AdminDashboard: React.FC = () => {
                     <button
                       onClick={() => setFilter("week")}
                       className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === "week"
-                        ? "bg-[#005524] text-white"
+                        ? "bg-[#4ECDC4] text-white"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                         }`}
                     >
@@ -1451,7 +1456,7 @@ const AdminDashboard: React.FC = () => {
                     <button
                       onClick={() => setFilter("month")}
                       className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === "month"
-                        ? "bg-[#005524] text-white"
+                        ? "bg-[#4ECDC4] text-white"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                         }`}
                     >
@@ -1460,7 +1465,7 @@ const AdminDashboard: React.FC = () => {
                     <button
                       onClick={() => setFilter("year")}
                       className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === "year"
-                        ? "bg-[#005524] text-white"
+                        ? "bg-[#4ECDC4] text-white"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                         }`}
                     >
@@ -1497,7 +1502,7 @@ const AdminDashboard: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">
                     Recent Users
                   </h3>
-                  <button className="text-[#005524] hover:text-[#004015] text-sm font-medium">
+                  <button className="text-[#4ECDC4] hover:text-[#3abfb2] text-sm font-medium">
                     View all
                   </button>
                 </div>
@@ -1508,7 +1513,7 @@ const AdminDashboard: React.FC = () => {
                       className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-[#005524] to-[#f69f00] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                        <div className="w-10 h-10 bg-gradient-to-br from-[#4ECDC4] to-[#f69f00] rounded-full flex items-center justify-center text-white font-semibold text-sm">
                           {user.name.charAt(0)}
                         </div>
                         <div>
@@ -1537,7 +1542,7 @@ const AdminDashboard: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">
                     Recent Activity
                   </h3>
-                  <button className="text-[#005524] hover:text-[#004015] text-sm font-medium">
+                  <button className="text-[#4ECDC4] hover:text-[#3abfb2] text-sm font-medium">
                     View all
                   </button>
                 </div>
@@ -1584,7 +1589,7 @@ const AdminDashboard: React.FC = () => {
                         <span className="text-xs text-gray-400">
                           {emergency.date}
                         </span>
-                        <button className="p-1 text-gray-400 hover:text-[#005524] opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <button className="p-1 text-gray-400 hover:text-[#4ECDC4] opacity-0 group-hover:opacity-100 transition-all duration-300">
                           <FaEye size={12} />
                         </button>
                       </div>
@@ -1599,7 +1604,7 @@ const AdminDashboard: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">
                     System Status
                   </h3>
-                  <button className="text-[#005524] hover:text-[#004015] text-sm font-medium">
+                  <button className="text-[#4ECDC4] hover:text-[#3abfb2] text-sm font-medium">
                     Details
                   </button>
                 </div>
@@ -1770,7 +1775,7 @@ const AdminDashboard: React.FC = () => {
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gradient-to-br from-[#005524] to-[#f69f00] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                          <div className="w-10 h-10 bg-gradient-to-br from-[#4ECDC4] to-[#FFD166] rounded-full flex items-center justify-center text-white font-semibold text-sm">
                             {user.name.charAt(0)}
                           </div>
                           <div className="ml-4">
@@ -1848,7 +1853,7 @@ const AdminDashboard: React.FC = () => {
                     }`}
                 >
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-[#005524] to-[#f69f00] rounded-full flex items-center justify-center text-white font-semibold">
+                    <div className="w-12 h-12 bg-[#4ECDC4] rounded-full flex items-center justify-center text-white font-semibold">
                       {user.name.charAt(0)}
                     </div>
                     <div>
@@ -1890,7 +1895,7 @@ const AdminDashboard: React.FC = () => {
                       }`}
                   >
                     <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-[#005524] to-[#f69f00] rounded-full flex items-center justify-center text-white font-semibold">
+                      <div className="w-12 h-12 bg-gradient-to-br from-[#4ECDC4] to-[#FFD166] rounded-full flex items-center justify-center text-white font-semibold">
                         {user.name.charAt(0)}
                       </div>
                       <div>
@@ -2161,7 +2166,7 @@ const AdminDashboard: React.FC = () => {
               </h2>
               <button
                 onClick={() => setShowSafetyTipModal(true)}
-                className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
               >
                 <FaPlus size={14} />
                 Add New Tip
@@ -2241,7 +2246,7 @@ const AdminDashboard: React.FC = () => {
                 </h3>
                 <div className="flex items-center gap-2">
                   <select
-                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
                     onChange={(e) => {
                       // Filter by action type
                       if (e.target.value === "all") {
@@ -2342,7 +2347,7 @@ const AdminDashboard: React.FC = () => {
                 </h3>
                 <button
                   onClick={() => setIsEditingPersonal(!isEditingPersonal)}
-                  className="text-sm font-medium text-[#005524] hover:text-[#004d20]"
+                  className="text-sm font-medium text-[#4ECDC4] hover:text-[#3abfb2]"
                 >
                   {isEditingPersonal ? "Cancel" : "Edit"}
                 </button>
@@ -2393,7 +2398,7 @@ const AdminDashboard: React.FC = () => {
                   <div className="flex justify-end">
                     <button
                       type="button"
-                      className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20]"
+                      className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#3abfb2]"
                     >
                       Save Changes
                     </button>
@@ -2409,7 +2414,7 @@ const AdminDashboard: React.FC = () => {
                 </h3>
                 <button
                   onClick={() => setIsEditingSecurity(!isEditingSecurity)}
-                  className="text-sm font-medium text-[#005524] hover:text-[#004d20]"
+                  className="text-sm font-medium text-[#4ECDC4] hover:text-[#3abfb2]"
                 >
                   {isEditingSecurity ? "Cancel" : "Change Password"}
                 </button>
@@ -2480,7 +2485,7 @@ const AdminDashboard: React.FC = () => {
                     <div className="flex justify-end">
                       <button
                         type="button"
-                        className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004d20]"
+                        className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#3abfb2]"
                       >
                         Change Password
                       </button>
@@ -2509,7 +2514,7 @@ const AdminDashboard: React.FC = () => {
                     onClick={() =>
                       setNotificationsEnabled(!notificationsEnabled)
                     }
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${notificationsEnabled ? "bg-[#005524]" : "bg-gray-200"
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${notificationsEnabled ? "bg-[#4ECDC4]" : "bg-gray-200"
                       }`}
                   >
                     <span
@@ -2529,7 +2534,7 @@ const AdminDashboard: React.FC = () => {
                   </div>
                   <button
                     onClick={() => setEmailNotifications(!emailNotifications)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${emailNotifications ? "bg-[#005524]" : "bg-gray-200"
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${emailNotifications ? "bg-[#4ECDC4]" : "bg-gray-200"
                       }`}
                   >
                     <span
@@ -2543,7 +2548,7 @@ const AdminDashboard: React.FC = () => {
 
             {/* Save Button */}
             <div className="flex justify-end">
-              <button className="px-6 py-3 bg-[#005524] text-white rounded-lg hover:bg-[#004d20] transition-colors font-medium">
+              <button className="px-6 py-3 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#004d20] transition-colors font-medium">
                 Save Changes
               </button>
             </div>
@@ -2555,11 +2560,11 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-[#f8eed4]">
+    <div className="flex h-screen bg-[#4ECDC4]/70">
       {/* Sidebar */}
       <div
         className={`flex-shrink-0 transition-all duration-300 transform-gpu ${isSidebarCollapsed ? "w-16" : "w-64"
-          } mx-4 my-4 p-2 rounded-2xl backdrop-blur-sm bg-white/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
+          } mx-4 my-4 p-2 rounded-2xl backdrop-blur-sm bg-[#FAFAFA]/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
       >
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
@@ -2589,11 +2594,14 @@ const AdminDashboard: React.FC = () => {
             <li>
               <button
                 onClick={() => setActiveTab("dashboard")}
-                className={`relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-200 text-sm font-medium ${activeTab === "dashboard" ? "bg-[#E7F6EE] text-[#005524]" : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"} ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}
+                className={`relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-200 text-sm font-medium ${activeTab === "dashboard" 
+                  ? "bg-[#E7F6EE] text-[#2B2B2B]" 
+                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B]"} 
+                  ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}
               >
                 <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "dashboard" 
-                  ? "bg-[#005524]" 
-                  : "bg-transparent group-hover:bg-[#CDE6D3]"}`} />
+                  ? "bg-[#4ECDC4]" 
+                  : "bg-transparent group-hover:bg-[#FFD166]"}`} />
                 <div className="relative z-10 w-full">
                   <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
                     <FaHome size={18} />
@@ -2617,13 +2625,16 @@ const AdminDashboard: React.FC = () => {
                       );
                     }
                   }}
-                  className={`relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-200 text-sm font-medium ${["users","total-users-list","active-users-list"].includes(activeTab) ? "bg-[#E7F6EE] text-[#005524]" : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"} ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}
+                  className={`relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-200 text-sm font-medium ${["users","total-users-list","active-users-list"].includes(activeTab) 
+                    ? "bg-[#E7F6EE] text-[#2B2B2B]" 
+                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B]"} ${isSidebarCollapsed 
+                    ? "justify-center" : "justify-between"}`}
                 >
                   <span
                     className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${["users", "total-users-list", "active-users-list"].includes(
                       activeTab
                     )
-                      ? "bg-[#005524]"
+                      ? "bg-[#4ECDC4]"
                       : "bg-transparent group-hover:bg-[#CDE6D3]"
                       }`}
                   />
@@ -2646,19 +2657,19 @@ const AdminDashboard: React.FC = () => {
                     <div className="ml-6 mt-2 space-y-1">
                       <button
                         onClick={() => setActiveTab("users")}
-                        className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6 ${activeTab === "users" ? "text-[#005524] font-medium bg-[#E7F6EE]" : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"}`}
+                        className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6 ${activeTab === "users" ? "text-[#2B2B2B] font-medium bg-[#FFD166]" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4]"}`}
                       >
                         Full User Table
                       </button>
                       <button
                         onClick={() => setActiveTab("total-users-list")}
-                        className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6 ${activeTab === "total-users-list" ? "text-[#005524] font-medium bg-[#E7F6EE]" : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"}`}
+                        className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6 ${activeTab === "total-users-list" ? "text-[#2B2B2B] font-medium bg-[#FFD166]" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4]"}`}
                       >
                         Total Users List
                       </button>
                       <button
                         onClick={() => setActiveTab("active-users-list")}
-                        className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6 ${activeTab === "active-users-list" ? "text-[#005524] font-medium bg-[#E7F6EE]" : "text-gray-600 hover:text-[#005524] hover:bg-[#F1FAF4]"}`}
+                        className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6 ${activeTab === "active-users-list" ? "text-[#2B2B2B] font-medium bg-[#FFD166]" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4]"}`}
                       >
                         Active Users List
                       </button>
@@ -2672,14 +2683,14 @@ const AdminDashboard: React.FC = () => {
                 onClick={() => setActiveTab("emergencies")}
                 className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
                             ${activeTab === "emergencies"
-                    ? "bg-[#E7F6EE] text-[#005524]"
-                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+                    ? "bg-[#E7F6EE] text-[#2B2B2B]"
+                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B]"
                   }
                             `}
               >
                 <span
                   className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "emergencies"
-                    ? "bg-[#005524]"
+                    ? "bg-[#4ECDC4]"
                     : "bg-transparent group-hover:bg-[#CDE6D3]"
                     }`}
                 />
@@ -2695,15 +2706,15 @@ const AdminDashboard: React.FC = () => {
                 onClick={() => setActiveTab("safety-tips")}
                 className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
                             ${activeTab === "safety-tips"
-                    ? "bg-[#E7F6EE] text-[#005524]"
-                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+                    ? "bg-[#E7F6EE] text-[#2B2B2B]"
+                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B]"
                   }
                             `}
               >
                 <span
                   className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "safety-tips"
-                    ? "bg-[#005524]"
-                    : "bg-transparent group-hover:bg-[#CDE6D3]"
+                    ? "bg-[#4ECDC4]"
+                    : "bg-transparent group-hover:bg-[#4ECDC4]"
                     }`}
                 />
                 <div className="relative flex items-center gap-3 z-10">
@@ -2718,14 +2729,14 @@ const AdminDashboard: React.FC = () => {
                 onClick={() => setActiveTab("activity-log")}
                 className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
                             ${activeTab === "activity-log"
-                    ? "bg-[#E7F6EE] text-[#005524]"
-                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+                    ? "bg-[#E7F6EE] text-[#2B2B2B]"
+                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#4ECDC4]"
                   }
                             `}
               >
                 <span
                   className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "activity-log"
-                    ? "bg-[#005524]"
+                    ? "bg-[#4ECDC4]"
                     : "bg-transparent group-hover:bg-[#CDE6D3]"
                     }`}
                 />
@@ -2741,14 +2752,14 @@ const AdminDashboard: React.FC = () => {
                 onClick={() => setActiveTab("settings")}
                 className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
                             ${activeTab === "settings"
-                    ? "bg-[#E7F6EE] text-[#005524]"
-                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#005524]"
+                    ? "bg-[#E7F6EE] text-[#2B2B2B]"
+                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B]"
                   }
                             `}
               >
                 <span
                   className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "settings"
-                    ? "bg-[#005524]"
+                    ? "bg-[#4ECDC4]"
                     : "bg-transparent group-hover:bg-[#CDE6D3]"
                     }`}
                 />
@@ -2767,7 +2778,7 @@ const AdminDashboard: React.FC = () => {
       {/* Main Content */}
         <div className="flex-1 flex flex-col transition-all duration-300">
         {/* Top Navigation Bar - rounded inline */}
-        <header className="mx-1 my-4 p-2 rounded-2xl bg-white/80 backdrop-blur-sm border border-white/10 shadow-lg flex items-center justify-between">
+        <header className="mx-1 my-4 p-2 rounded-2xl bg-[#FAFAFA]/80 backdrop-blur-sm border border-white/10 shadow-lg flex items-center justify-between">
             <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -2834,7 +2845,7 @@ const AdminDashboard: React.FC = () => {
                       <button
                         onClick={() => setNotificationTab("unread")}
                         className={`flex-1 py-2 text-sm font-medium ${notificationTab === "unread"
-                          ? "border-b-2 border-[#005524] text-[#005524]"
+                          ? "border-b-2 border-[#4ECDC4] text-[#4ECDC4]"
                           : "text-gray-500 hover:text-gray-700"
                           }`}
                       >
@@ -2843,7 +2854,7 @@ const AdminDashboard: React.FC = () => {
                       <button
                         onClick={() => setNotificationTab("all")}
                         className={`flex-1 py-2 text-sm font-medium ${notificationTab === "all"
-                          ? "border-b-2 border-[#005524] text-[#005524]"
+                          ? "border-b-2 border-[#4ECDC4] text-[#4ECDC4]"
                           : "text-gray-500 hover:text-gray-700"
                           }`}
                       >
@@ -2935,7 +2946,7 @@ const AdminDashboard: React.FC = () => {
                   <img
                     src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
                       currentUser?.name || "A"
-                    )}&background=005524&color=fff`}
+                    )}&background=2B2B2B&color=fff`}
                     alt="avatar"
                     className="w-8 h-8 rounded-full border border-gray-200"
                   />
@@ -2973,16 +2984,16 @@ const AdminDashboard: React.FC = () => {
         </header>
 
         {/* Main Content Area */}
-  <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-7xl mx-auto">{renderContent()}</div>
         </main>
       </div>
 
       {/* Emergency Details Modal */}
       {showEmergencyDetails && selectedEmergency && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-[#005524] mb-4">
+            <h2 className="text-2xl font-bold text-[#2B2B2B] mb-4">
               Emergency Details
             </h2>
             <div className="space-y-4">
@@ -3017,7 +3028,7 @@ const AdminDashboard: React.FC = () => {
                           | "critical",
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -3042,7 +3053,7 @@ const AdminDashboard: React.FC = () => {
                           | "resolved",
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
                   >
                     <option value="pending">Pending</option>
                     <option value="reviewing">Reviewing</option>
@@ -3128,9 +3139,9 @@ const AdminDashboard: React.FC = () => {
 
       {/* Safety Tip Modal */}
       {showSafetyTipModal && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-[#005524] mb-4">
+            <h2 className="text-2xl font-bold text-[#2B2B2B] mb-4">
               Add Safety Tip
             </h2>
             <form onSubmit={handleAddSafetyTip} className="space-y-4">
@@ -3144,7 +3155,7 @@ const AdminDashboard: React.FC = () => {
                   onChange={(e) =>
                     setNewSafetyTip({ ...newSafetyTip, name: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
                   required
                 />
               </div>
@@ -3160,7 +3171,7 @@ const AdminDashboard: React.FC = () => {
                       content: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
                   rows={4}
                   required
                 />
@@ -3173,7 +3184,7 @@ const AdminDashboard: React.FC = () => {
                 <select
                   value={newSafetyTip.icon || ""}
                   onChange={e => setNewSafetyTip({ ...newSafetyTip, icon: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
                 >
                   <option value="">Select an icon</option>
                   <option value="FaShieldAlt">Shield</option>
@@ -3201,7 +3212,7 @@ const AdminDashboard: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004015]"
+                  className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#004015]"
                 >
                   Add Tip
                 </button>
@@ -3215,7 +3226,7 @@ const AdminDashboard: React.FC = () => {
       {showSafetyTipDetails && selectedSafetyTip && (
         <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-[#005524] mb-4">
+            <h2 className="text-2xl font-bold text-[#4ECDC4] mb-4">
               Safety Tip Details
             </h2>
             <div className="space-y-4">
@@ -3231,7 +3242,7 @@ const AdminDashboard: React.FC = () => {
                         name: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
                   />
                 ) : (
                   <p className="text-gray-600">{selectedSafetyTip.name}</p>
@@ -3248,7 +3259,7 @@ const AdminDashboard: React.FC = () => {
                         content: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
                     rows={4}
                   />
                 ) : (
@@ -3267,7 +3278,7 @@ const AdminDashboard: React.FC = () => {
                         icon: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005524]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
                   />
                 ) : (
                   <p className="text-gray-600">
@@ -3334,7 +3345,7 @@ const AdminDashboard: React.FC = () => {
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-lg border border-gray-200">
-            <h2 className="text-2xl font-bold text-[#005524] mb-4">
+            <h2 className="text-2xl font-bold text-[#2B2B2B] mb-4">
               Confirm Logout
             </h2>
             <p className="text-gray-600 mb-6">
@@ -3349,7 +3360,7 @@ const AdminDashboard: React.FC = () => {
               </button>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 bg-[#005524] text-white rounded-lg hover:bg-[#004015]"
+                className="px-4 py-2 bg-[#2B2B2B] text-white rounded-lg hover:bg-[#004015]"
               >
                 Logout
               </button>
@@ -3362,7 +3373,7 @@ const AdminDashboard: React.FC = () => {
       {showUserDetails && selectedUser && (
         <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-[#005524] mb-4">
+            <h2 className="text-2xl font-bold text-[#2B2B2B] mb-4">
               User Details
             </h2>
             <div className="space-y-4">

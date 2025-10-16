@@ -22,7 +22,6 @@ const Login: React.FC = () => {
   const [showResendConfirmation, setShowResendConfirmation] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -219,27 +218,26 @@ const Login: React.FC = () => {
       console.log('User role:', userData.role);
       await testSupabaseConnection();
       if (userData.role === 'user') {
-  console.log('Redirecting to 2FA step');
-  setIs2FAStep(true);
-  setCooldown(30);
-} else if (userData.role === 'admin') {
-  console.log('Redirecting to /admin-dashboard');
-  navigate('/admin-dashboard');
-} else if (userData.role === 'super_admin') {
-  console.log('Redirecting to /super-admin-dashboard');
-  navigate('/super-admin-dashboard');
-} else {
-  console.error('Unknown role:', userData.role);
-  throw new Error('Unknown user role');
-}
+        console.log('Redirecting to 2FA step');
+        setIs2FAStep(true);
+        setCooldown(30);
+      } else if (userData.role === 'admin') {
+        console.log('Redirecting to /admin-dashboard');
+        navigate('/admin-dashboard');
+      } else if (userData.role === 'super_admin') {
+        console.log('Redirecting to /super-admin-dashboard');
+        navigate('/super-admin-dashboard');
+      } else {
+        console.error('Unknown role:', userData.role);
+        throw new Error('Unknown user role');
+      }
 
-// ✅ Update last login timestamp
-await supabase
-  .from("users")
-  .update({ last_login: new Date().toISOString() })
-  .eq("user_id", data.user.id);
+      await supabase
+        .from("users")
+        .update({ last_login: new Date().toISOString() })
+        .eq("user_id", data.user.id);
 
-resetForm();
+      resetForm();
 
     } catch (err: unknown) {
       const error = err as AuthError;
@@ -317,294 +315,325 @@ resetForm();
   };
 
   return (
-    <div className="min-h-screen w-screen flex flex-col lg:flex-row overflow-hidden">
+    <div className="min-h-screen h-screen w-screen flex flex-col lg:flex-row overflow-hidden">
       {/* Left Side - Logo */}
       <div className="w-full lg:w-1/2 bg-[#FAFAFA] flex flex-col items-center justify-center p-8">
         <img src={logo} alt="CALASAG Logo" className="w-900 md:w-900 mb-8" />
       </div>
 
       {/* Right Side - Form with Animated Background */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#2B2B2B] relative overflow-hidden">
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#2B2B2B] relative overflow-hidden p-4">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Animated Grid Pattern */}
-          <div className="absolute inset-0 opacity-5">
-            <div 
-              className="w-full h-full" 
-              style={{
-                backgroundImage: 'linear-gradient(#FFD166 1px, transparent 1px), linear-gradient(90deg, #FFD166 1px, transparent 1px)',
-                backgroundSize: '50px 50px',
-                animation: 'grid-move 20s linear infinite'
-              }} 
-            />
+          {/* Glowing Orbs */}
+          <div 
+            className="absolute w-96 h-96 rounded-full blur-3xl opacity-20"
+            style={{
+              background: 'radial-gradient(circle, #FFD166 0%, transparent 70%)',
+              top: '10%',
+              left: '10%',
+              animation: 'float-orb 8s ease-in-out infinite'
+            }}
+          />
+          <div 
+            className="absolute w-80 h-80 rounded-full blur-3xl opacity-15"
+            style={{
+              background: 'radial-gradient(circle, #005524 0%, transparent 70%)',
+              bottom: '10%',
+              right: '10%',
+              animation: 'float-orb-reverse 10s ease-in-out infinite'
+            }}
+          />
+          
+          {/* Animated Particles */}
+          <div className="absolute inset-0">
+            {[...Array(20)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute w-1 h-1 bg-[#FFD166] rounded-full"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  animation: `particle-float ${5 + Math.random() * 10}s ease-in-out infinite`,
+                  animationDelay: `${Math.random() * 5}s`,
+                  opacity: 0.3
+                }}
+              />
+            ))}
           </div>
         </div>
 
-        {/* Shadow Effect with Animation */}
-        <div
-          className="absolute -z-10 pointer-events-none w-[85%] max-w-md h-[70%] rounded-2xl bg-black/30 blur-2xl opacity-70"
-          style={{ 
-            left: '50%', 
-            transform: 'translate(-50%, 18px)',
-            animation: 'pulse-shadow 3s ease-in-out infinite'
-          }}
-        />
-
-        {/* Form Container with Transition */}
-        <div className="relative z-10 w-full max-w-sm mx-4">
-          <form
-            key={isRegistering ? 'register' : is2FAStep ? '2fa' : 'login'}
-            ref={formRef}
-            className="bg-[#f8eed4] p-6 md:p-8 rounded-lg shadow-xl w-full border border-gray-800 text-[#005524] transition-all duration-500 ease-out hover:-translate-y-1 hover:shadow-2xl focus-within:shadow-2xl hover:ring-2 hover:ring-[#FFD166] ring-offset-2 ring-offset-[#005524]"
-            onSubmit={(e) => {
-              console.log('Form submitted');
-              is2FAStep ? handle2FASubmit(e) : isRegistering ? handleRegisterSubmit(e) : handleLoginSubmit(e);
-            }}
-            style={{
-              animation: 'fade-in-up 0.5s ease-out'
-            }}
-          >
-            <h1 
-              className="text-2xl md:text-3xl font-semibold text-center mb-2 uppercase tracking-widest"
-              style={{ animation: 'slide-down 0.5s ease-out' }}
+        {/* Form Container */}
+        <div className="relative z-10 w-full max-w-md h-full flex items-center justify-center py-4">
+          <div className="w-full max-h-full overflow-y-auto scrollbar-hide">
+            <form
+              key={isRegistering ? 'register' : is2FAStep ? '2fa' : 'login'}
+              ref={formRef}
+              className="backdrop-blur-xl bg-white/10 p-5 md:p-6 rounded-2xl shadow-2xl w-full border border-white/20 text-white transition-all duration-700 ease-out"
+              onSubmit={(e) => {
+                console.log('Form submitted');
+                is2FAStep ? handle2FASubmit(e) : isRegistering ? handleRegisterSubmit(e) : handleLoginSubmit(e);
+              }}
+              style={{
+                animation: 'scale-fade-in 0.6s ease-out',
+                boxShadow: '0 8px 32px 0 rgba(255, 209, 102, 0.15)'
+              }}
             >
-              {is2FAStep ? 'One Time Password' : isRegistering ? 'Register' : 'Login'}
-            </h1>
-            <p 
-              className="text-xs text-[#bd4d22] text-center mb-6" 
-              style={{ animation: 'slide-down 0.5s ease-out 0.1s backwards' }}
-            >
-              {is2FAStep
-                ? 'Enter the code sent to your mobile number'
-                : isRegistering
-                  ? 'Create your CALASAG account'
-                  : 'Secure Access to CALASAG'}
-            </p>
-
-            {error && (
-              <div 
-                className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4"
-                style={{ animation: 'shake 0.5s ease-in-out' }}
+              <h1 
+                className="text-xl md:text-2xl font-bold text-center mb-1 uppercase tracking-wide text-[#4ECDC4]"
+                style={{ 
+                  animation: 'glow-pulse 2s ease-in-out infinite',
+                  textShadow: '0 0 20px rgba(255, 209, 102, 0.5)'
+                }}
               >
-                {error}
-              </div>
-            )}
+                {is2FAStep ? 'One Time Password' : isRegistering ? 'Register' : 'Login'}
+              </h1>
+              <p 
+                className="text-xs text-white/70 text-center mb-4" 
+                style={{ animation: 'fade-in 0.8s ease-out 0.2s backwards' }}
+              >
+                {is2FAStep
+                  ? 'Enter the code sent to your mobile number'
+                  : isRegistering
+                    ? 'Create your CALASAG account'
+                    : 'Secure Access to CALASAG'}
+              </p>
 
-            {!is2FAStep ? (
-              <>
-                <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.2s backwards' }}>
-                  <input
-                    className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
-                    type="email"
-                    placeholder="Email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+              {error && (
+                <div 
+                  className="bg-red-500/20 backdrop-blur-sm border border-red-400/50 text-red-200 px-3 py-2 rounded-lg mb-3 text-sm"
+                  style={{ animation: 'bounce-in 0.5s ease-out' }}
+                >
+                  {error}
                 </div>
+              )}
 
-                {isRegistering && (
-                  <>
-                    <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.25s backwards' }}>
-                      <input
-                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
-                        type="text"
-                        placeholder="Username"
-                        required
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.3s backwards' }}>
-                      <input
-                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
-                        type="text"
-                        placeholder="First Name"
-                        required
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.35s backwards' }}>
-                      <input
-                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
-                        type="text"
-                        placeholder="Middle Initial"
-                        maxLength={2}
-                        value={middleInitial}
-                        onChange={(e) => setMiddleInitial(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.4s backwards' }}>
-                      <input
-                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
-                        type="text"
-                        placeholder="Last Name"
-                        required
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.45s backwards' }}>
-                      <input
-                        className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
-                        type="tel"
-                        placeholder="Mobile Number"
-                        required
-                        value={mobileNumber}
-                        onChange={(e) => setMobileNumber(e.target.value)}
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div className="mb-4" style={{ animation: `slide-in 0.5s ease-out ${isRegistering ? '0.5s' : '0.3s'} backwards` }}>
-                  <input
-                    className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
-                    type="password"
-                    placeholder="Password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-
-                {isRegistering && (
-                  <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.55s backwards' }}>
+              {!is2FAStep ? (
+                <>
+                  <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.3s backwards' }}>
                     <input
-                      className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent"
-                      type="password"
-                      placeholder="Confirm Password"
+                      className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
+                      type="email"
+                      placeholder="Email"
                       required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                     />
                   </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.2s backwards' }}>
-                  <input
-                    className="input w-full p-2 border border-[#005524]-300 rounded transition-all duration-300 focus:ring-2 focus:ring-[#FFD166] focus:border-transparent text-center text-lg tracking-widest"
-                    type="text"
-                    placeholder="Enter OTP Code"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="flex justify-between mb-4" style={{ animation: 'slide-in 0.5s ease-out 0.3s backwards' }}>
-                  <button
-                    type="button"
-                    onClick={handleResendCode}
-                    disabled={cooldown > 0}
-                    className={`text-sm text-[#005524] hover:underline transition-all ${cooldown > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
-                  >
-                    Resend Code {cooldown > 0 && `(${cooldown}s)`}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      console.log('Returning to login from 2FA');
-                      setIs2FAStep(false);
-                      resetForm();
-                    }}
-                    className="text-sm text-[#005524] hover:underline transition-all hover:scale-105"
-                  >
-                    Back to Login
-                  </button>
-                </div>
-              </>
-            )}
 
-            <button
-              type="submit"
-              className="w-full bg-[#FFD166] hover:bg-[#F9C835] text-white font-medium py-2 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ animation: `slide-in 0.5s ease-out ${isRegistering ? '0.6s' : '0.4s'} backwards` }}
-              disabled={isSubmitting}
-            >
-              {is2FAStep ? 'Verify Code' : isRegistering ? 'Register' : 'Login'}
-            </button>
+                  {isRegistering && (
+                    <>
+                      <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.35s backwards' }}>
+                        <input
+                          className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
+                          type="text"
+                          placeholder="Username"
+                          required
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                        />
+                      </div>
 
-            {!is2FAStep && (
-              <>
-                {showResendConfirmation && !isRegistering && (
-                  <div className="mt-4 text-center" style={{ animation: 'slide-in 0.5s ease-out' }}>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div style={{ animation: 'slide-up 0.6s ease-out 0.4s backwards' }}>
+                          <input
+                            className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
+                            type="text"
+                            placeholder="First Name"
+                            required
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                          />
+                        </div>
+
+                        <div style={{ animation: 'slide-up 0.6s ease-out 0.45s backwards' }}>
+                          <input
+                            className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
+                            type="text"
+                            placeholder="Last Name"
+                            required
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.5s backwards' }}>
+                        <input
+                          className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
+                          type="text"
+                          placeholder="Middle Initial"
+                          maxLength={2}
+                          value={middleInitial}
+                          onChange={(e) => setMiddleInitial(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.55s backwards' }}>
+                        <input
+                          className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
+                          type="tel"
+                          placeholder="Mobile Number"
+                          required
+                          value={mobileNumber}
+                          onChange={(e) => setMobileNumber(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="mb-3" style={{ animation: `slide-up 0.6s ease-out ${isRegistering ? '0.6s' : '0.4s'} backwards` }}>
+                    <input
+                      className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
+                      type="password"
+                      placeholder="Password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+
+                  {isRegistering && (
+                    <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.65s backwards' }}>
+                      <input
+                        className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
+                        type="password"
+                        placeholder="Confirm Password"
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.3s backwards' }}>
+                    <input
+                      className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50 text-center text-lg tracking-widest"
+                      type="text"
+                      placeholder="Enter OTP Code"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="flex justify-between mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.4s backwards' }}>
                     <button
                       type="button"
-                      onClick={handleResendConfirmation}
+                      onClick={handleResendCode}
                       disabled={cooldown > 0}
-                      className={`text-sm text-[#005524] hover:underline transition-all ${cooldown > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                      className={`text-sm text-[#4ECDC4] hover:text-white transition-all ${cooldown > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
                     >
-                      Resend Confirmation Email {cooldown > 0 && `(${cooldown}s)`}
+                      Resend Code {cooldown > 0 && `(${cooldown}s)`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        console.log('Returning to login from 2FA');
+                        setIs2FAStep(false);
+                        resetForm();
+                      }}
+                      className="text-sm text-[#4ECDC4] hover:text-white transition-all hover:scale-105"
+                    >
+                      Back to Login
                     </button>
                   </div>
-                )}
-                <p 
-                  className="text-sm text-center mt-6 text-gray-800" 
-                  style={{ animation: `slide-in 0.5s ease-out ${isRegistering ? '0.65s' : '0.45s'} backwards` }}
-                >
-                  {isRegistering ? 'Already have an account?' : "Don't have an account?"}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      console.log(isRegistering ? 'Switching to login' : 'Switching to register');
-                      setIsRegistering(!isRegistering);
-                      resetForm();
-                    }}
-                    className="text-[#005524] ml-1 hover:underline font-semibold transition-all hover:scale-105"
+                </>
+              )}
+
+              <button
+                type="submit"
+                className="w-full bg-[#4ECDC4] hover:bg-[#F9C835] text-[#2B2B2B] font-bold py-2.5 text-sm rounded-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ 
+                  animation: `slide-up 0.6s ease-out ${isRegistering ? '0.7s' : '0.5s'} backwards`,
+                  boxShadow: '0 4px 20px rgba(255, 209, 102, 0.4)'
+                }}
+                disabled={isSubmitting}
+              >
+                {is2FAStep ? 'Verify Code' : isRegistering ? 'Register' : 'Login'}
+              </button>
+
+              {!is2FAStep && (
+                <>
+                  {showResendConfirmation && !isRegistering && (
+                    <div className="mt-3 text-center" style={{ animation: 'fade-in 0.5s ease-out' }}>
+                      <button
+                        type="button"
+                        onClick={handleResendConfirmation}
+                        disabled={cooldown > 0}
+                        className={`text-sm text-[#4ECDC4] hover:text-[#3abfb2] transition-all ${cooldown > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                      >
+                        Resend Confirmation Email {cooldown > 0 && `(${cooldown}s)`}
+                      </button>
+                    </div>
+                  )}
+                  <p 
+                    className="text-sm text-center mt-4 text-white/80" 
+                    style={{ animation: `fade-in 0.6s ease-out ${isRegistering ? '0.75s' : '0.55s'} backwards` }}
                   >
-                    {isRegistering ? 'Login' : 'Register'}
-                  </button>
-                </p>
-              </>
-            )}
-          </form>
+                    {isRegistering ? 'Already have an account?' : "Don't have an account?"}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        console.log(isRegistering ? 'Switching to login' : 'Switching to register');
+                        setIsRegistering(!isRegistering);
+                        resetForm();
+                      }}
+                      className="text-[#4ECDC4] ml-1 hover:text-[#3abfb2] font-semibold transition-all hover:scale-105"
+                    >
+                      {isRegistering ? 'Login' : 'Register'}
+                    </button>
+                  </p>
+                </>
+              )}
+            </form>
+          </div>
         </div>
 
         {/* Custom Animations CSS */}
         <style>{`
-          @keyframes float-slow {
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          @keyframes float-orb {
             0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(30px, -30px) scale(1.1); }
+            50% { transform: translate(50px, -50px) scale(1.1); }
           }
-          @keyframes float-medium {
+          @keyframes float-orb-reverse {
             0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(-40px, 40px) scale(1.15); }
+            50% { transform: translate(-50px, 50px) scale(1.15); }
           }
-          @keyframes float-fast {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(20px, 30px) scale(1.2); }
+          @keyframes particle-float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 0.3; }
+            90% { opacity: 0.3; }
+            50% { transform: translateY(-100px) translateX(50px); }
           }
-          @keyframes grid-move {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(50px, 50px); }
+          @keyframes scale-fade-in {
+            0% { opacity: 0; transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
           }
-          @keyframes pulse-shadow {
-            0%, 100% { opacity: 0.7; transform: translate(-50%, 18px) scale(1); }
-            50% { opacity: 0.9; transform: translate(-50%, 18px) scale(1.05); }
+          @keyframes glow-pulse {
+            0%, 100% { text-shadow: 0 0 20px rgba(255, 209, 102, 0.5); }
+            50% { text-shadow: 0 0 30px rgba(255, 209, 102, 0.8), 0 0 40px rgba(255, 209, 102, 0.4); }
           }
-          @keyframes fade-in-up {
+          @keyframes slide-up {
             0% { opacity: 0; transform: translateY(20px); }
             100% { opacity: 1; transform: translateY(0); }
           }
-          @keyframes slide-down {
-            0% { opacity: 0; transform: translateY(-10px); }
-            100% { opacity: 1; transform: translateY(0); }
+          @keyframes fade-in {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
           }
-          @keyframes slide-in {
-            0% { opacity: 0; transform: translateX(-10px); }
-            100% { opacity: 1; transform: translateX(0); }
-          }
-          @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-            20%, 40%, 60%, 80% { transform: translateX(5px); }
+          @keyframes bounce-in {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { transform: scale(1.05); }
+            100% { opacity: 1; transform: scale(1); }
           }
         `}</style>
       </div>

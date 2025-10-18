@@ -1496,7 +1496,7 @@ const AdminDashboard: React.FC = () => {
 
             {/* Bottom Section */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                            {/* Recent Users */}
+              {/* Recent Users */}
               <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -1710,7 +1710,7 @@ const AdminDashboard: React.FC = () => {
           </div>
         );
 
-        case "users": // Original case for the full user table
+      case "users": // Original case for the full user table
         return (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex justify-between items-center mb-6">
@@ -2566,52 +2566,52 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-[#4ECDC4]/70">
+    <div className="flex h-screen bg-[#4ECDC4]/70 overflow-hidden">
       {/* Sidebar */}
       <div
         className={`flex-shrink-0 transition-all duration-300 transform-gpu ${isSidebarCollapsed ? "w-16" : "w-64"
-          } mx-4 my-4 p-2 rounded-2xl backdrop-blur-sm bg-[#FAFAFA]/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
+          } m-2 p-2 rounded-2xl backdrop-blur-sm bg-[#FAFAFA]/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
       >
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-3">
             <img
               src={logoImage}
               alt="CALASAG Logo"
-              className="h-8 w-auto object-contain"
+              className="h-7 w-auto object-contain transition-transform duration-300 hover:scale-110"
             />
             {!isSidebarCollapsed && (
-              <span className="text-xl font-bold text-gray-900"></span>
+              <span className="text-lg font-bold text-gray-900 transition-all duration-300"></span>
             )}
           </div>
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-300 hover:scale-110 active:scale-95"
           >
             {isSidebarCollapsed ? (
-              <FaChevronRight size={16} />
+              <FaChevronRight size={14} />
             ) : (
-              <FaChevronLeft size={16} />
+              <FaChevronLeft size={14} />
             )}
           </button>
         </div>
 
-  <nav className="mt-4">
+        <nav className="mt-4">
           <ul className="space-y-2">
             <li>
               <button
                 onClick={() => setActiveTab("dashboard")}
-                className={`relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-200 text-sm font-medium ${activeTab === "dashboard" 
-                  ? "bg-[#E7F6EE] text-[#2B2B2B]" 
-                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B]"} 
+                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "dashboard"
+                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
+                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"} 
                   ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}
               >
-                <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "dashboard" 
-                  ? "bg-[#4ECDC4]" 
+                <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "dashboard"
+                  ? "bg-[#4ECDC4]"
                   : "bg-transparent group-hover:bg-[#4ECDC4]"}`} />
                 <div className="relative z-10 w-full">
                   <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                    <FaHome size={18} />
-                    {!isSidebarCollapsed && <span>Dashboard</span>}
+                    <FaHome size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Dashboard</span>}
                   </div>
                 </div>
               </button>
@@ -2631,28 +2631,28 @@ const AdminDashboard: React.FC = () => {
                       );
                     }
                   }}
-                  className={`relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-200 text-sm font-medium ${["users","total-users-list","active-users-list"].includes(activeTab) 
-                    ? "bg-[#E7F6EE] text-[#2B2B2B]" 
-                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B]"} ${isSidebarCollapsed 
-                    ? "justify-center" : "justify-between"}`}
+                  className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${["users", "total-users-list", "active-users-list"].includes(activeTab)
+                    ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
+                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"} ${isSidebarCollapsed
+                      ? "justify-center" : "justify-between"}`}
                 >
                   <span
-                    className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${["users", "total-users-list", "active-users-list"].includes(
+                    className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${["users", "total-users-list", "active-users-list"].includes(
                       activeTab
                     )
                       ? "bg-[#4ECDC4]"
-                      : "bg-transparent group-hover:bg-[#CDE6D3]"
+                      : "bg-transparent group-hover:bg-[#4ECDC4]"
                       }`}
                   />
                   <div className="relative z-10 w-full">
                     <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                      <FaUser size={18} />
-                      {!isSidebarCollapsed && <span>Users Management</span>}
+                      <FaUser size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                      {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Users Management</span>}
                     </div>
                   </div>
                   {!isSidebarCollapsed && (
                     <FaChevronDown
-                      className={`transform transition-transform duration-200 ${openSidebarDropdown === "users-management" ? "rotate-180" : ""
+                      className={`transform transition-all duration-300 group-hover:scale-110 ${openSidebarDropdown === "users-management" ? "rotate-180" : ""
                         }`}
                     />
                   )}
@@ -2660,24 +2660,24 @@ const AdminDashboard: React.FC = () => {
 
                 {openSidebarDropdown === "users-management" &&
                   !isSidebarCollapsed && (
-                    <div className="ml-6 mt-2 space-y-1">
+                    <div className="ml-6 mt-2 space-y-1 animate-in slide-in-from-top-2 duration-300">
                       <button
                         onClick={() => setActiveTab("users")}
-                        className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6 ${activeTab === "users" ? "text-[#2B2B2B] font-medium bg-[#FFD166]" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4]"}`}
+                        className={`group w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-all duration-300 pl-6 transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "users" ? "text-[#2B2B2B] font-medium bg-[#FFD166] shadow-sm" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4] hover:shadow-sm"}`}
                       >
-                        Full User Table
+                        <span className="transition-all duration-300 group-hover:translate-x-1">Full User Table</span>
                       </button>
                       <button
                         onClick={() => setActiveTab("total-users-list")}
-                        className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6 ${activeTab === "total-users-list" ? "text-[#2B2B2B] font-medium bg-[#FFD166]" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4]"}`}
+                        className={`group w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-all duration-300 pl-6 transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "total-users-list" ? "text-[#2B2B2B] font-medium bg-[#FFD166] shadow-sm" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4] hover:shadow-sm"}`}
                       >
-                        Total Users List
+                        <span className="transition-all duration-300 group-hover:translate-x-1">Total Users List</span>
                       </button>
                       <button
                         onClick={() => setActiveTab("active-users-list")}
-                        className={`w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-colors duration-200 pl-6 ${activeTab === "active-users-list" ? "text-[#2B2B2B] font-medium bg-[#FFD166]" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4]"}`}
+                        className={`group w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-all duration-300 pl-6 transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "active-users-list" ? "text-[#2B2B2B] font-medium bg-[#FFD166] shadow-sm" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4] hover:shadow-sm"}`}
                       >
-                        Active Users List
+                        <span className="transition-all duration-300 group-hover:translate-x-1">Active Users List</span>
                       </button>
                     </div>
                   )}
@@ -2687,23 +2687,21 @@ const AdminDashboard: React.FC = () => {
             <li>
               <button
                 onClick={() => setActiveTab("emergencies")}
-                className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                            ${activeTab === "emergencies"
-                    ? "bg-[#E7F6EE] text-[#2B2B2B]"
-                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B]"
-                  }
-                            `}
+                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "emergencies"
+                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
+                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"
+                  }`}
               >
                 <span
-                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "emergencies"
+                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "emergencies"
                     ? "bg-[#4ECDC4]"
-                    : "bg-transparent group-hover:bg-[#CDE6D3]"
+                    : "bg-transparent group-hover:bg-[#4ECDC4]"
                     }`}
                 />
                 <div className="relative z-10 w-full">
-                  <div className="relative flex items-center gap-3 z-10">
-                  <FaBell size={18} />
-                  {!isSidebarCollapsed && "Incident Reports"}
+                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <FaBell size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Incident Reports</span>}
                   </div>
                 </div>
               </button>
@@ -2712,23 +2710,21 @@ const AdminDashboard: React.FC = () => {
             <li>
               <button
                 onClick={() => setActiveTab("safety-tips")}
-                className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                            ${activeTab === "safety-tips"
-                    ? "bg-[#E7F6EE] text-[#2B2B2B]"
-                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B]"
-                  }
-                            `}
+                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "safety-tips"
+                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
+                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"
+                  }`}
               >
                 <span
-                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "safety-tips"
+                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "safety-tips"
                     ? "bg-[#4ECDC4]"
                     : "bg-transparent group-hover:bg-[#4ECDC4]"
                     }`}
                 />
                 <div className="relative z-10 w-full">
-                  <div className="relative flex items-center gap-3 z-10">
-                  <FaFileAlt size={18} />
-                  {!isSidebarCollapsed && "Safety Tips"}
+                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <FaFileAlt size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Safety Tips</span>}
                   </div>
                 </div>
               </button>
@@ -2737,22 +2733,22 @@ const AdminDashboard: React.FC = () => {
             <li>
               <button
                 onClick={() => setActiveTab("activity-log")}
-                className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                            ${activeTab === "activity-log"
-                    ? "bg-[#E7F6EE] text-[#2B2B2B]"
-                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B]"
-                  }
-                            `}
+                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "activity-log"
+                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
+                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"
+                  }`}
               >
                 <span
-                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "activity-log"
+                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "activity-log"
                     ? "bg-[#4ECDC4]"
                     : "bg-transparent group-hover:bg-[#4ECDC4]"
                     }`}
                 />
-                <div className="relative flex items-center gap-3 z-10">
-                  <FaHistory size={18} />
-                  {!isSidebarCollapsed && "Activity Log"}
+                <div className="relative z-10 w-full">
+                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <FaHistory size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Activity Log</span>}
+                  </div>
                 </div>
               </button>
             </li>
@@ -2760,64 +2756,68 @@ const AdminDashboard: React.FC = () => {
             <li>
               <button
                 onClick={() => setActiveTab("settings")}
-                className={`relative flex items-center gap-3 px-4 py-3 rounded-r-full transition-all duration-200 text-sm font-medium group
-                            ${activeTab === "settings"
-                    ? "bg-[#E7F6EE] text-[#2B2B2B]"
-                    : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B]"
-                  }
-                            `}
+                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "settings"
+                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
+                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"
+                  }`}
               >
                 <span
-                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-200 ${activeTab === "settings"
+                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "settings"
                     ? "bg-[#4ECDC4]"
                     : "bg-transparent group-hover:bg-[#4ECDC4]"
                     }`}
                 />
-                <div className="relative flex items-center gap-3 z-10">
-                  <FaCog size={18} />
-                  {!isSidebarCollapsed && "Settings"}
+                <div className="relative z-10 w-full">
+                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <FaCog size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Settings</span>}
+                  </div>
                 </div>
               </button>
             </li>
           </ul>
         </nav>
 
-  <div className="p-4 border-t border-transparent" />
+        <div className="p-2 border-t border-transparent" />
       </div>
 
       {/* Main Content */}
-        <div className="flex-1 flex flex-col transition-all duration-300">
+      <div className="flex-1 flex flex-col transition-all duration-300 overflow-hidden">
         {/* Top Navigation Bar - rounded inline */}
-        <header className="mx-1 my-4 p-2 rounded-2xl bg-[#FAFAFA]/80 backdrop-blur-sm border border-white/10 shadow-lg flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <header className="m-2 p-3 rounded-2xl bg-[#FAFAFA]/80 backdrop-blur-sm border border-white/10 shadow-lg flex items-center justify-between hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="md:hidden text-gray-400 hover:text-gray-600 transition-colors"
+              className="md:hidden p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-300 hover:scale-110 active:scale-95"
             >
-              <FaChevronRight size={16} />
+              <FaChevronRight size={14} />
             </button>
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>Dashboard</span>
-              <FaChevronRight size={12} />
-              <span className="text-gray-900 font-medium">
+              <span className="font-medium">Dashboard</span>
+              <FaChevronRight size={10} className="text-gray-400" />
+              <span className="text-gray-900 font-semibold">
+                {activeTab === "dashboard" && "Overview"}
                 {activeTab === "users" && "User Management"}
+                {activeTab === "total-users-list" && "All Users"}
+                {activeTab === "active-users-list" && "Active Users"}
                 {activeTab === "emergencies" && "Emergency Reports"}
                 {activeTab === "safety-tips" && "Safety Tips"}
+                {activeTab === "activity-log" && "Activity Log"}
                 {activeTab === "settings" && "Settings"}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {/* Notifications */}
             <div className="relative">
               <button
                 onClick={() => setShowNotifications((prev) => !prev)}
-                className="text-gray-500 hover:text-green-700 hover:bg-gray-100 rounded-lg p-2 transition-colors relative"
+                className="text-gray-500 hover:text-green-700 hover:bg-gray-100 rounded-lg p-2 transition-all duration-300 relative hover:scale-110 active:scale-95"
               >
-                <FaBell size={18} />
+                <FaBell size={16} />
                 {notificationsList.some((n) => !n.read) && (
-                  <span className="absolute -top-1 -right-1 block h-2 w-2 rounded-full bg-red-500"></span>
+                  <span className="absolute -top-1 -right-1 block h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
                 )}
               </button>
               {showNotifications && (
@@ -2950,7 +2950,7 @@ const AdminDashboard: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setIsProfileDropdownOpen((s) => !s)}
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all duration-300 focus:outline-none hover:scale-105 active:scale-95"
               >
                 {currentUser && (
                   <img
@@ -2958,13 +2958,13 @@ const AdminDashboard: React.FC = () => {
                       currentUser?.name || "A"
                     )}&background=2B2B2B&color=fff`}
                     alt="avatar"
-                    className="w-8 h-8 rounded-full border border-gray-200"
+                    className="w-7 h-7 rounded-full border border-gray-200 transition-transform duration-300 hover:scale-110"
                   />
                 )}
-                <span className="hidden md:inline text-gray-700 font-medium">
+                <span className="hidden md:inline text-gray-700 font-medium text-sm">
                   {currentUser?.name || "Loading..."}
                 </span>
-                <FaChevronDown size={12} />
+                <FaChevronDown size={10} className="transition-transform duration-300" />
               </button>
 
               {isProfileDropdownOpen && (
@@ -2994,8 +2994,8 @@ const AdminDashboard: React.FC = () => {
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-7xl mx-auto">{renderContent()}</div>
+        <main className="flex-1 p-4 overflow-y-auto">
+          <div className="max-w-7xl mx-auto h-full">{renderContent()}</div>
         </main>
       </div>
 

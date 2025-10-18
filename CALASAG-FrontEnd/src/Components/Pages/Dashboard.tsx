@@ -14,9 +14,7 @@ import {
   FaCheckDouble,
   FaTimes,
   FaEnvelope,
-  FaPhoneAlt,
   FaInfoCircle,
-  FaMapMarkedAlt,
   FaFire,
   FaShieldAlt,
   FaCarCrash,
@@ -27,6 +25,7 @@ import {
   FaArrowLeft,
   FaChevronDown,
   FaPaperPlane,
+  FaEye,
 } from "react-icons/fa";
 import logoImage from "../Images/nobg-logo.png";
 import mapImage from "../Images/ph-map.png";
@@ -173,6 +172,8 @@ const Dashboard: React.FC = () => {
   const [deviceStatus, setDeviceStatus] = useState<"Active" | "Inactive">("Active");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [errorTimeoutId, setErrorTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const [successTimeoutId, setSuccessTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [userLocation, setUserLocation] = useState<Location>({
     lat: 14.5995,
     lng: 120.9842,
@@ -267,6 +268,41 @@ const Dashboard: React.FC = () => {
   const currentPendingAlerts = pendingCrisisAlerts.slice(indexOfFirstPendingAlert, indexOfLastPendingAlert);
 
   // Handle page changes for different sections
+  // Helper functions for auto-dismiss messages
+  const setAutoDismissError = (message: string) => {
+    // Clear existing timeout
+    if (errorTimeoutId) {
+      clearTimeout(errorTimeoutId);
+    }
+
+    setError(message);
+
+    // Set new timeout to clear error after 5 seconds
+    const timeoutId = setTimeout(() => {
+      setError(null);
+      setErrorTimeoutId(null);
+    }, 5000);
+
+    setErrorTimeoutId(timeoutId);
+  };
+
+  const setAutoDismissSuccess = (message: string) => {
+    // Clear existing timeout
+    if (successTimeoutId) {
+      clearTimeout(successTimeoutId);
+    }
+
+    setSuccess(message);
+
+    // Set new timeout to clear success after 5 seconds
+    const timeoutId = setTimeout(() => {
+      setSuccess(null);
+      setSuccessTimeoutId(null);
+    }, 5000);
+
+    setSuccessTimeoutId(timeoutId);
+  };
+
   const handleEmergencyPageChange = (pageNumber: number) => {
     setEmergencyPage(pageNumber);
   };
@@ -304,10 +340,16 @@ const Dashboard: React.FC = () => {
         .from("users")
         .select("user_id, name, email, avatar");
       if (error) throw new Error(`Users fetch error: ${error.message}`);
-      return data || [];
+      return (data || []).map(user => ({
+        id: user.user_id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        connectionStatus: null
+      }));
     } catch (error: any) {
       console.error("Error fetching users:", error);
-      setError(`Failed to fetch users: ${error.message}`);
+      setAutoDismissError(`Failed to fetch users: ${error.message}`);
       return [];
     }
   };
@@ -357,7 +399,7 @@ const Dashboard: React.FC = () => {
       return connections;
     } catch (error: any) {
       console.error("Error fetching user connections:", error);
-      setError(`Failed to fetch connections: ${error.message}`);
+      setAutoDismissError(`Failed to fetch connections: ${error.message}`);
       return [];
     }
   };
@@ -428,11 +470,11 @@ const Dashboard: React.FC = () => {
         email: user.email,
         avatar: user.avatar,
         connectionStatus: isConnected(user.user_id)
-          ? 'connected'
+          ? 'connected' as const
           : sentRequestIds.has(user.user_id)
-            ? 'request_sent'
+            ? 'request_sent' as const
             : receivedRequestIds.has(user.user_id)
-              ? 'request_received'
+              ? 'request_received' as const
               : null
       }));
 
@@ -440,7 +482,7 @@ const Dashboard: React.FC = () => {
       setShowSearchResults(true);
     } catch (error: any) {
       console.error("Error searching users:", error);
-      setError(`Failed to search users: ${error.message}`);
+      setAutoDismissError(`Failed to search users: ${error.message}`);
     }
   };
   const getConnectedSafeUsers = (markedSafeUsers: { user_id: string; name: string }[] | undefined): string[] => {
@@ -477,7 +519,7 @@ const Dashboard: React.FC = () => {
         const pendingRequest = anyRequest.find(req => req.status === "pending");
 
         if (pendingRequest) {
-          setError("Connection request already pending.");
+          setAutoDismissError("Connection request already pending.");
           return;
         }
 
@@ -501,7 +543,7 @@ const Dashboard: React.FC = () => {
         .single();
 
       if (existingConnection) {
-        setError("You are already connected with this user.");
+        setAutoDismissError("You are already connected with this user.");
         return;
       }
 
@@ -546,7 +588,7 @@ const Dashboard: React.FC = () => {
       setShowProfile(false);
       setShowSearchResults(false);
       setSearchQuery("");
-      setSuccess("Connection request sent successfully!");
+      setAutoDismissSuccess("Connection request sent successfully!");
 
       // Update UI to show "Connection Request Sent" status
       if (selectedSearchProfile && selectedSearchProfile.id === recipientId) {
@@ -609,10 +651,10 @@ const Dashboard: React.FC = () => {
       setShowProfile(false);
 
       // Show success message
-      setSuccess("Connection removed successfully");
+      setAutoDismissSuccess("Connection removed successfully");
     } catch (error: any) {
       console.error("Error removing connection:", error);
-      setError(`Failed to remove connection: ${error.message}`);
+      setAutoDismissError(`Failed to remove connection: ${error.message}`);
     }
   };
 
@@ -747,7 +789,7 @@ const Dashboard: React.FC = () => {
       }
     } catch (error: any) {
       console.error(`Error ${action} connection request:`, error);
-      setError(`Failed to ${action} connection request: ${error.message}`);
+      setAutoDismissError(`Failed to ${action} connection request: ${error.message}`);
     }
   };
 
@@ -756,13 +798,13 @@ const Dashboard: React.FC = () => {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        setError('Please select an image file');
+        setAutoDismissError('Please select an image file');
         return;
       }
 
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        setError('File size must be less than 5MB');
+        setAutoDismissError('File size must be less than 5MB');
         return;
       }
 
@@ -841,7 +883,7 @@ const Dashboard: React.FC = () => {
       alert("Profile updated successfully!");
     } catch (error: any) {
       console.error("Error updating profile:", error);
-      setError(`Failed to update profile: ${error.message}`);
+      setAutoDismissError(`Failed to update profile: ${error.message}`);
     }
   };
 
@@ -969,7 +1011,7 @@ const Dashboard: React.FC = () => {
               const markedSafeUsers: { user_id: string; name: string }[] = (markedSafeData || []).map(
                 (safeEntry) => ({
                   user_id: safeEntry.user_id || "unknown",
-                  name: safeEntry.users?.name || "Unknown User",
+                  name: (safeEntry.users as any)?.name || "Unknown User",
                 })
               );
 
@@ -1600,7 +1642,7 @@ const Dashboard: React.FC = () => {
         };
       } catch (err: any) {
         console.error("Error fetching data:", err);
-        setError(`Failed to load dashboard data: ${err.message}`);
+        setAutoDismissError(`Failed to load dashboard data: ${err.message}`);
         if (
           err.message.includes("Session fetch error") ||
           err.message.includes("No authenticated user")
@@ -1656,7 +1698,7 @@ const Dashboard: React.FC = () => {
       setEmergencies(filteredEmergencies);
     } catch (error: any) {
       console.error("Error refreshing emergencies:", error);
-      setError(`Failed to refresh emergencies: ${error.message}`);
+      setAutoDismissError(`Failed to refresh emergencies: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -1664,12 +1706,17 @@ const Dashboard: React.FC = () => {
 
   const handleEmergencyAlert = async (type: string) => {
     try {
+      console.log("Starting emergency alert process for type:", type);
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user");
 
-      const newAlert = {
+      console.log("User authenticated:", user.id);
+
+      // Create crisis alert data
+      const crisisAlertData = {
         user_id: user.id,
         type,
         reporter: activeUser || "User",
@@ -1679,7 +1726,25 @@ const Dashboard: React.FC = () => {
         responded_safe: false,
       };
 
-      const newEmergency = {
+      console.log("Crisis alert data:", crisisAlertData);
+
+      // Insert crisis alert into database
+      const { data: insertedAlert, error: alertError } = await supabase
+        .from("crisis_alerts")
+        .insert(crisisAlertData)
+        .select()
+        .single();
+
+      if (alertError) {
+        console.error("Crisis alert insert error:", alertError);
+        setAutoDismissError(`Failed to create crisis alert: ${alertError.message}`);
+        return;
+      }
+
+      console.log("Crisis alert created successfully:", insertedAlert);
+
+      // Also insert into emergencies table for admin notifications
+      const emergencyData = {
         user_id: user.id,
         name: activeUser || "User",
         avatar: userProfile?.avatar || null,
@@ -1689,59 +1754,81 @@ const Dashboard: React.FC = () => {
         created_at: new Date().toISOString(),
       };
 
-      const { data: insertedAlert, error: alertError } = await supabase
-        .from("crisis_alerts")
-        .insert(newAlert)
+      const { data: insertedEmergency, error: emergencyError } = await supabase
+        .from("emergencies")
+        .insert(emergencyData)
         .select()
         .single();
-      if (alertError)
-        throw new Error(`Crisis alert insert error: ${alertError.message}`);
 
-      const { error: emergencyError } = await supabase
-        .from("emergencies")
-        .insert(newEmergency);
-      if (emergencyError)
-        throw new Error(`Emergency insert error: ${emergencyError.message}`);
-
-      const userConnections = await fetchUserConnections(user.id);
-      const notifications = userConnections
-        .map((connection) => ({
-          user_id: connection.id,
-          type: "emergency",
-          notification_type: "emergency",
-          message: `${activeUser || "User"} triggered a ${type} alert at Lat: ${userLocation.lat
-            }, Lng: ${userLocation.lng}!`,
-          read: false,
-          created_at: new Date().toISOString(),
-        }));
-
-      if (notifications.length > 0) {
-        // Insert notifications directly instead of using RPC
-        for (const notification of notifications) {
-          const { error: notificationError } = await supabase
-            .from('notifications')
-            .insert({
-              user_id: notification.user_id,
-              type: notification.type,
-              notification_type: notification.notification_type || "emergency",
-              message: notification.message,
-              read: false,
-              created_at: new Date().toISOString(),
-              cleared_by: []
-            });
-          if (notificationError) {
-            console.error("Notification error:", notificationError);
-            // Continue even if notification fails
-          }
-        }
+      if (emergencyError) {
+        console.error("Emergency insert error:", emergencyError);
+        setAutoDismissError(`Failed to create emergency record: ${emergencyError.message}`);
+        // Don't throw error here as crisis alert was already created successfully
+      } else {
+        console.log("Emergency record created successfully:", insertedEmergency);
       }
 
+      // Create emergency data for local state
+      const newEmergency = {
+        id: insertedEmergency?.id || insertedAlert.id, // Use emergency ID if available, fallback to alert ID
+        user_id: user.id,
+        name: activeUser || "User",
+        avatar: userProfile?.avatar || null,
+        emergency_type: type,
+        message: `Urgent ${type} alert triggered!`,
+        location: userLocation,
+        created_at: new Date().toISOString(),
+      };
+
+      // Send notifications to connected users
+      try {
+        const userConnections = await fetchUserConnections(user.id);
+        const notifications = userConnections
+          .map((connection) => ({
+            user_id: connection.id,
+            type: "emergency",
+            notification_type: "emergency",
+            message: `${activeUser || "User"} triggered a ${type} alert at Lat: ${userLocation.lat
+              }, Lng: ${userLocation.lng}!`,
+            read: false,
+            created_at: new Date().toISOString(),
+          }));
+
+        if (notifications.length > 0) {
+          // Insert notifications
+          for (const notification of notifications) {
+            const { error: notificationError } = await supabase
+              .from('notifications')
+              .insert({
+                user_id: notification.user_id,
+                type: notification.type,
+                notification_type: notification.notification_type || "emergency",
+                message: notification.message,
+                read: false,
+                created_at: new Date().toISOString(),
+                cleared_by: []
+              });
+            if (notificationError) {
+              console.error("Notification error:", notificationError);
+              // Continue even if notification fails
+            }
+          }
+        }
+      } catch (notificationError) {
+        console.error("Error sending notifications:", notificationError);
+        // Continue even if notifications fail
+      }
+
+      // Update local state
       setCrisisAlert(insertedAlert);
       setIsSafe(false);
       setSelectedAlertType(type);
       setShowAlertConfirm(true);
-      // Add to pending if it's the user's own
+
+      // Add to pending alerts
       setPendingCrisisAlerts((prev) => [insertedAlert, ...prev]);
+
+      // Add to emergencies list if it matches current filter
       if (
         emergencyFilter === "all" ||
         (emergencyFilter === "nearby" &&
@@ -1754,9 +1841,13 @@ const Dashboard: React.FC = () => {
       ) {
         setEmergencies((prev) => [newEmergency, ...prev]);
       }
+
+      setAutoDismissSuccess(`${type} emergency alerted successfully!`);
+      console.log("Emergency alert process completed successfully");
+
     } catch (error: any) {
       console.error("Error creating emergency alert:", error);
-      setError(`Failed to create emergency alert: ${error.message}`);
+      setAutoDismissError(`Failed to create emergency alert: ${error.message}`);
     }
   };
 
@@ -1897,7 +1988,7 @@ const Dashboard: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Error toggling safe status:", error);
-      setError(`Failed to toggle safe status: ${error.message}`);
+      setAutoDismissError(`Failed to toggle safe status: ${error.message}`);
     }
   };
 
@@ -1917,7 +2008,7 @@ const Dashboard: React.FC = () => {
       setNotifications([]);
     } catch (error: any) {
       console.error("Error clearing notifications:", error);
-      setError(`Failed to clear notifications: ${error.message}`);
+      setAutoDismissError(`Failed to clear notifications: ${error.message}`);
     }
   };
 
@@ -1939,7 +2030,7 @@ const Dashboard: React.FC = () => {
       if (error) throw new Error(`Mark all as read error: ${error.message}`);
     } catch (error: any) {
       console.error("Error marking all notifications as read:", error);
-      setError(`Failed to mark all as read: ${error.message}`);
+      setAutoDismissError(`Failed to mark all as read: ${error.message}`);
     }
   };
   const resetCrisisAlert = () => {
@@ -1980,7 +2071,7 @@ const Dashboard: React.FC = () => {
       navigate("/login");
     } catch (error: any) {
       console.error("Error logging out:", error);
-      setError(`Failed to log out: ${error.message}`);
+      setAutoDismissError(`Failed to log out: ${error.message}`);
     }
   };
 
@@ -2002,7 +2093,7 @@ const Dashboard: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Error marking notification as read:", error);
-      setError(`Failed to mark notification as read: ${error.message}`);
+      setAutoDismissError(`Failed to mark notification as read: ${error.message}`);
     }
   };
 
@@ -2050,7 +2141,7 @@ const Dashboard: React.FC = () => {
       setShowReportConfirm(false);
     } catch (error: any) {
       console.error("Error submitting report:", error);
-      setError(`Failed to submit report: ${error.message}`);
+      setAutoDismissError(`Failed to submit report: ${error.message}`);
     }
   };
 
@@ -2069,6 +2160,7 @@ const Dashboard: React.FC = () => {
         .single();
 
       const newMessage = {
+        id: Date.now(), // Add missing id field
         sender_id: user.id,
         receiver_id: selectedConnection.connected_user_id,
         content: messageText,
@@ -2090,7 +2182,7 @@ const Dashboard: React.FC = () => {
       setTimeout(() => setMessageSent(false), 1500);
     } catch (error: any) {
       console.error("Error sending message:", error);
-      setError(`Failed to send message: ${error.message}`);
+      setAutoDismissError(`Failed to send message: ${error.message}`);
     }
   };
 
@@ -2145,8 +2237,58 @@ const Dashboard: React.FC = () => {
     <div className={`h-screen overflow-hidden ${themeClasses.background} flex flex-col transition-colors duration-300`}>
       {/* Navbar */}
       <div className={`${themeClasses.navbar} border-b p-2 sm:p-2 flex flex-col sm:flex-row items-center justify-between  relative transition-colors duration-300`}>
-        <div className="flex items-center w-full sm:w-auto mb-4 sm:mb-0">
+        <div className="flex items-center w-full sm:w-auto mb-4 sm:mb-0 space-x-4">
           <img src={logoImage} className="h-10 w-auto sm:h-16 md:h-20" alt="Logo" />
+          {/* Search Bar */}
+          <div className="flex-1 max-w-xs">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className={`w-full ${themeClasses.input} rounded-2xl px-4 py-2 pl-10 text-sm border-2 ${themeClasses.border} focus:ring-[#4ECDC4] focus:border-[#4ECDC4] outline-none transition-all duration-300 font-bold tracking-wide`}
+              />
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#4ECDC4]" size={16} />
+              {searchQuery.trim().length >= 2 && (
+                <div className={`absolute top-full left-0 right-0 mt-2 ${themeClasses.searchDropdown} rounded-2xl border-2 ${themeClasses.border} z-50 max-h-60 overflow-y-auto`}>
+                  <div className="py-2">
+                    {searchResults.length > 0 ? (
+                      searchResults.map((user) => (
+                        <div
+                          key={user.id}
+                          className={`px-4 h-12 ${themeClasses.hover} transition-colors duration-200 cursor-pointer flex items-center space-x-3 w-full`}
+                          onClick={() => {
+                            setSelectedSearchProfile(user);
+                            setShowProfile(true);
+                            setSearchQuery("");
+                          }}
+                        >
+                          <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white">
+                            {user.avatar ? (
+                              <img
+                                src={user.avatar}
+                                className="w-full h-full rounded-full"
+                                alt={user.name}
+                              />
+                            ) : (
+                              <FaUser className="text-white" />
+                            )}
+                          </div>
+                          <div className="min-w-0 w-full flex flex-col justify-center">
+                            <p className={`${themeClasses.textPrimary} font-black truncate tracking-wide`}>{user.name}</p>
+                            <p className={`text-sm ${themeClasses.textSecondary} truncate font-bold tracking-wide`}>{user.email}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className={`px-4 py-2 ${themeClasses.textSecondary} font-bold tracking-wide`}>No users found.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-center space-x-4 sm:space-x-8 sm:absolute sm:left-1/2 sm:transform sm:-translate-x-1/2">
@@ -2183,71 +2325,6 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-4 mt-4 sm:mt-0">
-          <div className="relative">
-            <button
-              onClick={() => setShowSearchResults(!showSearchResults)}
-              aria-label="Search users"
-              title="Search users"
-              className="relative focus:outline-none hover:bg-gray-100 rounded-full p-2 transition-all duration-300 hover:scale-110"
-            >
-              <FaSearch size={20} className="text-[#4ECDC4]" />
-            </button>
-            <div className="absolute right-10 top-0 z-70">
-              <div
-                className={`${themeClasses.searchDropdown} rounded-2xl border  overflow-hidden transition-all duration-300 group ${showSearchResults ? 'w-64 opacity-100 -translate-x-1' : 'w-0 opacity-0 translate-x-2 pointer-events-none'
-                  }`}
-              >
-                <div className="flex items-center">
-                  <input
-                    type="text"
-                    placeholder="Search users..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className={`w-full ${themeClasses.input} px-3 py-2 text-sm focus:ring-[#4ECDC4] focus:border-[#4ECDC4] outline-none`}
-                    autoFocus={showSearchResults}
-                  />
-                </div>
-                {/* Interactive divider between input and results */}
-                <div className="h-px mx-2 bg-gradient-to-r from-transparent via-[#4ECDC4]/30 to-transparent transition-opacity duration-300 opacity-60 group-hover:opacity-100" />
-                {searchQuery.trim().length >= 2 && (
-                  <div className="max-h-60 overflow-y-auto overflow-x-hidden py-2">
-                    {searchResults.length > 0 ? (
-                      searchResults.map((user) => (
-                        <div
-                          key={user.id}
-                          className={`px-4 h-12 ${themeClasses.hover} transition-colors duration-200 cursor-pointer flex items-center space-x-3 w-full`}
-                          onClick={() => {
-                            setSelectedSearchProfile(user);
-                            setShowProfile(true);
-                            setShowSearchResults(false);
-                            setSearchQuery("");
-                          }}
-                        >
-                          <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white">
-                            {user.avatar ? (
-                              <img
-                                src={user.avatar}
-                                className="w-full h-full rounded-full"
-                                alt={user.name}
-                              />
-                            ) : (
-                              <FaUser className="text-white" />
-                            )}
-                          </div>
-                          <div className="min-w-0 w-full flex flex-col justify-center">
-                            <p className={`${themeClasses.textPrimary} font-bold truncate`}>{user.name}</p>
-                            <p className={`text-sm ${themeClasses.textSecondary} truncate`}>{user.email}</p>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className={`px-4 py-2 ${themeClasses.textSecondary}`}>No users found.</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
           <div className="relative">
             <button
               onClick={() => {
@@ -2596,7 +2673,7 @@ const Dashboard: React.FC = () => {
                   >
                     <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
                       {iconMap[tip.icon] ? (
-                        React.createElement(iconMap[tip.icon])
+                        React.createElement(iconMap[tip.icon] || FaInfoCircle)
                       ) : (
                         <FaInfoCircle />
                       )}
@@ -2638,6 +2715,11 @@ const Dashboard: React.FC = () => {
             {error && (
               <div className={`${theme === "dark" ? "bg-red-900/50 border-red-600 text-red-300" : "bg-red-100 border-red-400 text-red-700"} border px-4 py-3 rounded-2xl mb-4 sm:mb-6  transition-all duration-300`}>
                 {error}
+              </div>
+            )}
+            {success && (
+              <div className={`${theme === "dark" ? "bg-green-900/50 border-green-600 text-green-300" : "bg-green-100 border-green-400 text-green-700"} border px-4 py-3 rounded-2xl mb-4 sm:mb-6  transition-all duration-300`}>
+                {success}
               </div>
             )}
             {activeTab === "home" && (
@@ -2792,27 +2874,83 @@ const Dashboard: React.FC = () => {
                       className={`h-96 overflow-y-auto ${themeClasses.chatBackground} rounded-2xl p-4 mb-4`}
                     >
                       {getMessagesForRecipient(selectedConnection?.connected_user_id || "").map(
-                        (message) => (
-                          <div
-                            key={message.id}
-                            className={`flex ${message.sender_id === userProfile?.id
-                              ? "justify-end"
-                              : "justify-start"
-                              } mb-2`}
-                          >
-                            <div
-                              className={`max-w-xs sm:max-w-md p-3 rounded-2xl ${message.sender_id === userProfile?.id
-                                ? "bg-[#4ECDC4] text-white"
-                                : `${themeClasses.messageBubble} ${themeClasses.textPrimary}`
-                                }`}
-                            >
-                              <p className="text-sm">{message.content}</p>
-                              <p className={`text-xs ${message.sender_id === userProfile?.id ? "text-gray-400" : themeClasses.textTertiary}`}>
-                                {new Date(message.timestamp).toLocaleTimeString()}
-                              </p>
+                        (message, index, messages) => {
+                          const currentMessage = message;
+                          const previousMessage = index > 0 ? messages[index - 1] : null;
+
+                          // Check if this is a new message (within last 5 minutes)
+                          const isNewMessage = () => {
+                            const messageTime = new Date(currentMessage.timestamp).getTime();
+                            const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+                            return messageTime > fiveMinutesAgo;
+                          };
+
+                          // Check if we should show date separator
+                          const shouldShowDateSeparator = () => {
+                            if (!previousMessage) return true;
+                            const currentDate = new Date(currentMessage.timestamp).toDateString();
+                            const previousDate = new Date(previousMessage.timestamp).toDateString();
+                            return currentDate !== previousDate;
+                          };
+
+                          // Format date for separator
+                          const formatDateSeparator = (timestamp: string) => {
+                            const date = new Date(timestamp);
+                            const today = new Date();
+                            const yesterday = new Date(today);
+                            yesterday.setDate(yesterday.getDate() - 1);
+
+                            if (date.toDateString() === today.toDateString()) {
+                              return "Today";
+                            } else if (date.toDateString() === yesterday.toDateString()) {
+                              return "Yesterday";
+                            } else {
+                              return date.toLocaleDateString();
+                            }
+                          };
+
+                          return (
+                            <div key={message.id}>
+                              {shouldShowDateSeparator() && (
+                                <div className="flex items-center justify-center my-4">
+                                  <div className={`px-3 py-1 rounded-full text-xs ${themeClasses.textSecondary} bg-gray-200/50 ${theme === "dark" ? "bg-gray-700/50" : "bg-gray-200/50"}`}>
+                                    {formatDateSeparator(currentMessage.timestamp)}
+                                  </div>
+                                </div>
+                              )}
+
+                              {isNewMessage() && index === messages.length - 1 && (
+                                <div className="flex items-center justify-center my-2">
+                                  <div className="px-3 py-1 rounded-full text-xs bg-green-100 text-green-600 border border-green-200">
+                                    ✨ New Message
+                                  </div>
+                                </div>
+                              )}
+
+                              <div
+                                className={`flex ${message.sender_id === userProfile?.id
+                                  ? "justify-end"
+                                  : "justify-start"
+                                  } mb-2`}
+                              >
+                                <div
+                                  className={`max-w-xs sm:max-w-md p-3 rounded-2xl ${message.sender_id === userProfile?.id
+                                    ? "bg-[#4ECDC4] text-white"
+                                    : `${themeClasses.messageBubble} ${themeClasses.textPrimary}`
+                                    } ${isNewMessage() ? "ring-2 ring-green-300 ring-opacity-50" : ""}`}
+                                >
+                                  <p className="text-sm">{message.content}</p>
+                                  <div className={`flex items-center justify-between text-xs mt-1 ${message.sender_id === userProfile?.id ? "text-gray-400" : themeClasses.textTertiary}`}>
+                                    <span>{new Date(message.timestamp).toLocaleTimeString()}</span>
+                                    {isNewMessage() && (
+                                      <span className="text-green-400">●</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        )
+                          );
+                        }
                       )}
                     </div>
                     <div className="flex items-center space-x-2">
@@ -2845,6 +2983,11 @@ const Dashboard: React.FC = () => {
                 <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.textPrimary} mb-4`}>
                   Report an Emergency
                 </h2>
+                {!userProfile && (
+                  <div className="mb-4 p-3 bg-yellow-100 text-yellow-800 rounded-lg">
+                    <p className="text-sm">Please wait while we load your profile...</p>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {[
                     { type: "Medical", icon: FaAmbulance },
@@ -2856,11 +2999,18 @@ const Dashboard: React.FC = () => {
                     <button
                       key={type}
                       onClick={() => {
+                        if (!userProfile) {
+                          setAutoDismissError("Please wait for your profile to load before reporting an emergency.");
+                          return;
+                        }
+                        console.log("Emergency button clicked for type:", type);
                         setSelectedAlertType(type);
                         setSelectedCrisisAlert(null); // Reset to ensure new report
                         setShowCrisisModal(true);
+                        console.log("Crisis modal should now be visible");
                       }}
-                      className="bg-[#E63946] text-white p-4 rounded-2xl border-2 border-red-600 flex flex-col items-center justify-center hover:scale-105 hover:border-red-500 transition-all duration-300"
+                      disabled={!userProfile}
+                      className={`${!userProfile ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#E63946] hover:scale-105 hover:border-red-500'} text-white p-4 rounded-2xl border-2 border-red-600 flex flex-col items-center justify-center transition-all duration-300`}
                     >
                       <Icon size={24} className="mb-2" />
                       <span className="text-sm font-bold">{type}</span>
@@ -2877,15 +3027,35 @@ const Dashboard: React.FC = () => {
           {/* Right sidebar scrollable on hover */}
           <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
             <div className={`${themeClasses.alertCard} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 transition-all duration-300 hover:border-[#4ECDC4]/50`}>
-              <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.textPrimary} mb-4`}>Safe Alerts</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.textPrimary}`}>Safe Alerts</h2>
+                <div className="flex items-center space-x-2">
+                  <div className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                    {allSafeAlerts.length}
+                  </div>
+                  <button
+                    onClick={() => {
+                      // Scroll to top of safe alerts
+                      const container = document.querySelector('.safe-alerts-container');
+                      if (container) container.scrollTop = 0;
+                    }}
+                    className="p-1 text-gray-400 hover:text-[#4ECDC4] transition-colors duration-200"
+                  >
+                    <FaArrowLeft size={12} />
+                  </button>
+                </div>
+              </div>
               {isLoading ? (
-                <p className={themeClasses.textSecondary}>Loading alerts...</p>
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4ECDC4]"></div>
+                  <p className={`${themeClasses.textSecondary} ml-2`}>Loading alerts...</p>
+                </div>
               ) : allSafeAlerts.length > 0 ? (
-                <div className="max-h-64 overflow-y-auto overflow-x-hidden space-y-2">
-                  {allSafeAlerts.map((alert) => (
+                <div className="safe-alerts-container max-h-64 overflow-y-auto overflow-x-hidden space-y-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                  {allSafeAlerts.map((alert, index) => (
                     <div
                       key={alert.id}
-                      className={`flex items-center justify-between space-x-4 p-2 rounded-2xl ${themeClasses.hover} hover:scale-100 transition-all duration-300 cursor-pointer`}
+                      className={`group relative flex items-center justify-between space-x-4 p-3 rounded-2xl ${themeClasses.hover} hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-transparent hover:border-[#4ECDC4]/20`}
                       onClick={async () => {
                         setSelectedCrisisAlert(alert);
                         if (alert.type === "Safe" && alert.related_crisis_id) {
@@ -2897,85 +3067,216 @@ const Dashboard: React.FC = () => {
                         setShowCrisisModal(true);
                       }}
                     >
-                      <div className="flex items-center space-x-3 min-w-0">
-                        {/* Simple green double-check icon (no circular background) */}
-                        <div className="flex items-center justify-center text-[#4ECDC4]">
-                          <FaCheckDouble size={20} />
+                      {/* New message indicator */}
+                      {index === 0 && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                      )}
+
+                      <div className="flex items-center space-x-3 min-w-0 flex-1">
+                        <div className="relative">
+                          <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-full group-hover:scale-110 transition-transform duration-300">
+                            <FaCheckDouble size={16} className="text-green-600" />
+                          </div>
+                          {alert.user_id === userProfile?.id && (
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#4ECDC4] rounded-full flex items-center justify-center">
+                              <span className="text-white text-xs font-bold">U</span>
+                            </div>
+                          )}
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           {alert.user_id === userProfile?.id ? (
                             <p className={`${themeClasses.textPrimary} font-bold truncate`}>You marked yourself safe</p>
                           ) : (
                             <p className={`${themeClasses.textPrimary} font-bold truncate`}>{alert.reporter} marked themselves safe</p>
                           )}
-                          <p className={`text-xs ${themeClasses.textSecondary} truncate`}>{new Date(alert.created_at).toLocaleString()}</p>
+                          <div className="flex items-center space-x-2">
+                            <p className={`text-xs ${themeClasses.textSecondary} truncate`}>
+                              {new Date(alert.created_at).toLocaleDateString()}
+                            </p>
+                            <span className="text-xs text-gray-400">•</span>
+                            <p className={`text-xs ${themeClasses.textSecondary}`}>
+                              {new Date(alert.created_at).toLocaleTimeString()}
+                            </p>
+                          </div>
+                          {/* Status indicator */}
+                          <div className="flex items-center space-x-1 mt-1">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span className="text-xs text-green-600 font-medium">Safe</span>
+                          </div>
                         </div>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMarkSafe(alert.user_id === userProfile?.id ? alert.related_crisis_id : undefined);
-                        }}
-                        className="bg-[#E63946] hover:bg-[#a33d16] text-white px-1 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
-                      >
-                        Unmark Safe
-                      </button>
+
+                      <div className="flex flex-col space-y-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkSafe(alert.user_id === userProfile?.id ? alert.related_crisis_id : undefined);
+                          }}
+                          className="bg-[#E63946] hover:bg-[#a33d16] text-white px-2 py-1 rounded-lg text-xs hover:scale-105 transition-all duration-300 flex items-center space-x-1"
+                        >
+                          <FaTimes size={8} />
+                          <span>Unmark</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Quick view details
+                            setSelectedCrisisAlert(alert);
+                            setShowCrisisModal(true);
+                          }}
+                          className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-lg text-xs hover:scale-105 transition-all duration-300 flex items-center space-x-1"
+                        >
+                          <FaEye size={8} />
+                          <span>View</span>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className={themeClasses.textSecondary}>No safe alerts.</p>
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <FaCheckDouble size={24} className="text-green-600" />
+                  </div>
+                  <p className={`${themeClasses.textSecondary} mb-2`}>No safe alerts</p>
+                  <p className="text-xs text-gray-400">Users will appear here when they mark themselves safe</p>
+                </div>
               )}
             </div>
             <div className={`${themeClasses.alertCard} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 transition-all duration-300 hover:border-[#4ECDC4]/50 overflow-hidden`}>
-              <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.textPrimary} mb-4`}>Pending Crisis Alerts</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.textPrimary}`}>Pending Crisis Alerts</h2>
+                <div className="flex items-center space-x-2">
+                  <div className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+                    {pendingCrisisAlerts.length}
+                  </div>
+                  <button
+                    onClick={() => {
+                      // Scroll to top of pending alerts
+                      const container = document.querySelector('.pending-alerts-container');
+                      if (container) container.scrollTop = 0;
+                    }}
+                    className="p-1 text-gray-400 hover:text-[#4ECDC4] transition-colors duration-200"
+                  >
+                    <FaArrowLeft size={12} />
+                  </button>
+                </div>
+              </div>
               {isLoading ? (
-                <p className={themeClasses.textSecondary}>Loading pending alerts...</p>
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
+                  <p className={`${themeClasses.textSecondary} ml-2`}>Loading pending alerts...</p>
+                </div>
               ) : pendingCrisisAlerts.length > 0 ? (
-                <div className="max-h-64 overflow-y-auto overflow-x-hidden space-y-2">
-                  {pendingCrisisAlerts.map((alert) => (
-                    <div
-                      key={alert.id}
-                      className={`flex items-center justify-between space-x-4 p-2 rounded-2xl ${themeClasses.hover} hover:scale-100 transition-all duration-300 cursor-pointer`}
-                      onClick={async () => {
-                        setSelectedCrisisAlert(alert);
-                        if (alert.type === "Safe" && alert.related_crisis_id) {
-                          const crisisType = await getCrisisType(alert.related_crisis_id);
-                          setOriginalCrisisType(crisisType);
-                        } else {
-                          setOriginalCrisisType(alert.type);
-                        }
-                        setShowCrisisModal(true);
-                      }}
-                    >
-                      <div className="flex items-center space-x-3 min-w-0">
-                        {/* Simple green exclamation-triangle icon (no circular background) */}
-                        <div className="flex items-center justify-center text-[#4ECDC4]">
-                          {iconMap[alert.type] ? (
-                            React.createElement(iconMap[alert.type], { size: 20, className: 'text-[#4ECDC4]' })
-                          ) : (
-                            <FaExclamationTriangle size={20} />
-                          )}
+                <div className="pending-alerts-container max-h-64 overflow-y-auto overflow-x-hidden space-y-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                  {pendingCrisisAlerts.map((alert, index) => {
+                    const AlertIcon = iconMap[alert.type] || FaExclamationTriangle;
+                    const alertColors = {
+                      'Medical': 'bg-red-100 text-red-600',
+                      'Fire': 'bg-orange-100 text-orange-600',
+                      'Accident': 'bg-yellow-100 text-yellow-600',
+                      'Crime': 'bg-purple-100 text-purple-600',
+                      'General': 'bg-blue-100 text-blue-600'
+                    };
+                    const colorClass = alertColors[alert.type as keyof typeof alertColors] || 'bg-gray-100 text-gray-600';
+
+                    return (
+                      <div
+                        key={alert.id}
+                        className={`group relative flex items-center justify-between space-x-4 p-3 rounded-2xl ${themeClasses.hover} hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-transparent hover:border-red-200`}
+                        onClick={async () => {
+                          setSelectedCrisisAlert(alert);
+                          if (alert.type === "Safe" && alert.related_crisis_id) {
+                            const crisisType = await getCrisisType(alert.related_crisis_id);
+                            setOriginalCrisisType(crisisType);
+                          } else {
+                            setOriginalCrisisType(alert.type);
+                          }
+                          setShowCrisisModal(true);
+                        }}
+                      >
+                        {/* Urgent indicator for recent alerts */}
+                        {index === 0 && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                        )}
+
+                        <div className="flex items-center space-x-3 min-w-0 flex-1">
+                          <div className="relative">
+                            <div className={`flex items-center justify-center w-10 h-10 ${colorClass} rounded-full group-hover:scale-110 transition-transform duration-300`}>
+                              <AlertIcon size={16} />
+                            </div>
+                            {/* Priority indicator */}
+                            {index < 3 && (
+                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">{index + 1}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center space-x-2">
+                              <p className={`${themeClasses.textPrimary} font-bold truncate`}>{alert.type} Alert</p>
+                              <span className={`px-2 py-1 ${colorClass} rounded-full text-xs font-medium`}>
+                                {alert.type}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <p className={`text-xs ${themeClasses.textSecondary} truncate`}>
+                                Reported by {alert.reporter}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <p className={`text-xs ${themeClasses.textSecondary} truncate`}>
+                                {new Date(alert.created_at).toLocaleDateString()}
+                              </p>
+                              <span className="text-xs text-gray-400">•</span>
+                              <p className={`text-xs ${themeClasses.textSecondary}`}>
+                                {new Date(alert.created_at).toLocaleTimeString()}
+                              </p>
+                            </div>
+                            {/* Urgency indicator */}
+                            <div className="flex items-center space-x-1 mt-1">
+                              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                              <span className="text-xs text-red-600 font-medium">Pending Response</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className={`${themeClasses.textPrimary} font-bold truncate`}>{alert.type} Alert</p>
-                          <p className={`text-xs ${themeClasses.textSecondary} truncate`}>Reported by {alert.reporter} on {new Date(alert.created_at).toLocaleString()}</p>
+
+                        <div className="flex flex-col space-y-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarkSafe(alert.id);
+                            }}
+                            className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-2 py-1 rounded-lg text-xs hover:scale-105 transition-all duration-300 flex items-center space-x-1"
+                          >
+                            <FaCheckDouble size={8} />
+                            <span>Safe</span>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Quick view details
+                              setSelectedCrisisAlert(alert);
+                              setShowCrisisModal(true);
+                            }}
+                            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-lg text-xs hover:scale-105 transition-all duration-300 flex items-center space-x-1"
+                          >
+                            <FaEye size={8} />
+                            <span>View</span>
+                          </button>
                         </div>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMarkSafe(alert.id);
-                        }}
-                        className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-1 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
-                      >
-                        Mark Safe
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <p className={themeClasses.textSecondary}>No pending crisis alerts.</p>
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <FaCheckDouble size={24} className="text-green-600" />
+                  </div>
+                  <p className={`${themeClasses.textSecondary} mb-2`}>No pending alerts</p>
+                  <p className="text-xs text-gray-400">All crisis alerts have been addressed</p>
+                </div>
               )}
             </div>
           </div>
@@ -3538,7 +3839,9 @@ const Dashboard: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
+                      console.log("Confirm emergency button clicked for type:", selectedAlertType);
                       if (selectedAlertType) {
+                        console.log("Calling handleEmergencyAlert with type:", selectedAlertType);
                         handleEmergencyAlert(selectedAlertType);
                         setShowCrisisModal(false);
                         setSelectedAlertType(null);

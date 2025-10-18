@@ -147,7 +147,7 @@ const SuperAdminDashboard: React.FC = () => {
   const [isSubmittingReportAction, setIsSubmittingReportAction] =
     useState<boolean>(false);
 
-      const [systemStatus, setSystemStatus] = useState({
+  const [systemStatus, setSystemStatus] = useState({
     security: { unresolved: 0, total: 0 },
     userManagement: { activePercent: 0 },
     alerts: { active: 0, resolved: 0 },
@@ -1255,22 +1255,21 @@ const SuperAdminDashboard: React.FC = () => {
                       >
                         <div className="flex items-center space-x-3">
                           <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              report.type === "performance"
-                                ? "bg-[#4ECDC4]-100"
-                                : report.type === "usage"
+                            className={`w-8 h-8 rounded-full flex items-center justify-center ${report.type === "performance"
+                              ? "bg-[#4ECDC4]-100"
+                              : report.type === "usage"
                                 ? "bg-[#FFD166]-100"
                                 : "bg-[#E63946]-100"
-                            }`}
+                              }`}
                           >
                             <FaChartBar
                               size={12}
                               className={
                                 report.type === "performance"
                                   ? "bg-[#4ECDC4]-600"
-                                : report.type === "usage"
-                                ? "bg-[#FFD166]-600"
-                                : "bg-[#E63946]-600"
+                                  : report.type === "usage"
+                                    ? "bg-[#FFD166]-600"
+                                    : "bg-[#E63946]-600"
                               }
                             />
                           </div>
@@ -1287,13 +1286,12 @@ const SuperAdminDashboard: React.FC = () => {
                         </div>
                         <div className="flex items-center space-x-2">
                           <span
-                            className={`text-xs px-2 py-1 rounded-full ${
-                              report.status === "archived"
-                                ? "bg-[#4ECDC4]-100 text-[#4ECDC4]-800"
-                                : report.status === "reviewed"
+                            className={`text-xs px-2 py-1 rounded-full ${report.status === "archived"
+                              ? "bg-[#4ECDC4]-100 text-[#4ECDC4]-800"
+                              : report.status === "reviewed"
                                 ? "bg-[#2B2B2B]-100 text-[#2B2B2B]-800"
                                 : "bg-[#FFD166]-100 text-[#FFD166]-800"
-                            }`}
+                              }`}
                           >
                             {report.status.charAt(0).toUpperCase() +
                               report.status.slice(1)}
@@ -1546,18 +1544,16 @@ const SuperAdminDashboard: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                admin.status === "active"
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${admin.status === "active"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                                }`}
                             >
                               <div
-                                className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                                  admin.status === "active"
-                                    ? "bg-green-400"
-                                    : "bg-red-400"
-                                }`}
+                                className={`w-1.5 h-1.5 rounded-full mr-1.5 ${admin.status === "active"
+                                  ? "bg-green-400"
+                                  : "bg-red-400"
+                                  }`}
                               ></div>
                               {admin.status.charAt(0).toUpperCase() +
                                 admin.status.slice(1)}
@@ -1569,11 +1565,10 @@ const SuperAdminDashboard: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                             <button
                               onClick={() => handleToggleAdminStatus(admin.id)}
-                              className={`px-3 py-1.5 rounded-lg transition-colors text-xs font-medium ${
-                                admin.status === "active"
-                                  ? "bg-red-100 text-red-800 hover:bg-red-200"
-                                  : "bg-green-100 text-green-800 hover:bg-green-200"
-                              }`}
+                              className={`px-3 py-1.5 rounded-lg transition-colors text-xs font-medium ${admin.status === "active"
+                                ? "bg-red-100 text-red-800 hover:bg-red-200"
+                                : "bg-green-100 text-green-800 hover:bg-green-200"
+                                }`}
                             >
                               <FaLock size={10} className="inline mr-1" />
                               {admin.status === "active"
@@ -1733,22 +1728,20 @@ const SuperAdminDashboard: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                update.status === "approved"
-                                  ? "bg-green-100 text-green-800"
-                                  : update.status === "rejected"
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${update.status === "approved"
+                                ? "bg-green-100 text-green-800"
+                                : update.status === "rejected"
                                   ? "bg-red-100 text-red-800"
                                   : "bg-yellow-100 text-yellow-800"
-                              }`}
+                                }`}
                             >
                               <div
-                                className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                                  update.status === "approved"
-                                    ? "bg-green-400"
-                                    : update.status === "rejected"
+                                className={`w-1.5 h-1.5 rounded-full mr-1.5 ${update.status === "approved"
+                                  ? "bg-green-400"
+                                  : update.status === "rejected"
                                     ? "bg-red-400"
                                     : "bg-yellow-400"
-                                }`}
+                                  }`}
                               ></div>
                               {update.status.charAt(0).toUpperCase() +
                                 update.status.slice(1)}
@@ -1925,13 +1918,12 @@ const SuperAdminDashboard: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div
-                                className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm mr-3 ${
-                                  report.type === "performance"
-                                    ? "bg-gradient-to-br from-[#4ECDC4] to-[#4ECDC4]"
-                                    : report.type === "usage"
+                                className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm mr-3 ${report.type === "performance"
+                                  ? "bg-gradient-to-br from-[#4ECDC4] to-[#4ECDC4]"
+                                  : report.type === "usage"
                                     ? "bg-gradient-to-br from-[#2B2B2B] to-[#2B2B2B]"
                                     : "bg-gradient-to-br from-[#FFD166] to-[#FFD166]"
-                                }`}
+                                  }`}
                               >
                                 <FaChartBar size={16} />
                               </div>
@@ -1947,13 +1939,12 @@ const SuperAdminDashboard: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                report.type === "performance"
-                                  ? "bg-[#4ECDC4]-100 text-[#4ECDC4]-800"
-                                  : report.type === "usage"
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${report.type === "performance"
+                                ? "bg-[#4ECDC4]-100 text-[#4ECDC4]-800"
+                                : report.type === "usage"
                                   ? "bg-[#2B2B2B]-100 text-[#2B2B2B]-800"
                                   : "bg-[#FFD166]-100 text-[#FFD166]-800"
-                              }`}
+                                }`}
                             >
                               {report.type.charAt(0).toUpperCase() +
                                 report.type.slice(1)}
@@ -1961,22 +1952,20 @@ const SuperAdminDashboard: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                report.status === "archived"
-                                  ? "bg-[#4ECDC4]-100 text-[#4ECDC4]-800"
-                                  : report.status === "reviewed"
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${report.status === "archived"
+                                ? "bg-[#4ECDC4]-100 text-[#4ECDC4]-800"
+                                : report.status === "reviewed"
                                   ? "bg-[#2B2B2B]-100 text-[#2B2B2B]-800"
                                   : "bg-[#FFD166]-100 text-[#FFD166]-800"
-                              }`}
+                                }`}
                             >
                               <div
-                                className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                                  report.status === "archived"
-                                    ? "bg-[#4ECDC4]"
-                                    : report.status === "reviewed"
+                                className={`w-1.5 h-1.5 rounded-full mr-1.5 ${report.status === "archived"
+                                  ? "bg-[#4ECDC4]"
+                                  : report.status === "reviewed"
                                     ? "bg-[#2B2B2B]"
                                     : "bg-[#FFD166]"
-                                }`}
+                                  }`}
                               ></div>
                               {report.status.charAt(0).toUpperCase() +
                                 report.status.slice(1)}
@@ -2003,11 +1992,10 @@ const SuperAdminDashboard: React.FC = () => {
                                     onClick={() =>
                                       handleReportAction(report.id, "review")
                                     }
-                                    className={`px-3 py-1.5 bg-[#2B2B2B]-100 text-[#2B2B2B]-800 rounded-lg hover:bg-[#2B2B2B]-200 transition-colors text-xs font-medium flex items-center ${
-                                      isSubmittingReportAction
-                                        ? "opacity-50 cursor-not-allowed"
-                                        : ""
-                                    }`}
+                                    className={`px-3 py-1.5 bg-[#2B2B2B]-100 text-[#2B2B2B]-800 rounded-lg hover:bg-[#2B2B2B]-200 transition-colors text-xs font-medium flex items-center ${isSubmittingReportAction
+                                      ? "opacity-50 cursor-not-allowed"
+                                      : ""
+                                      }`}
                                     disabled={isSubmittingReportAction}
                                   >
                                     <FaChartBar size={10} className="mr-1" />
@@ -2017,11 +2005,10 @@ const SuperAdminDashboard: React.FC = () => {
                                     onClick={() =>
                                       handleReportAction(report.id, "archive")
                                     }
-                                    className={`px-3 py-1.5 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors text-xs font-medium flex items-center ${
-                                      isSubmittingReportAction
-                                        ? "opacity-50 cursor-not-allowed"
-                                        : ""
-                                    }`}
+                                    className={`px-3 py-1.5 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors text-xs font-medium flex items-center ${isSubmittingReportAction
+                                      ? "opacity-50 cursor-not-allowed"
+                                      : ""
+                                      }`}
                                     disabled={isSubmittingReportAction}
                                   >
                                     <FaShieldAlt size={10} className="mr-1" />
@@ -2100,11 +2087,10 @@ const SuperAdminDashboard: React.FC = () => {
                         })
                       }
                       disabled={!isEditingPersonal}
-                      className={`w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 transition-colors ${
-                        !isEditingPersonal
-                          ? "bg-gray-50 text-gray-500 cursor-not-allowed"
-                          : "bg-white border-gray-300 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
-                      }`}
+                      className={`w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 transition-colors ${!isEditingPersonal
+                        ? "bg-gray-50 text-gray-500 cursor-not-allowed"
+                        : "bg-white border-gray-300 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
+                        }`}
                     />
                   </div>
                   <div>
@@ -2125,11 +2111,10 @@ const SuperAdminDashboard: React.FC = () => {
                         })
                       }
                       disabled={!isEditingPersonal}
-                      className={`w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 transition-colors ${
-                        !isEditingPersonal
-                          ? "bg-gray-50 text-gray-500 cursor-not-allowed"
-                          : "bg-white border-gray-300 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
-                      }`}
+                      className={`w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 transition-colors ${!isEditingPersonal
+                        ? "bg-gray-50 text-gray-500 cursor-not-allowed"
+                        : "bg-white border-gray-300 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
+                        }`}
                     />
                   </div>
                 </div>
@@ -2283,14 +2268,12 @@ const SuperAdminDashboard: React.FC = () => {
                   </div>
                   <button
                     onClick={() => setNotifications(!notifications)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-                      notifications ? "bg-[#4ECDC4]" : "bg-gray-200"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${notifications ? "bg-[#4ECDC4]" : "bg-gray-200"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                        notifications ? "translate-x-6" : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${notifications ? "translate-x-6" : "translate-x-1"
+                        }`}
                     />
                   </button>
                 </div>
@@ -2310,14 +2293,12 @@ const SuperAdminDashboard: React.FC = () => {
                   </div>
                   <button
                     onClick={() => setEmailNotifications(!emailNotifications)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-                      emailNotifications ? "bg-[#4ECDC4]" : "bg-gray-200"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${emailNotifications ? "bg-[#4ECDC4]" : "bg-gray-200"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                        emailNotifications ? "translate-x-6" : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${emailNotifications ? "translate-x-6" : "translate-x-1"
+                        }`}
                     />
                   </button>
                 </div>
@@ -2378,25 +2359,24 @@ const SuperAdminDashboard: React.FC = () => {
   };
 
   return (
-  <div className="flex h-screen bg-[#4ECDC4]/70">
-    {/* Sidebar */}
+    <div className="flex h-screen bg-[#4ECDC4]/70 overflow-hidden">
+      {/* Sidebar */}
       <div
-        className={`flex-shrink-0 transition-all duration-300 transform-gpu ${
-          isSidebarCollapsed ? "w-16" : "w-64"
-        } mx-4 my-4 p-2 rounded-2xl backdrop-blur-sm bg-[#FAFAFA]/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
+        className={`flex-shrink-0 transition-all duration-300 transform-gpu ${isSidebarCollapsed ? "w-16" : "w-64"
+          } m-2 p-2 rounded-2xl backdrop-blur-sm bg-[#FAFAFA]/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
       >
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between p-3">
           {!isSidebarCollapsed && (
-            <img src={logoImage} alt="Logo" className="h-8" />
+            <img src={logoImage} alt="Logo" className="h-7 w-auto object-contain transition-transform duration-300 hover:scale-110" />
           )}
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="p-2 text-gray-600 hover:text-[#4ECDC4] hover:bg-gray-50 rounded-full"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-300 hover:scale-110 active:scale-95"
           >
             {isSidebarCollapsed ? (
-              <FaChevronRight size={16} />
+              <FaChevronRight size={14} />
             ) : (
-              <FaChevronLeft size={16} />
+              <FaChevronLeft size={14} />
             )}
           </button>
         </div>
@@ -2405,89 +2385,101 @@ const SuperAdminDashboard: React.FC = () => {
             <li>
               <button
                 onClick={() => setActiveTab("dashboard")}
-                className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
-                  activeTab === "dashboard"
-                    ? "bg-[#4ECDC4] text-[#2B2B2B] scale-100 shadow-inner"
-                    : "text-gray-700 hover:bg-white/10 hover:text-[#4ECDC4] hover:scale-102"
-                }`}
-                onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
-                onMouseUp={(e) => (e.currentTarget.style.transform = '')}
+                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "dashboard"
+                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
+                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"
+                  }`}
               >
-                <span className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/0 to-black/2 opacity-0 transition-opacity"></span>
-                <FaHome
-                  size={16}
-                  className={isSidebarCollapsed ? "" : "mr-3"}
-                />
-                {!isSidebarCollapsed && "Dashboard"}
+                <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "dashboard"
+                  ? "bg-[#4ECDC4]"
+                  : "bg-transparent group-hover:bg-[#4ECDC4]"
+                  }`} />
+                <div className="relative z-10 w-full">
+                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <FaHome size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Dashboard</span>}
+                  </div>
+                </div>
               </button>
             </li>
             <li>
               <button
                 onClick={() => setActiveTab("admin-management")}
-                className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
-                  activeTab === "admin-management"
-                    ? "bg-[#4ECDC4] text-[#2B2B2B] scale-100 shadow-inner"
-                    : "text-gray-700 hover:bg-white/10 hover:text-[#4ECDC4] hover:scale-102"
-                }`}
-                onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
-                onMouseUp={(e) => (e.currentTarget.style.transform = '')}
+                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "admin-management"
+                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
+                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"
+                  }`}
               >
-                <FaTable
-                  size={16}
-                  className={isSidebarCollapsed ? "" : "mr-3"}
-                />
-                {!isSidebarCollapsed && "Admin Management"}
+                <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "admin-management"
+                  ? "bg-[#4ECDC4]"
+                  : "bg-transparent group-hover:bg-[#4ECDC4]"
+                  }`} />
+                <div className="relative z-10 w-full">
+                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <FaTable size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Admin Management</span>}
+                  </div>
+                </div>
               </button>
             </li>
             <li>
               <button
                 onClick={() => setActiveTab("feature-updates")}
-                className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
-                  activeTab === "feature-updates"
-                    ? "bg-[#4ECDC4] text-[#2B2B2B] scale-100 shadow-inner"
-                    : "text-gray-700 hover:bg-white/10 hover:text-[#4ECDC4] hover:scale-102"
-                }`}
-                onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
-                onMouseUp={(e) => (e.currentTarget.style.transform = '')}
+                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "feature-updates"
+                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
+                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"
+                  }`}
               >
-                <FaCubes
-                  size={16}
-                  className={isSidebarCollapsed ? "" : "mr-3"}
-                />
-                {!isSidebarCollapsed && "Feature Updates"}
+                <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "feature-updates"
+                  ? "bg-[#4ECDC4]"
+                  : "bg-transparent group-hover:bg-[#4ECDC4]"
+                  }`} />
+                <div className="relative z-10 w-full">
+                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <FaCubes size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Feature Updates</span>}
+                  </div>
+                </div>
               </button>
             </li>
             <li>
               <button
                 onClick={() => setActiveTab("system-reports")}
-                className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
-                  activeTab === "system-reports"
-                    ? "bg-[#4ECDC4] text-[#2B2B2B] scale-100 shadow-inner"
-                    : "text-gray-700 hover:bg-white/10 hover:text-[#4ECDC4] hover:scale-102"
-                }`}
-                onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
-                onMouseUp={(e) => (e.currentTarget.style.transform = '')}
+                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "system-reports"
+                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
+                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"
+                  }`}
               >
-                <FaFileAlt
-                  size={16}
-                  className={isSidebarCollapsed ? "" : "mr-3"}
-                />
-                {!isSidebarCollapsed && "System Reports"}
+                <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "system-reports"
+                  ? "bg-[#4ECDC4]"
+                  : "bg-transparent group-hover:bg-[#4ECDC4]"
+                  }`} />
+                <div className="relative z-10 w-full">
+                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <FaFileAlt size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">System Reports</span>}
+                  </div>
+                </div>
               </button>
             </li>
             <li>
               <button
                 onClick={() => setActiveTab("settings")}
-                className={`relative overflow-hidden flex items-center w-full p-3 text-sm font-medium rounded-lg transition transform ${
-                  activeTab === "settings"
-                    ? "bg-[#4ECDC4] text-[#2B2B2B] scale-100 shadow-inner"
-                    : "text-gray-700 hover:bg-white/10 hover:text-[#4ECDC4] hover:scale-102"
-                }`}
-                onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
-                onMouseUp={(e) => (e.currentTarget.style.transform = '')}
+                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "settings"
+                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
+                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"
+                  }`}
               >
-                <FaCog size={16} className={isSidebarCollapsed ? "" : "mr-3"} />
-                {!isSidebarCollapsed && "Settings"}
+                <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "settings"
+                  ? "bg-[#4ECDC4]"
+                  : "bg-transparent group-hover:bg-[#4ECDC4]"
+                  }`} />
+                <div className="relative z-10 w-full">
+                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <FaCog size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Settings</span>}
+                  </div>
+                </div>
               </button>
             </li>
           </ul>
@@ -2495,44 +2487,45 @@ const SuperAdminDashboard: React.FC = () => {
       </div>
 
       {/* Top Navbar */}
-      <div className="flex-1 flex flex-col">
-        <div className="mx-1 my-6 p-4 rounded-2xl bg-[#FAFAFA]/80 backdrop-blur-sm border border-white/10 shadow-lg flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="m-2 p-3 rounded-2xl bg-[#FAFAFA]/80 backdrop-blur-sm border border-white/10 shadow-lg flex items-center justify-between hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 text-gray-700 hover:text-green-700 hover:bg-gray-100 rounded-lg lg:hidden transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg lg:hidden transition-all duration-300 hover:scale-110 active:scale-95"
             >
-              <FaChevronRight size={16} />
+              <FaChevronRight size={14} />
             </button>
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>Dashboard</span>
-                <FaChevronRight size={12} />
-                <span className="text-gray-900 font-medium">
-                  {activeTab === "admin-management" && "Admin Management"}
-                  {activeTab === "feature-updates" && "Feature Updates"}
-                  {activeTab === "system-reports" && "System Reports"}
-                  {activeTab === "settings" && "Settings"}
+              <span className="font-medium">Dashboard</span>
+              <FaChevronRight size={10} className="text-gray-400" />
+              <span className="text-gray-900 font-semibold">
+                {activeTab === "dashboard" && "Overview"}
+                {activeTab === "admin-management" && "Admin Management"}
+                {activeTab === "feature-updates" && "Feature Updates"}
+                {activeTab === "system-reports" && "System Reports"}
+                {activeTab === "settings" && "Settings"}
               </span>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 text-gray-700 hover:text-green-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="relative p-2 text-gray-500 hover:text-green-700 hover:bg-gray-100 rounded-lg transition-all duration-300 hover:scale-110 active:scale-95"
             >
               <FaBell size={16} />
               {notificationsList.some((notification) => !notification.read) && (
-                <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white/80"></span>
+                <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white/80 animate-pulse"></span>
               )}
             </button>
             <div className="relative">
               <button
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                className="flex items-center space-x-2 text-gray-700 hover:text-green-700 rounded-lg px-2 py-1 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all duration-300 focus:outline-none hover:scale-105 active:scale-95"
               >
-                <FaUserCircle size={22} />
-                <span className="hidden md:inline text-sm font-medium text-gray-800">{userProfile?.name || 'Super Admin'}</span>
-                <FaChevronDown size={12} />
+                <FaUserCircle size={20} className="transition-transform duration-300 hover:scale-110" />
+                <span className="hidden md:inline text-sm font-medium text-gray-700">{userProfile?.name || 'Super Admin'}</span>
+                <FaChevronDown size={10} className="transition-transform duration-300" />
               </button>
               {isProfileDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-2 z-50">
@@ -2627,7 +2620,7 @@ const SuperAdminDashboard: React.FC = () => {
           </div>
         )}
 
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="flex-1 p-4 overflow-y-auto">
           {error && (
             <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-lg flex justify-between items-center">
               <span>{error}</span>
@@ -2650,7 +2643,7 @@ const SuperAdminDashboard: React.FC = () => {
               </button>
             </div>
           )}
-          {renderContent()}
+          <div className="max-w-7xl mx-auto h-full">{renderContent()}</div>
         </div>
       </div>
 
@@ -2744,9 +2737,8 @@ const SuperAdminDashboard: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmittingAdmin}
-                  className={`px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] ${
-                    isSubmittingAdmin ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  className={`px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] ${isSubmittingAdmin ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                 >
                   {isSubmittingAdmin ? "Adding..." : "Add Admin"}
                 </button>
@@ -2803,9 +2795,8 @@ const SuperAdminDashboard: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmittingFeature}
-                  className={`px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] ${
-                    isSubmittingFeature ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  className={`px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] ${isSubmittingFeature ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                 >
                   {isSubmittingFeature ? "Adding..." : "Add Update"}
                 </button>
@@ -2866,9 +2857,8 @@ const SuperAdminDashboard: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmittingReport}
-                  className={`px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] ${
-                    isSubmittingReport ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  className={`px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] ${isSubmittingReport ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                 >
                   {isSubmittingReport ? "Generating..." : "Generate Report"}
                 </button>
@@ -2937,22 +2927,20 @@ const SuperAdminDashboard: React.FC = () => {
               </button>
               <button
                 onClick={() => handleReportAction(selectedReport.id, "review")}
-                className={`px-4 py-2 bg-[#2B2B2B]-100 text-[#2B2B2B]-800 rounded-lg hover:bg-[#2B2B2B]-200 ${
-                  isSubmittingReportAction
-                    ? "opacity-50 cursor-not-allowed"
-                    : ""
-                }`}
+                className={`px-4 py-2 bg-[#2B2B2B]-100 text-[#2B2B2B]-800 rounded-lg hover:bg-[#2B2B2B]-200 ${isSubmittingReportAction
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+                  }`}
                 disabled={isSubmittingReportAction}
               >
                 Review
               </button>
               <button
                 onClick={() => handleReportAction(selectedReport.id, "archive")}
-                className={`px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 ${
-                  isSubmittingReportAction
-                    ? "opacity-50 cursor-not-allowed"
-                    : ""
-                }`}
+                className={`px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 ${isSubmittingReportAction
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+                  }`}
                 disabled={isSubmittingReportAction}
               >
                 Archive

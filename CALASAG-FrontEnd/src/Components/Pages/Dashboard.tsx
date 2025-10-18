@@ -25,6 +25,7 @@ import {
   FaUserMinus,
   FaEdit,
   FaArrowLeft,
+  FaChevronDown,
   FaPaperPlane,
 } from "react-icons/fa";
 import logoImage from "../Images/nobg-logo.png";
@@ -182,6 +183,9 @@ const Dashboard: React.FC = () => {
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
   const [selectedSearchProfile, setSelectedSearchProfile] = useState<SearchResult | null>(null);
   const [editProfileData, setEditProfileData] = useState<Partial<UserProfile>>({});
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   // Separate page states for different sections
   const [emergencyPage, setEmergencyPage] = useState<number>(1);
   const [safeAlertsPage, setSafeAlertsPage] = useState<number>(1);
@@ -192,6 +196,41 @@ const Dashboard: React.FC = () => {
   const alertsPerPage = 4;
   const emergenciesPerPage = 6;
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Theme utility functions
+  const getThemeClasses = () => {
+    const isDark = theme === "dark";
+    return {
+      background: isDark ? "bg-gray-900" : "bg-[#FAFAFA]",
+      cardBackground: isDark ? "bg-gray-800" : "bg-white",
+      textPrimary: isDark ? "text-white" : "text-[#2B2B2B]",
+      textSecondary: isDark ? "text-gray-300" : "text-gray-600",
+      textTertiary: isDark ? "text-gray-400" : "text-gray-500",
+      border: isDark ? "border-gray-600" : "border-gray-200",
+      hover: isDark ? "hover:bg-gray-700" : "hover:bg-gray-50",
+      input: isDark ? "bg-gray-700 text-white border-gray-600" : "bg-gray-50 text-gray-900 border-gray-100",
+      modal: isDark ? "bg-gray-800" : "bg-white",
+      navbar: isDark ? "bg-gray-900 border-gray-700" : "bg-[#FAFAFA] border-gray-300",
+      deviceCard: isDark ? "bg-gray-800" : "bg-[#2B2B2B]",
+      deviceCardText: isDark ? "text-white" : "text-white",
+      connectionCard: isDark ? "bg-gray-800" : "bg-white",
+      welcomeCard: isDark ? "bg-gray-800" : "bg-gradient-to-br from-[#FFD166] to-[#FFD166]",
+      emergencyCard: isDark ? "bg-gray-800" : "bg-white",
+      reportCard: isDark ? "bg-gray-800" : "bg-white",
+      messageCard: isDark ? "bg-gray-800" : "bg-white",
+      alertCard: isDark ? "bg-gray-800" : "bg-white",
+      searchDropdown: isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100",
+      notificationDropdown: isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100",
+      connectionRequestDropdown: isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100",
+      profileDropdown: isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100",
+      chatBackground: isDark ? "bg-gray-700" : "bg-gray-50",
+      messageBubble: isDark ? "bg-gray-600" : "bg-gray-200",
+      messageBubbleOwn: isDark ? "bg-[#4ECDC4]" : "bg-[#4ECDC4]",
+      buttonSecondary: isDark ? "bg-gray-700 hover:bg-gray-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-900",
+    };
+  };
+
+  const themeClasses = getThemeClasses();
 
   const iconMap: { [key: string]: React.ElementType | undefined } = {
     FaAmbulance,
@@ -712,6 +751,57 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File size must be less than 5MB');
+        return;
+      }
+
+      setSelectedFile(file);
+
+      // Create preview URL
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
+  const uploadImageToSupabase = async (file: File): Promise<string> => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('profile-pictures')
+        .upload(filePath, file);
+
+      if (uploadError) throw new Error(`Upload error: ${uploadError.message}`);
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
+  };
+
   const handleEditProfile = async () => {
     try {
       const {
@@ -719,11 +809,18 @@ const Dashboard: React.FC = () => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user");
 
+      let avatarUrl = editProfileData.avatar || userProfile?.avatar;
+
+      // Upload new image if selected
+      if (selectedFile) {
+        avatarUrl = await uploadImageToSupabase(selectedFile);
+      }
+
       const { error } = await supabase
         .from("users")
         .update({
           name: editProfileData.name || userProfile?.name,
-          avatar: editProfileData.avatar || userProfile?.avatar,
+          avatar: avatarUrl,
         })
         .eq("user_id", user.id);
       if (error) throw new Error(`Profile update error: ${error.message}`);
@@ -733,19 +830,58 @@ const Dashboard: React.FC = () => {
           ? {
             ...prev,
             name: editProfileData.name || prev.name,
-            avatar: editProfileData.avatar || prev.avatar,
           }
           : prev
       );
       setActiveUser(editProfileData.name || userProfile?.name || "User");
       setShowEditProfile(false);
       setEditProfileData({});
+      setSelectedFile(null);
+      setPreviewUrl(null);
       alert("Profile updated successfully!");
     } catch (error: any) {
       console.error("Error updating profile:", error);
       setError(`Failed to update profile: ${error.message}`);
     }
   };
+
+  // Load theme from localStorage on component mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  // Save theme.Data to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem("theme", theme);
+    // Update document class for global theme
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.body.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.body.classList.remove("dark");
+    }
+  }, [theme]);
+
+  // Cleanup preview URL when component unmounts or modal closes
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  // Cleanup when edit modal closes
+  useEffect(() => {
+    if (!showEditProfile && previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  }, [showEditProfile, previewUrl]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -1198,30 +1334,30 @@ const Dashboard: React.FC = () => {
             },
             async (payload) => {
               console.log("Raw message payload:", payload);
-                const newMessage = payload.new as any;
-                const { data: senderData } = await supabase
-                  .from("users")
-                  .select("name")
-                  .eq("user_id", newMessage.sender_id)
-                  .single();
-                const { data: receiverData } = await supabase
-                  .from("users")
-                  .select("name")
-                  .eq("user_id", newMessage.receiver_id)
-                  .single();
-                setMessages((prev) => [
-                  {
-                    id: newMessage.id,
-                    sender_id: newMessage.sender_id,
-                    receiver_id: newMessage.receiver_id,
-                    content: newMessage.content,
-                    timestamp: newMessage.timestamp,
-                    sender_name: senderData?.name || "Unknown User",
-                    receiver_name: receiverData?.name || "Unknown User",
-                  },
-                  ...prev,
-                ]);
-              }
+              const newMessage = payload.new as any;
+              const { data: senderData } = await supabase
+                .from("users")
+                .select("name")
+                .eq("user_id", newMessage.sender_id)
+                .single();
+              const { data: receiverData } = await supabase
+                .from("users")
+                .select("name")
+                .eq("user_id", newMessage.receiver_id)
+                .single();
+              setMessages((prev) => [
+                {
+                  id: newMessage.id,
+                  sender_id: newMessage.sender_id,
+                  receiver_id: newMessage.receiver_id,
+                  content: newMessage.content,
+                  timestamp: newMessage.timestamp,
+                  sender_name: senderData?.name || "Unknown User",
+                  receiver_name: receiverData?.name || "Unknown User",
+                },
+                ...prev,
+              ]);
+            }
           )
           .subscribe((status, err) => {
             console.log("Message status:", status, err || "");
@@ -2006,19 +2142,19 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-  <div className="h-screen overflow-hidden bg-[#FAFAFA] flex flex-col">
+    <div className={`h-screen overflow-hidden ${themeClasses.background} flex flex-col transition-colors duration-300`}>
       {/* Navbar */}
-  <div className="bg-[#FAFAFA] border-b border-gray-300 p-2 sm:p-3 flex flex-col sm:flex-row items-center justify-between shadow-sm relative">
+      <div className={`${themeClasses.navbar} border-b p-2 sm:p-2 flex flex-col sm:flex-row items-center justify-between  relative transition-colors duration-300`}>
         <div className="flex items-center w-full sm:w-auto mb-4 sm:mb-0">
           <img src={logoImage} className="h-10 w-auto sm:h-16 md:h-20" alt="Logo" />
         </div>
 
-  <div className="flex items-center justify-center space-x-4 sm:space-x-8 sm:absolute sm:left-1/2 sm:transform sm:-translate-x-1/2">
+        <div className="flex items-center justify-center space-x-4 sm:space-x-8 sm:absolute sm:left-1/2 sm:transform sm:-translate-x-1/2">
           <button
             onClick={() => handleNavigation("home")}
             className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 ${activeTab === "home"
-              ? "text-[#4ECDC4] border-[#4ECDC4] bg-[#4ECDC4]/10 font-bold shadow-sm"
-              : "text-gray-600 border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105"
+              ? "text-[#4ECDC4] border-[#4ECDC4] bg-[#4ECDC4]/10 font-bold "
+              : `${themeClasses.textSecondary} border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105`
               }`}
           >
             <FaHome size={20} />
@@ -2027,8 +2163,8 @@ const Dashboard: React.FC = () => {
           <button
             onClick={() => handleNavigation("message")}
             className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 ${activeTab === "message"
-              ? "text-[#4ECDC4] border-[#4ECDC4] bg-[#4ECDC4]/10 font-bold shadow-sm"
-              : "text-gray-600 border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105"
+              ? "text-[#4ECDC4] border-[#4ECDC4] bg-[#4ECDC4]/10 font-bold "
+              : `${themeClasses.textSecondary} border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105`
               }`}
           >
             <FaEnvelope size={20} />
@@ -2037,8 +2173,8 @@ const Dashboard: React.FC = () => {
           <button
             onClick={() => handleNavigation("report")}
             className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 ${activeTab === "report"
-              ? "text-[#4ECDC4] border-[#4ECDC4] bg-[#4ECDC4]/10 font-bold shadow-sm"
-              : "text-gray-600 border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105"
+              ? "text-[#4ECDC4] border-[#4ECDC4] bg-[#4ECDC4]/10 font-bold "
+              : `${themeClasses.textSecondary} border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105`
               }`}
           >
             <FaExclamationTriangle size={20} />
@@ -2058,7 +2194,7 @@ const Dashboard: React.FC = () => {
             </button>
             <div className="absolute right-10 top-0 z-70">
               <div
-                className={`bg-white rounded-2xl border border-gray-100 shadow-md overflow-hidden transition-all duration-300 group ${showSearchResults ? 'w-64 opacity-100 -translate-x-1' : 'w-0 opacity-0 translate-x-2 pointer-events-none'
+                className={`${themeClasses.searchDropdown} rounded-2xl border  overflow-hidden transition-all duration-300 group ${showSearchResults ? 'w-64 opacity-100 -translate-x-1' : 'w-0 opacity-0 translate-x-2 pointer-events-none'
                   }`}
               >
                 <div className="flex items-center">
@@ -2067,7 +2203,7 @@ const Dashboard: React.FC = () => {
                     placeholder="Search users..."
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full bg-white px-3 py-2 text-sm focus:ring-[#4ECDC4] focus:border-[#4ECDC4] outline-none"
+                    className={`w-full ${themeClasses.input} px-3 py-2 text-sm focus:ring-[#4ECDC4] focus:border-[#4ECDC4] outline-none`}
                     autoFocus={showSearchResults}
                   />
                 </div>
@@ -2075,39 +2211,39 @@ const Dashboard: React.FC = () => {
                 <div className="h-px mx-2 bg-gradient-to-r from-transparent via-[#4ECDC4]/30 to-transparent transition-opacity duration-300 opacity-60 group-hover:opacity-100" />
                 {searchQuery.trim().length >= 2 && (
                   <div className="max-h-60 overflow-y-auto overflow-x-hidden py-2">
-                      {searchResults.length > 0 ? (
-                        searchResults.map((user) => (
-                          <div
-                            key={user.id}
-                            className="px-4 h-12 hover:bg-gray-50 transition-colors duration-200 cursor-pointer flex items-center space-x-3 w-full"
-                            onClick={() => {
-                              setSelectedSearchProfile(user);
-                              setShowProfile(true);
-                              setShowSearchResults(false);
-                              setSearchQuery("");
-                            }}
-                          >
-                            <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white">
-                              {user.avatar ? (
-                                <img
-                                  src={user.avatar}
-                                  className="w-full h-full rounded-full"
-                                  alt={user.name}
-                                />
-                              ) : (
-                                <FaUser className="text-white" />
-                              )}
-                            </div>
-                            <div className="min-w-0 w-full flex flex-col justify-center">
-                              <p className="text-[#2B2B2B] font-bold truncate">{user.name}</p>
-                              <p className="text-sm text-gray-600 truncate">{user.email}</p>
-                            </div>
+                    {searchResults.length > 0 ? (
+                      searchResults.map((user) => (
+                        <div
+                          key={user.id}
+                          className={`px-4 h-12 ${themeClasses.hover} transition-colors duration-200 cursor-pointer flex items-center space-x-3 w-full`}
+                          onClick={() => {
+                            setSelectedSearchProfile(user);
+                            setShowProfile(true);
+                            setShowSearchResults(false);
+                            setSearchQuery("");
+                          }}
+                        >
+                          <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white">
+                            {user.avatar ? (
+                              <img
+                                src={user.avatar}
+                                className="w-full h-full rounded-full"
+                                alt={user.name}
+                              />
+                            ) : (
+                              <FaUser className="text-white" />
+                            )}
                           </div>
-                        ))
-                      ) : (
-                        <p className="px-4 py-2 text-gray-600">No users found.</p>
-                      )}
-                    </div>
+                          <div className="min-w-0 w-full flex flex-col justify-center">
+                            <p className={`${themeClasses.textPrimary} font-bold truncate`}>{user.name}</p>
+                            <p className={`text-sm ${themeClasses.textSecondary} truncate`}>{user.email}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className={`px-4 py-2 ${themeClasses.textSecondary}`}>No users found.</p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -2128,8 +2264,8 @@ const Dashboard: React.FC = () => {
               )}
             </button>
             {showConnectionRequestsMenu && (
-              <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#4ECDC4]/20 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+              <div className={`absolute right-0 mt-2 w-full sm:w-80 ${themeClasses.connectionRequestDropdown} rounded-2xl  py-2 z-50 animate-in fade-in duration-300 border hover:border-[#4ECDC4]/20 overflow-hidden`}>
+                <div className={`px-4 py-3 border-b ${themeClasses.border} flex justify-between items-center`}>
                   <h3 className="text-lg font-bold text-[#4ECDC4]">
                     Connection Requests
                   </h3>
@@ -2139,7 +2275,7 @@ const Dashboard: React.FC = () => {
                     connectionRequests.map((request) => (
                       <div
                         key={request.id}
-                        className="px-3 py-3 flex items-center justify-between gap-2 hover:bg-gray-50 transition-all duration-300"
+                        className={`px-3 py-3 flex items-center justify-between gap-2 ${themeClasses.hover} transition-all duration-300`}
                       >
                         <div className="flex items-center space-x-3 min-w-0 flex-1">
                           <div className="w-10 h-10 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white flex-shrink-0 overflow-hidden">
@@ -2153,7 +2289,7 @@ const Dashboard: React.FC = () => {
                               <FaUser className="text-white" />
                             )}
                           </div>
-                          <p className="text-gray-900 text-sm truncate">
+                          <p className={`${themeClasses.textPrimary} text-sm truncate`}>
                             {request.sender_name} wants to connect
                           </p>
                         </div>
@@ -2184,7 +2320,7 @@ const Dashboard: React.FC = () => {
                       </div>
                     ))
                   ) : (
-                    <p className="px-4 py-3 text-gray-600">No connection requests.</p>
+                    <p className={`px-4 py-3 ${themeClasses.textSecondary}`}>No connection requests.</p>
                   )}
                 </div>
               </div>
@@ -2206,96 +2342,91 @@ const Dashboard: React.FC = () => {
               )}
             </button>
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-2xl shadow-xl z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#4ECDC4]/20">
-                <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+              <div className={`absolute right-0 mt-2 w-full sm:w-80 ${themeClasses.notificationDropdown} rounded-2xl  z-50 animate-in fade-in duration-300 border hover:border-[#4ECDC4]/20`}>
+                <div className={`px-4 py-3 border-b ${themeClasses.border} flex justify-between items-center`}>
                   <h3 className="text-lg font-bold text-[#4ECDC4]">
                     Notifications
                   </h3>
                   <button
                     onClick={markAllAsRead}
-                    className={`text-sm text-blue-600 hover:text-blue-800 transition-colors duration-200 ${
-                      unreadNotifications.length === 0
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
-                    }`}
+                    className={`text-sm text-blue-600 hover:text-blue-800 transition-colors duration-200 ${unreadNotifications.length === 0
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                      }`}
                   >
                     Mark all as read
                   </button>
                 </div>
-                <div className="flex border-b border-gray-200">
+                <div className={`flex border-b ${themeClasses.border}`}>
                   <button
                     onClick={() => setNotificationTab("unread")}
-                    className={`flex-1 py-2 text-sm font-medium ${
-                      notificationTab === "unread"
-                        ? "border-b-2 border-[#005524] text-[#005524]"
-                        : "text-gray-500 hover:text-gray-700"
-                    }`}
+                    className={`flex-1 py-2 text-sm font-medium ${notificationTab === "unread"
+                      ? "border-b-2 border-[#4ECDC4] text-[#4ECDC4]"
+                      : `${themeClasses.textSecondary} hover:${themeClasses.textPrimary}`
+                      }`}
                   >
                     Unread
                   </button>
                   <button
                     onClick={() => setNotificationTab("all")}
-                    className={`flex-1 py-2 text-sm font-medium ${
-                      notificationTab === "all"
-                        ? "border-b-2 border-[#005524] text-[#005524]"
-                        : "text-gray-500 hover:text-gray-700"
-                    }`}
+                    className={`flex-1 py-2 text-sm font-medium ${notificationTab === "all"
+                      ? "border-b-2 border-[#4ECDC4] text-[#4ECDC4]"
+                      : `${themeClasses.textSecondary} hover:${themeClasses.textPrimary}`
+                      }`}
                   >
                     All
                   </button>
                 </div>
                 <div className="max-h-96 overflow-y-auto">
                   {(() => {
-                     const filteredNotifications = notificationTab === "unread" ? unreadNotifications : notifications;
- 
-                     if (filteredNotifications.length === 0) {
-                       return (
-                         <div className="px-4 py-3 text-center text-gray-500">
-                           No {notificationTab} notifications
-                         </div>
-                       );
-                     }
- 
-                     return filteredNotifications.map((notification) => (
-                       <div
-                         key={notification.id}
-                         className={`px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
-                           notification.read ? "bg-gray-50" : "bg-white"
-                         }`}
-                       >
-                         <div className="flex items-start justify-between">
-                           <div>
-                             <p
-                               className={`text-sm ${
-                                 notification.read
-                                   ? "text-gray-600"
-                                   : "text-gray-800 font-medium"
-                               }`}
-                             >
-                               {notification.message}
-                             </p>
-                             <p className="text-xs text-gray-500 mt-1">
-                               {new Date(
-                                 notification.created_at
-                               ).toLocaleString()}
-                             </p>
-                           </div>
-                           {!notification.read && (
-                             <button
-                               onClick={() =>
-                                 markNotificationAsRead(notification.id)
-                               }
-                               className="ml-2 text-xs text-blue-600 hover:underline"
-                             >
-                               Mark as read
-                             </button>
-                           )}
-                         </div>
-                       </div>
-                     ));
+                    const filteredNotifications = notificationTab === "unread" ? unreadNotifications : notifications;
+
+                    if (filteredNotifications.length === 0) {
+                      return (
+                        <div className={`px-4 py-3 text-center ${themeClasses.textSecondary}`}>
+                          No {notificationTab} notifications
+                        </div>
+                      );
+                    }
+
+                    return filteredNotifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className={`px-4 py-3 ${themeClasses.hover} border-b ${themeClasses.border} last:border-b-0 transition-colors ${notification.read ? themeClasses.hover : themeClasses.cardBackground
+                          }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p
+                              className={`text-sm ${notification.read
+                                ? themeClasses.textSecondary
+                                : `${themeClasses.textPrimary} font-medium`
+                                }`}
+                            >
+                              {notification.message}
+                            </p>
+                            <p className={`text-xs ${themeClasses.textSecondary} mt-1`}>
+                              {new Date(
+                                notification.created_at
+                              ).toLocaleString()}
+                            </p>
+                          </div>
+                          {!notification.read && (
+                            <button
+                              onClick={() =>
+                                markNotificationAsRead(notification.id)
+                              }
+                              className="ml-2 text-xs text-blue-600 hover:underline"
+                            >
+                              Mark as read
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ));
                   })()}
                   {connectionRequests.length > 0 && (
-                    <div className="px-4 py-3 text-center text-gray-500 border-t border-gray-100">You have {connectionRequests.length} pending connection request{connectionRequests.length > 1 ? 's' : ''}.</div>
+                    <div className={`px-4 py-3 text-center ${themeClasses.textSecondary} border-t ${themeClasses.border}`}>You have {connectionRequests.length} pending connection request{connectionRequests.length > 1 ? 's' : ''}.</div>
                   )}
                 </div>
               </div>
@@ -2304,51 +2435,54 @@ const Dashboard: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center space-x-2 focus:outline-none hover:bg-gray-100 rounded-2xl px-3 py-2 transition-all duration-300 hover:scale-105"
+              className="flex items-center space-x-3 focus:outline-none hover:bg-gray-100 rounded-xl px-4 py-2 transition-all duration-300 hover:scale-100"
             >
-              <div className="w-10 h-10 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white">
-                {userProfile?.avatar ? (
-                  <img
-                    src={userProfile.avatar}
-                    className="w-full h-full rounded-full"
-                    alt="Profile"
-                  />
-                ) : (
-                  <FaUser className="text-white" />
-                )}
-              </div>
-              <div className="flex items-center text-[#2B2B2B]">
-                <span className="font-bold">
-                  {isLoading ? "Loading..." : activeUser || "User"}
-                </span>
-                <span
-                  className={`ml-2 transition-transform duration-300 ${showProfileMenu ? "rotate-180" : ""
-                    }`}
-                >
-                  ▼
-                </span>
+              <div className="flex items-center space-x-3">
+                <div className={`${themeClasses.textPrimary} font-bold text-[#2B2B2B]/100 text-md`}>
+                  {isLoading ? "Loading..." : (userProfile?.first_name || "User")}
+                </div>
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center overflow-hidden">
+                    {userProfile?.avatar ? (
+                      <img
+                        src={userProfile.avatar}
+                        className="w-full h-full rounded-full object-cover"
+                        alt="Profile"
+                      />
+                    ) : (
+                      <FaUser className="text-gray-500" size={20} />
+                    )}
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full border border-gray-200 flex items-center justify-center">
+                    <span
+                      className={`text-xs transition-transform duration-300 ${showProfileMenu ? "rotate-180" : ""}`}
+                    >
+                      <FaChevronDown size={10} />
+                    </span>
+                  </div>
+                </div>
               </div>
             </button>
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-300 border border-gray-100 hover:border-[#4ECDC4]/20">
+              <div className={`absolute right-0 mt-2 w-48 ${themeClasses.profileDropdown} rounded-2xl  py-2 z-50 animate-in fade-in duration-300 border hover:border-[#4ECDC4]/20`}>
                 <button
                   onClick={() => handleProfileAction("profile")}
-                  className="w-full px-4 py-2 text-left text-gray-900 hover:bg-gray-50 hover:scale-105 transition-all duration-300 flex items-center rounded-2xl"
+                  className={`w-full px-4 py-2 text-left ${themeClasses.textPrimary} ${themeClasses.hover} hover:scale-100 transition-all duration-300 flex items-center rounded-2xl`}
                 >
                   <FaUser size={16} className="mr-2" />
                   Profile
                 </button>
                 <button
                   onClick={() => handleProfileAction("settings")}
-                  className="w-full px-4 py-2 text-left text-gray-900 hover:bg-gray-50 hover:scale-105 transition-all duration-300 flex items-center rounded-2xl"
+                  className={`w-full px-4 py-2 text-left ${themeClasses.textPrimary} ${themeClasses.hover} hover:scale-100 transition-all duration-300 flex items-center rounded-2xl`}
                 >
                   <FaCog size={16} className="mr-2" />
                   Settings
                 </button>
-                <div className="border-t border-gray-100 my-1"></div>
+                <div className={`border-t ${themeClasses.border} my-1`}></div>
                 <button
                   onClick={() => handleProfileAction("logout")}
-                  className="w-full px-4 py-2 text-left text-[#E63946] hover:bg-gray-50 hover:scale-105 transition-all duration-300 flex items-center rounded-2xl"
+                  className={`w-full px-4 py-2 text-left text-[#E63946] ${themeClasses.hover} hover:scale-100 transition-all duration-300 flex items-center rounded-2xl`}
                 >
                   <FaSignOutAlt size={16} className="mr-2" />
                   Logout
@@ -2359,121 +2493,121 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-  {/* Main Content */}
-  <div className="flex flex-col lg:flex-row flex-1 relative px-4 sm:px-6 gap-4 sm:gap-6 pt-4 sm:pt-6">
+      {/* Main Content */}
+      <div className="flex flex-col lg:flex-row flex-1 relative px-4 sm:px-6 gap-4 sm:gap-6 pt-4 sm:pt-6">
         {/* Left Sidebar */}
         <div className="w-full lg:w-1/4 flex flex-col space-y-4 sm:space-y-6 min-h-0">
           {/* Make the left sidebar content fixed in layout but scrollable on hover */}
           <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
-          <div className="bg-[#2B2B2B] rounded-2xl shadow-xl p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-white">Your Device</h2>
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                <span className="text-2xl">📱</span>
+            <div className={`${themeClasses.deviceCard} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 hover:border-[#4ECDC4]/50 transition-all duration-300 cursor-pointer`}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.deviceCardText}`}>Your Device</h2>
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                  <span className="text-2xl">📱</span>
+                </div>
               </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
-                <span className="text-white/90 font-medium">Device ID:</span>
-                <span className="text-white font-bold">01-JD-C24</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
-                <span className="text-white/90 font-medium">Status:</span>
-                <span
-                  className={`font-bold px-3 py-1 rounded-full text-sm ${deviceStatus === "Active"
-                    ? "bg-green-500 text-white"
-                    : "bg-red-500 text-white"
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
+                  <span className={`${themeClasses.deviceCardText}/90 font-medium`}>Device ID:</span>
+                  <span className={`${themeClasses.deviceCardText} font-bold`}>01-JD-C24</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
+                  <span className={`${themeClasses.deviceCardText}/90 font-medium`}>Status:</span>
+                  <span
+                    className={`font-bold px-3 py-1 rounded-full text-sm ${deviceStatus === "Active"
+                      ? "bg-green-500 text-white"
+                      : "bg-red-500 text-white"
+                      }`}
+                  >
+                    {deviceStatus}
+                  </span>
+                </div>
+                <button
+                  className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all duration-300 transform hover:scale-105  ${deviceStatus === "Active"
+                    ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+                    : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
                     }`}
+                  onClick={() =>
+                    setDeviceStatus(deviceStatus === "Active" ? "Inactive" : "Active")
+                  }
                 >
-                  {deviceStatus}
-                </span>
+                  {deviceStatus === "Active" ? "Deactivate Device" : "Activate Device"}
+                </button>
               </div>
-              <button
-                className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all duration-300 transform hover:scale-105 shadow-lg ${deviceStatus === "Active"
-                  ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
-                  : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-                  }`}
-                onClick={() =>
-                  setDeviceStatus(deviceStatus === "Active" ? "Inactive" : "Active")
-                }
-              >
-                {deviceStatus === "Active" ? "Deactivate Device" : "Activate Device"}
-              </button>
             </div>
-          </div>
-          <div className="bg-[#FAFAFA] border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20 overflow-hidden">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-4">
-              Connections
-            </h2>
-            {isLoading ? (
-              <p className="text-gray-600">Loading connections...</p>
-            ) : connections.length > 0 ? (
-              connections.map((connection) => (
-                <div  
-                  key={connection.id}
-                  className="flex items-center justify-between space-x-4 mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded-2xl hover:scale-105 transition-all duration-300"
-                  onClick={() => handleSelectConnection(connection)}
-                >
-                  <div className="flex items-center space-x-4">
+            <div className={`${themeClasses.connectionCard} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 transition-all duration-300 hover:border-[#4ECDC4]/50 overflow-hidden`}>
+              <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.textPrimary} mb-4`}>
+                Connections
+              </h2>
+              {isLoading ? (
+                <p className={themeClasses.textSecondary}>Loading connections...</p>
+              ) : connections.length > 0 ? (
+                connections.map((connection) => (
+                  <div
+                    key={connection.id}
+                    className={`flex items-center justify-between space-x-4 mb-2 cursor-pointer ${themeClasses.hover} p-2 rounded-2xl hover:scale-105 transition-all duration-300`}
+                    onClick={() => handleSelectConnection(connection)}
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
+                        {connection.avatar ? (
+                          <img
+                            src={connection.avatar}
+                            className="w-full h-full rounded-full"
+                            alt={connection.name}
+                          />
+                        ) : (
+                          <FaUser className="text-white" />
+                        )}
+                      </div>
+                      <span className={`${themeClasses.textPrimary} font-bold`}>{connection.name}</span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedConnection(connection);
+                        setShowConnectionOptions(true);
+                      }}
+                      className={`${themeClasses.textSecondary} hover:text-[#4ECDC4] transition-colors duration-200`}
+                    >
+                      <FaCog size={16} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className={themeClasses.textSecondary}>No connections found.</p>
+              )}
+            </div>
+            <div className={`${themeClasses.cardBackground} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 transition-all duration-300 hover:border-[#4ECDC4]/50`}>
+              <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.textPrimary} mb-4`}>
+                Safety Tips
+              </h2>
+              {isLoading ? (
+                <p className={themeClasses.textSecondary}>Loading safety tips...</p>
+              ) : safetyTips.length > 0 ? (
+                safetyTips.map((tip) => (
+                  <div
+                    key={tip.id}
+                    className={`flex items-center space-x-4 mb-2 p-2 rounded-2xl ${themeClasses.hover} hover:scale-105 transition-all duration-300 cursor-pointer`}
+                    onClick={() => {
+                      setSelectedSafetyTip(tip);
+                      setShowSafetyTipModal(true);
+                    }}
+                  >
                     <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
-                      {connection.avatar ? (
-                        <img
-                          src={connection.avatar}
-                          className="w-full h-full rounded-full"
-                          alt={connection.name}
-                        />
+                      {iconMap[tip.icon] ? (
+                        React.createElement(iconMap[tip.icon])
                       ) : (
-                        <FaUser className="text-white" />
+                        <FaInfoCircle />
                       )}
                     </div>
-                    <span className="text-gray-900 font-bold">{connection.name}</span>
+                    <p className={`${themeClasses.textPrimary} font-bold`}>{tip.name}</p>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedConnection(connection);
-                      setShowConnectionOptions(true);
-                    }}
-                    className="text-gray-600 hover:text-[#4ECDC4] transition-colors duration-200"
-                  >
-                    <FaCog size={16} />
-                  </button>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-600">No connections found.</p>
-            )}
-          </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-4">
-              Safety Tips
-            </h2>
-            {isLoading ? (
-              <p className="text-gray-600">Loading safety tips...</p>
-            ) : safetyTips.length > 0 ? (
-              safetyTips.map((tip) => (
-                <div
-                  key={tip.id}
-                  className="flex items-center space-x-4 mb-2 p-2 rounded-2xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer"
-                  onClick={() => {
-                    setSelectedSafetyTip(tip);
-                    setShowSafetyTipModal(true);
-                  }}
-                >
-                  <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
-                    {iconMap[tip.icon] ? (
-                      React.createElement(iconMap[tip.icon])
-                    ) : (
-                      <FaInfoCircle />
-                    )}
-                  </div>
-                  <p className="text-gray-900 font-bold">{tip.name}</p>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-600">No safety tips available.</p>
-            )}
-          </div>
+                ))
+              ) : (
+                <p className={themeClasses.textSecondary}>No safety tips available.</p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -2481,260 +2615,260 @@ const Dashboard: React.FC = () => {
         <div className="w-full lg:w-2/4 p-4 sm:p-6 min-h-0">
           {/* Center column: fixed in page layout, inner content scrolls on hover */}
           <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
-          <div className="bg-gradient-to-br from-[#FFD166] to-[#FFD166] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-center shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20 border border-gray-100">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-14 rounded-full bg-black/20 flex items-center justify-center text-black text-xl">
-                {userProfile?.avatar ? (
-                  <img
-                    src={userProfile.avatar}
-                    className="w-full h-full rounded-full"
-                    alt="Profile"
-                  />
-                ) : (
-                  <FaUser className="text-white" />
-                )}
-              </div>
-              <div>
-                <span className="text-white text-lg sm:text-xl font-bold">
-                  Welcome, {isLoading ? "..." : (userProfile?.first_name || userProfile?.first_name || "User")}!
-                </span>
-              </div>
-            </div>
-          </div>
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-2xl mb-4 sm:mb-6 shadow-xl transition-all duration-300">
-              {error}
-            </div>
-          )}
-          {activeTab === "home" && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#2B2B2B]/20">
-              <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B]">
-                  Recent Emergencies
-                </h2>
-                <div className="flex flex-wrap space-x-2 mt-2 sm:mt-0">
-                  <button
-                    onClick={() => setEmergencyFilter("nearby")}
-                    className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${emergencyFilter === "nearby"
-                      ? "bg-[#4ECDC4] hover:bg-[#3abfb2] text-white"
-                      : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                      }`}
-                  >
-                    Nearby (5km)
-                  </button>
-                  <button
-                    onClick={() => setEmergencyFilter("all")}
-                    className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${emergencyFilter === "all"
-                      ? "bg-[#4ECDC4] hover:bg-[#3abfb2] text-white"
-                      : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                      }`}
-                  >
-                    All
-                  </button>
-                  <button
-                    onClick={refreshFeed}
-                    className="bg-[#FFD166] hover:bg-[#d88e00] text-white px-3 py-1 rounded-lg hover:scale-105 transition-all duration-300"
-                  >
-                    Refresh
-                  </button>
-                </div>
-              </div>
-              {isLoading ? (
-                <p className="text-gray-600">Loading emergencies...</p>
-              ) : emergencies.length > 0 ? (
-                <div>
-                  {emergencies.map((emergency) => (
-                    <div
-                      key={emergency.id}
-                      className="bg-white rounded-2xl p-3 sm:p-4 mb-2 sm:mb-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-100 hover:border-[#4ECDC4]/20"
-                    >
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                        <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
-                          {emergency.avatar ? (
-                            <img
-                              src={emergency.avatar}
-                              className="w-full h-full rounded-full"
-                              alt={emergency.name}
-                            />
-                          ) : (
-                            <span>🚨</span>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-bold text-[#4ECDC4]">{emergency.emergency_type}</p>
-                          <p className="text-sm text-gray-900">{emergency.message}</p>
-                          <p className="text-sm text-gray-600">Reported by {emergency.name} on {new Date(emergency.created_at).toLocaleString()}</p>
-                        </div>
-                        <div className="flex space-x-2 sm:space-x-3">
-                          <button
-                            onClick={() => handleViewLocation(emergency)}
-                            className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
-                          >
-                            <FaMapMarkerAlt className="mr-1 sm:mr-2" />
-                            View
-                          </button>
-                          <button
-                            onClick={() => handleCallAssistance(emergency)}
-                            className="bg-[#FFD166] hover:bg-[#d88e00] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
-                          >
-                            <FaPhone className="mr-1 sm:mr-2" />
-                            Call
-                          </button>
-                          <button
-                            onClick={() => handleReport(emergency)}
-                            className="bg-[#E63946] hover:bg-[#a33d16] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
-                          >
-                            <FaExclamationTriangle className="mr-1 sm:mr-2" />
-                            Report
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-600">No emergencies found.</p>
-              )}
-            </div>
-          )}
-          {activeTab === "message" && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
-              {showChatList ? (
-                <>
-                  <h2 className="flex justify-center text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-4">
-                    Messages
-                  </h2>
-                  {isLoading ? (
-                    <p className="text-gray-600">Loading messages...</p>
-                  ) : connections.length > 0 ? (
-                    connections.map((connection) => (
-                      <div
-                        key={connection.id}
-                        className="flex items-center justify-between space-x-4 mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded-2xl hover:scale-105 transition-all duration-300"
-                        onClick={() => handleSelectConnection(connection)}
-                      >
-                        <div className="flex items-center space-x-4">
-                          <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
-                            {connection.avatar ? (
-                              <img
-                                src={connection.avatar}
-                                className="w-full h-full rounded-full"
-                                alt={connection.name}
-                              />
-                            ) : (
-                              <FaUser className="text-white" />
-                            )}
-                          </div>
-                          <span className="text-gray-900 font-bold">{connection.name}</span>
-                        </div>
-                        <span
-                          className={`h-3 w-3 rounded-full ${connection.is_online ? "bg-green-500" : "bg-gray-400"
-                            }`}
-                        ></span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-600">No connections to message.</p>
-                  )}
-                </>
-              ) : (
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                      <button
-                        onClick={() => setShowChatList(true)}
-                        className="text-[#4ECDC4] hover:text-[#3abfb2] flex items-center transition-all duration-300 hover:scale-105 mr-3"
-                        aria-label="Back to conversations"
-                      >
-                        <FaArrowLeft className="" />
-                      </button>
-                      <h2 className="text-xl sm:text-2xl font-bold text-[#4ECDC4]">
-                        {currentChatRecipient}
-                      </h2>
-                    </div>
-                  </div>
-                  <div
-                    ref={chatContainerRef}
-                    className="h-96 overflow-y-auto bg-gray-50 rounded-2xl p-4 mb-4"
-                  >
-                    {getMessagesForRecipient(selectedConnection?.connected_user_id || "").map(
-                      (message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${message.sender_id === userProfile?.id
-                            ? "justify-end"
-                            : "justify-start"
-                            } mb-2`}
-                        >
-                          <div
-                            className={`max-w-xs sm:max-w-md p-3 rounded-2xl ${message.sender_id === userProfile?.id
-                              ? "bg-[#4ECDC4] text-white"
-                              : "bg-gray-200 text-gray-900"
-                              }`}
-                          >
-                            <p className="text-sm">{message.content}</p>
-                            <p className="text-xs text-gray-400">
-                              {new Date(message.timestamp).toLocaleTimeString()}
-                            </p>
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      placeholder="Type a message..."
-                      value={messageText}
-                      onChange={(e) => setMessageText(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                      className="flex-1 bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300"
+            <div className={`${themeClasses.welcomeCard} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-center transition-all duration-300 hover:border-[#4ECDC4]/50`}>
+              <div className="flex items-center space-x-4">
+                <div className={`w-12 h-14 rounded-full ${theme === "dark" ? "bg-gray-600" : "bg-black/20"} flex items-center justify-center ${theme === "dark" ? "text-white" : "text-black"} text-xl`}>
+                  {userProfile?.avatar ? (
+                    <img
+                      src={userProfile.avatar}
+                      className="w-full h-full rounded-full"
+                      alt="Profile"
                     />
+                  ) : (
+                    <FaUser className={theme === "dark" ? "text-white" : "text-white"} />
+                  )}
+                </div>
+                <div>
+                  <span className={`${theme === "dark" ? "text-white" : "text-white"} text-lg sm:text-xl font-bold`}>
+                    Welcome, {isLoading ? "..." : (userProfile?.first_name || userProfile?.first_name || "User")}!
+                  </span>
+                </div>
+              </div>
+            </div>
+            {error && (
+              <div className={`${theme === "dark" ? "bg-red-900/50 border-red-600 text-red-300" : "bg-red-100 border-red-400 text-red-700"} border px-4 py-3 rounded-2xl mb-4 sm:mb-6  transition-all duration-300`}>
+                {error}
+              </div>
+            )}
+            {activeTab === "home" && (
+              <div className={`${themeClasses.emergencyCard} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 transition-all duration-300 hover:border-[#4ECDC4]/50`}>
+                <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6">
+                  <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.textPrimary}`}>
+                    Recent Emergencies
+                  </h2>
+                  <div className="flex flex-wrap space-x-2 mt-2 sm:mt-0">
                     <button
-                      onClick={handleSendMessage}
-                      className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white p-2 rounded-full hover:scale-105 transition-all duration-300"
+                      onClick={() => setEmergencyFilter("nearby")}
+                      className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${emergencyFilter === "nearby"
+                        ? "bg-[#4ECDC4] hover:bg-[#3abfb2] text-white"
+                        : `${themeClasses.buttonSecondary}`
+                        }`}
                     >
-                      <FaPaperPlane size={16} />
+                      Nearby (5km)
+                    </button>
+                    <button
+                      onClick={() => setEmergencyFilter("all")}
+                      className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${emergencyFilter === "all"
+                        ? "bg-[#4ECDC4] hover:bg-[#3abfb2] text-white"
+                        : `${themeClasses.buttonSecondary}`
+                        }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={refreshFeed}
+                      className="bg-[#FFD166] hover:bg-[#d88e00] text-white px-3 py-1 rounded-lg hover:scale-105 transition-all duration-300"
+                    >
+                      Refresh
                     </button>
                   </div>
-                  {messageSent && (
-                    <p className="text-green-500 text-sm mt-2 animate-in fade-in duration-300">
-                      Message sent!
-                    </p>
-                  )}
                 </div>
-              )}
-            </div>
-          )}
-          {activeTab === "report" && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
-              <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-4">
-               Report an Emergency
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {[
-                  { type: "Medical", icon: FaAmbulance },
-                  { type: "General", icon: FaInfoCircle },
-                  { type: "Fire", icon: FaFire },
-                  { type: "Accident", icon: FaCarCrash },
-                  { type: "Crime", icon: FaShieldAlt },
-                ].map(({ type, icon: Icon }) => (
-                  <button
-                    key={type}
-                    onClick={() => {
-                      setSelectedAlertType(type);
-                      setSelectedCrisisAlert(null); // Reset to ensure new report
-                      setShowCrisisModal(true);
-                    }}
-                    className="bg-[#E63946] text-white p-4 rounded-2xl flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 shadow-lg"
-                  >
-                    <Icon size={24} className="mb-2" />
-                    <span className="text-sm font-bold">{type}</span>
-                  </button>
-                ))}
+                {isLoading ? (
+                  <p className={themeClasses.textSecondary}>Loading emergencies...</p>
+                ) : emergencies.length > 0 ? (
+                  <div>
+                    {emergencies.map((emergency) => (
+                      <div
+                        key={emergency.id}
+                        className={`${themeClasses.cardBackground} ${themeClasses.border} rounded-2xl border-2 p-3 sm:p-4 mb-2 sm:mb-4 hover:scale-105 transition-all duration-300 hover:border-[#4ECDC4]/50 cursor-pointer`}
+                      >
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                          <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
+                            {emergency.avatar ? (
+                              <img
+                                src={emergency.avatar}
+                                className="w-full h-full rounded-full"
+                                alt={emergency.name}
+                              />
+                            ) : (
+                              <span>🚨</span>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-bold text-[#4ECDC4]">{emergency.emergency_type}</p>
+                            <p className={`text-sm ${themeClasses.textPrimary}`}>{emergency.message}</p>
+                            <p className={`text-sm ${themeClasses.textSecondary}`}>Reported by {emergency.name} on {new Date(emergency.created_at).toLocaleString()}</p>
+                          </div>
+                          <div className="flex space-x-2 sm:space-x-3">
+                            <button
+                              onClick={() => handleViewLocation(emergency)}
+                              className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                            >
+                              <FaMapMarkerAlt className="mr-1 sm:mr-2" />
+                              View
+                            </button>
+                            <button
+                              onClick={() => handleCallAssistance(emergency)}
+                              className="bg-[#FFD166] hover:bg-[#d88e00] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                            >
+                              <FaPhone className="mr-1 sm:mr-2" />
+                              Call
+                            </button>
+                            <button
+                              onClick={() => handleReport(emergency)}
+                              className="bg-[#E63946] hover:bg-[#a33d16] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                            >
+                              <FaExclamationTriangle className="mr-1 sm:mr-2" />
+                              Report
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={themeClasses.textSecondary}>No emergencies found.</p>
+                )}
               </div>
-            </div>
-          )}
+            )}
+            {activeTab === "message" && (
+              <div className={`${themeClasses.messageCard} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 transition-all duration-300 hover:border-[#4ECDC4]/50`}>
+                {showChatList ? (
+                  <>
+                    <h2 className={`flex justify-center text-xl sm:text-2xl font-bold ${themeClasses.textPrimary} mb-4`}>
+                      Messages
+                    </h2>
+                    {isLoading ? (
+                      <p className={themeClasses.textSecondary}>Loading messages...</p>
+                    ) : connections.length > 0 ? (
+                      connections.map((connection) => (
+                        <div
+                          key={connection.id}
+                          className={`flex items-center justify-between space-x-4 mb-2 cursor-pointer ${themeClasses.hover} p-2 rounded-2xl hover:scale-105 transition-all duration-300`}
+                          onClick={() => handleSelectConnection(connection)}
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
+                              {connection.avatar ? (
+                                <img
+                                  src={connection.avatar}
+                                  className="w-full h-full rounded-full"
+                                  alt={connection.name}
+                                />
+                              ) : (
+                                <FaUser className="text-white" />
+                              )}
+                            </div>
+                            <span className={`${themeClasses.textPrimary} font-bold`}>{connection.name}</span>
+                          </div>
+                          <span
+                            className={`h-3 w-3 rounded-full ${connection.is_online ? "bg-green-500" : "bg-gray-400"
+                              }`}
+                          ></span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className={themeClasses.textSecondary}>No connections to message.</p>
+                    )}
+                  </>
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => setShowChatList(true)}
+                          className="text-[#4ECDC4] hover:text-[#3abfb2] flex items-center transition-all duration-300 hover:scale-105 mr-3"
+                          aria-label="Back to conversations"
+                        >
+                          <FaArrowLeft className="" />
+                        </button>
+                        <h2 className={`text-xl sm:text-2xl font-bold text-[#4ECDC4]`}>
+                          {currentChatRecipient}
+                        </h2>
+                      </div>
+                    </div>
+                    <div
+                      ref={chatContainerRef}
+                      className={`h-96 overflow-y-auto ${themeClasses.chatBackground} rounded-2xl p-4 mb-4`}
+                    >
+                      {getMessagesForRecipient(selectedConnection?.connected_user_id || "").map(
+                        (message) => (
+                          <div
+                            key={message.id}
+                            className={`flex ${message.sender_id === userProfile?.id
+                              ? "justify-end"
+                              : "justify-start"
+                              } mb-2`}
+                          >
+                            <div
+                              className={`max-w-xs sm:max-w-md p-3 rounded-2xl ${message.sender_id === userProfile?.id
+                                ? "bg-[#4ECDC4] text-white"
+                                : `${themeClasses.messageBubble} ${themeClasses.textPrimary}`
+                                }`}
+                            >
+                              <p className="text-sm">{message.content}</p>
+                              <p className={`text-xs ${message.sender_id === userProfile?.id ? "text-gray-400" : themeClasses.textTertiary}`}>
+                                {new Date(message.timestamp).toLocaleTimeString()}
+                              </p>
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        placeholder="Type a message..."
+                        value={messageText}
+                        onChange={(e) => setMessageText(e.target.value)}
+                        onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                        className={`flex-1 ${themeClasses.input} rounded-2xl px-4 py-2 text-sm border focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300`}
+                      />
+                      <button
+                        onClick={handleSendMessage}
+                        className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white p-2 rounded-full hover:scale-105 transition-all duration-300"
+                      >
+                        <FaPaperPlane size={16} />
+                      </button>
+                    </div>
+                    {messageSent && (
+                      <p className="text-green-500 text-sm mt-2 animate-in fade-in duration-300">
+                        Message sent!
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            {activeTab === "report" && (
+              <div className={`${themeClasses.reportCard} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 transition-all duration-300 hover:border-[#4ECDC4]/50`}>
+                <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.textPrimary} mb-4`}>
+                  Report an Emergency
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {[
+                    { type: "Medical", icon: FaAmbulance },
+                    { type: "General", icon: FaInfoCircle },
+                    { type: "Fire", icon: FaFire },
+                    { type: "Accident", icon: FaCarCrash },
+                    { type: "Crime", icon: FaShieldAlt },
+                  ].map(({ type, icon: Icon }) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        setSelectedAlertType(type);
+                        setSelectedCrisisAlert(null); // Reset to ensure new report
+                        setShowCrisisModal(true);
+                      }}
+                      className="bg-[#E63946] text-white p-4 rounded-2xl border-2 border-red-600 flex flex-col items-center justify-center hover:scale-105 hover:border-red-500 transition-all duration-300"
+                    >
+                      <Icon size={24} className="mb-2" />
+                      <span className="text-sm font-bold">{type}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -2742,108 +2876,108 @@ const Dashboard: React.FC = () => {
         <div className="w-full lg:w-1/4 flex flex-col space-y-4 sm:space-y-6 min-h-0">
           {/* Right sidebar scrollable on hover */}
           <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-4">Safe Alerts</h2>
-            {isLoading ? (
-              <p className="text-gray-600">Loading alerts...</p>
-            ) : allSafeAlerts.length > 0 ? (
-              <div className="max-h-64 overflow-y-auto overflow-x-hidden space-y-2">
-                {allSafeAlerts.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className="flex items-center justify-between space-x-4 p-2 rounded-2xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer"
-                    onClick={async () => {
-                      setSelectedCrisisAlert(alert);
-                      if (alert.type === "Safe" && alert.related_crisis_id) {
-                        const crisisType = await getCrisisType(alert.related_crisis_id);
-                        setOriginalCrisisType(crisisType);
-                      } else {
-                        setOriginalCrisisType(alert.type);
-                      }
-                      setShowCrisisModal(true);
-                    }}
-                  >
-                    <div className="flex items-center space-x-3 min-w-0">
-                      {/* Simple green double-check icon (no circular background) */}
-                      <div className="flex items-center justify-center text-[#4ECDC4]">
-                        <FaCheckDouble size={20} />
-                      </div>
-                      <div className="min-w-0">
-                        {alert.user_id === userProfile?.id ? (
-                          <p className="text-gray-900 font-bold truncate">You marked yourself safe</p>
-                        ) : (
-                          <p className="text-gray-900 font-bold truncate">{alert.reporter} marked themselves safe</p>
-                        )}
-                        <p className="text-xs text-gray-600 truncate">{new Date(alert.created_at).toLocaleString()}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMarkSafe(alert.user_id === userProfile?.id ? alert.related_crisis_id : undefined);
+            <div className={`${themeClasses.alertCard} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 transition-all duration-300 hover:border-[#4ECDC4]/50`}>
+              <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.textPrimary} mb-4`}>Safe Alerts</h2>
+              {isLoading ? (
+                <p className={themeClasses.textSecondary}>Loading alerts...</p>
+              ) : allSafeAlerts.length > 0 ? (
+                <div className="max-h-64 overflow-y-auto overflow-x-hidden space-y-2">
+                  {allSafeAlerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      className={`flex items-center justify-between space-x-4 p-2 rounded-2xl ${themeClasses.hover} hover:scale-100 transition-all duration-300 cursor-pointer`}
+                      onClick={async () => {
+                        setSelectedCrisisAlert(alert);
+                        if (alert.type === "Safe" && alert.related_crisis_id) {
+                          const crisisType = await getCrisisType(alert.related_crisis_id);
+                          setOriginalCrisisType(crisisType);
+                        } else {
+                          setOriginalCrisisType(alert.type);
+                        }
+                        setShowCrisisModal(true);
                       }}
-                      className="bg-[#E63946] hover:bg-[#a33d16] text-white px-1 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                     >
-                      Unmark Safe
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-600">No safe alerts.</p>
-            )}
-          </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-[#4ECDC4]/20 overflow-hidden">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-4">Pending Crisis Alerts</h2>
-            {isLoading ? (
-              <p className="text-gray-600">Loading pending alerts...</p>
-            ) : pendingCrisisAlerts.length > 0 ? (
-              <div className="max-h-64 overflow-y-auto overflow-x-hidden space-y-2">
-                {pendingCrisisAlerts.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className="flex items-center justify-between space-x-4 p-2 rounded-2xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 cursor-pointer"
-                    onClick={async () => {
-                      setSelectedCrisisAlert(alert);
-                      if (alert.type === "Safe" && alert.related_crisis_id) {
-                        const crisisType = await getCrisisType(alert.related_crisis_id);
-                        setOriginalCrisisType(crisisType);
-                      } else {
-                        setOriginalCrisisType(alert.type);
-                      }
-                      setShowCrisisModal(true);
-                    }}
-                  >
-                    <div className="flex items-center space-x-3 min-w-0">
-                      {/* Simple green exclamation-triangle icon (no circular background) */}
-                      <div className="flex items-center justify-center text-[#4ECDC4]">
-                        {iconMap[alert.type] ? (
-                          React.createElement(iconMap[alert.type], { size: 20, className: 'text-[#4ECDC4]' })
-                        ) : (
-                          <FaExclamationTriangle size={20} />
-                        )}
+                      <div className="flex items-center space-x-3 min-w-0">
+                        {/* Simple green double-check icon (no circular background) */}
+                        <div className="flex items-center justify-center text-[#4ECDC4]">
+                          <FaCheckDouble size={20} />
+                        </div>
+                        <div className="min-w-0">
+                          {alert.user_id === userProfile?.id ? (
+                            <p className={`${themeClasses.textPrimary} font-bold truncate`}>You marked yourself safe</p>
+                          ) : (
+                            <p className={`${themeClasses.textPrimary} font-bold truncate`}>{alert.reporter} marked themselves safe</p>
+                          )}
+                          <p className={`text-xs ${themeClasses.textSecondary} truncate`}>{new Date(alert.created_at).toLocaleString()}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-gray-900 font-bold truncate">{alert.type} Alert</p>
-                        <p className="text-xs text-gray-600 truncate">Reported by {alert.reporter} on {new Date(alert.created_at).toLocaleString()}</p>
-                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkSafe(alert.user_id === userProfile?.id ? alert.related_crisis_id : undefined);
+                        }}
+                        className="bg-[#E63946] hover:bg-[#a33d16] text-white px-1 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                      >
+                        Unmark Safe
+                      </button>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMarkSafe(alert.id);
+                  ))}
+                </div>
+              ) : (
+                <p className={themeClasses.textSecondary}>No safe alerts.</p>
+              )}
+            </div>
+            <div className={`${themeClasses.alertCard} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 transition-all duration-300 hover:border-[#4ECDC4]/50 overflow-hidden`}>
+              <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.textPrimary} mb-4`}>Pending Crisis Alerts</h2>
+              {isLoading ? (
+                <p className={themeClasses.textSecondary}>Loading pending alerts...</p>
+              ) : pendingCrisisAlerts.length > 0 ? (
+                <div className="max-h-64 overflow-y-auto overflow-x-hidden space-y-2">
+                  {pendingCrisisAlerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      className={`flex items-center justify-between space-x-4 p-2 rounded-2xl ${themeClasses.hover} hover:scale-100 transition-all duration-300 cursor-pointer`}
+                      onClick={async () => {
+                        setSelectedCrisisAlert(alert);
+                        if (alert.type === "Safe" && alert.related_crisis_id) {
+                          const crisisType = await getCrisisType(alert.related_crisis_id);
+                          setOriginalCrisisType(crisisType);
+                        } else {
+                          setOriginalCrisisType(alert.type);
+                        }
+                        setShowCrisisModal(true);
                       }}
-                      className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-1 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
                     >
-                      Mark Safe
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-600">No pending crisis alerts.</p>
-            )}
-          </div>
+                      <div className="flex items-center space-x-3 min-w-0">
+                        {/* Simple green exclamation-triangle icon (no circular background) */}
+                        <div className="flex items-center justify-center text-[#4ECDC4]">
+                          {iconMap[alert.type] ? (
+                            React.createElement(iconMap[alert.type], { size: 20, className: 'text-[#4ECDC4]' })
+                          ) : (
+                            <FaExclamationTriangle size={20} />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className={`${themeClasses.textPrimary} font-bold truncate`}>{alert.type} Alert</p>
+                          <p className={`text-xs ${themeClasses.textSecondary} truncate`}>Reported by {alert.reporter} on {new Date(alert.created_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkSafe(alert.id);
+                        }}
+                        className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-1 py-1 rounded-lg text-sm hover:scale-105 transition-all duration-300"
+                      >
+                        Mark Safe
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className={themeClasses.textSecondary}>No pending crisis alerts.</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2851,13 +2985,13 @@ const Dashboard: React.FC = () => {
       {/* Modals */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-md border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
             <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">Confirm Logout</h2>
-            <p className="text-gray-600 mb-6">Are you sure you want to log out?</p>
+            <p className={`${themeClasses.textSecondary} mb-6`}>Are you sure you want to log out?</p>
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className={`${themeClasses.hover} ${themeClasses.textPrimary} px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300`}
               >
                 Cancel
               </button>
@@ -2873,26 +3007,179 @@ const Dashboard: React.FC = () => {
       )}
       {showProfile && selectedSearchProfile && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="w-16 h-16 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
+          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-lg border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
+            <div className="flex items-center space-x-4 mb-6">
+              <div className="w-20 h-20 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white border-4 border-white ">
                 {selectedSearchProfile.avatar ? (
                   <img
                     src={selectedSearchProfile.avatar}
-                    className="w-full h-full rounded-full"
+                    className="w-full h-full rounded-full object-cover"
                     alt={selectedSearchProfile.name}
                   />
                 ) : (
-                  <span className="text-2xl">👤</span>
+                  <span className="text-2xl"><FaUser size={30} /></span>
                 )}
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-[#4ECDC4]">
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-[#4ECDC4] mb-1">
                   {selectedSearchProfile.name}
                 </h2>
-                <p className="text-gray-600">{selectedSearchProfile.email}</p>
+                <p className={`${themeClasses.textSecondary} mb-2`}>{selectedSearchProfile.email}</p>
+                {selectedSearchProfile.id === userProfile?.id && (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm text-green-600 font-medium">Online</span>
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* User Statistics */}
+            {selectedSearchProfile.id === userProfile?.id && (
+              <div className="mb-6">
+                <h3 className={`text-lg font-bold ${themeClasses.textPrimary} mb-4`}>Your Activity Stats</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className={`${themeClasses.cardBackground} rounded-xl p-4 border ${themeClasses.border} text-center hover: transition-all duration-300`}>
+                    <div className="text-2xl font-bold text-green-600 mb-1">
+                      {userSafeAlerts.length}
+                    </div>
+                    <div className={`text-sm ${themeClasses.textSecondary}`}>
+                      Times Marked Safe
+                    </div>
+                    <div className={`text-xs ${themeClasses.textTertiary} mt-1`}>
+                      Safety Score: {userSafeAlerts.length > 5 ? 'Excellent' : userSafeAlerts.length > 2 ? 'Good' : 'Getting Started'}
+                    </div>
+                  </div>
+                  <div className={`${themeClasses.cardBackground} rounded-xl p-4 border ${themeClasses.border} text-center hover: transition-all duration-300`}>
+                    <div className="text-2xl font-bold text-red-600 mb-1">
+                      {pendingCrisisAlerts.filter(alert => alert.user_id === userProfile?.id).length}
+                    </div>
+                    <div className={`text-sm ${themeClasses.textSecondary}`}>
+                      Crisis Alerts Sent
+                    </div>
+                    <div className={`text-xs ${themeClasses.textTertiary} mt-1`}>
+                      Emergency Reports
+                    </div>
+                  </div>
+                  <div className={`${themeClasses.cardBackground} rounded-xl p-4 border ${themeClasses.border} text-center hover: transition-all duration-300`}>
+                    <div className="text-2xl font-bold text-blue-600 mb-1">
+                      {connections.length}
+                    </div>
+                    <div className={`text-sm ${themeClasses.textSecondary}`}>
+                      Connections
+                    </div>
+                    <div className={`text-xs ${themeClasses.textTertiary} mt-1`}>
+                      Network Size
+                    </div>
+                  </div>
+                  <div className={`${themeClasses.cardBackground} rounded-xl p-4 border ${themeClasses.border} text-center hover: transition-all duration-300`}>
+                    <div className="text-2xl font-bold text-purple-600 mb-1">
+                      {messages.filter(msg => msg.sender_id === userProfile?.id).length}
+                    </div>
+                    <div className={`text-sm ${themeClasses.textSecondary}`}>
+                      Messages Sent
+                    </div>
+                    <div className={`text-xs ${themeClasses.textTertiary} mt-1`}>
+                      Communication
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Stats */}
+                <div className="grid grid-cols-3 gap-3 mt-4">
+                  <div className={`${themeClasses.cardBackground} rounded-lg p-3 border ${themeClasses.border} text-center`}>
+                    <div className="text-lg font-bold text-orange-600">
+                      {notifications.filter(n => !n.read).length}
+                    </div>
+                    <div className={`text-xs ${themeClasses.textSecondary}`}>Unread</div>
+                  </div>
+                  <div className={`${themeClasses.cardBackground} rounded-lg p-3 border ${themeClasses.border} text-center`}>
+                    <div className="text-lg font-bold text-teal-600">
+                      {allSafeAlerts.length}
+                    </div>
+                    <div className={`text-xs ${themeClasses.textSecondary}`}>Total Safe</div>
+                  </div>
+                  <div className={`${themeClasses.cardBackground} rounded-lg p-3 border ${themeClasses.border} text-center`}>
+                    <div className="text-lg font-bold text-indigo-600">
+                      {emergencies.length}
+                    </div>
+                    <div className={`text-xs ${themeClasses.textSecondary}`}>Emergencies</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Connection Stats for Other Users */}
+            {selectedSearchProfile.id !== userProfile?.id && (
+              <div className="mb-6">
+                <h3 className={`text-lg font-bold ${themeClasses.textPrimary} mb-4`}>Connection Info</h3>
+                <div className={`${themeClasses.cardBackground} rounded-xl p-4 border ${themeClasses.border} mb-4`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className={`font-medium ${themeClasses.textPrimary}`}>
+                        Connection Status
+                      </div>
+                      <div className={`text-sm ${themeClasses.textSecondary} mt-1`}>
+                        {isConnected(selectedSearchProfile.id)
+                          ? "Connected"
+                          : selectedSearchProfile.connectionStatus === "request_sent"
+                            ? "Request Sent"
+                            : selectedSearchProfile.connectionStatus === "request_received"
+                              ? "Request Received"
+                              : "Not Connected"
+                        }
+                      </div>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${isConnected(selectedSearchProfile.id)
+                      ? "bg-green-100 text-green-800"
+                      : selectedSearchProfile.connectionStatus === "request_sent"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : selectedSearchProfile.connectionStatus === "request_received"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}>
+                      {isConnected(selectedSearchProfile.id)
+                        ? "✓ Connected"
+                        : selectedSearchProfile.connectionStatus === "request_sent"
+                          ? "⏳ Pending"
+                          : selectedSearchProfile.connectionStatus === "request_received"
+                            ? "📨 Request"
+                            : "○ Not Connected"
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                {/* Other User's Activity Stats */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={`${themeClasses.cardBackground} rounded-lg p-3 border ${themeClasses.border} text-center`}>
+                    <div className="text-lg font-bold text-green-600">
+                      {allSafeAlerts.filter(alert => alert.user_id === selectedSearchProfile.id).length}
+                    </div>
+                    <div className={`text-xs ${themeClasses.textSecondary}`}>Safe Alerts</div>
+                  </div>
+                  <div className={`${themeClasses.cardBackground} rounded-lg p-3 border ${themeClasses.border} text-center`}>
+                    <div className="text-lg font-bold text-blue-600">
+                      {messages.filter(msg => msg.sender_id === selectedSearchProfile.id).length}
+                    </div>
+                    <div className={`text-xs ${themeClasses.textSecondary}`}>Messages</div>
+                  </div>
+                  <div className={`${themeClasses.cardBackground} rounded-lg p-3 border ${themeClasses.border} text-center`}>
+                    <div className="text-lg font-bold text-orange-600">
+                      {pendingCrisisAlerts.filter(alert => alert.user_id === selectedSearchProfile.id).length}
+                    </div>
+                    <div className={`text-xs ${themeClasses.textSecondary}`}>Crisis Reports</div>
+                  </div>
+                  <div className={`${themeClasses.cardBackground} rounded-lg p-3 border ${themeClasses.border} text-center`}>
+                    <div className="text-lg font-bold text-purple-600">
+                      {connections.filter(conn => conn.connected_user_id === selectedSearchProfile.id).length}
+                    </div>
+                    <div className={`text-xs ${themeClasses.textSecondary}`}>Connections</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {selectedSearchProfile.id !== userProfile?.id && (
               <>
                 {isConnected(selectedSearchProfile.id) ? (
@@ -2941,7 +3228,7 @@ const Dashboard: React.FC = () => {
             )}
             <button
               onClick={() => setShowProfile(false)}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg mt-4 hover:scale-105 transition-all duration-300"
+              className={`w-full ${themeClasses.hover} ${themeClasses.textPrimary} px-4 py-2 rounded-lg mt-4 hover:scale-105 transition-all duration-300`}
             >
               Close
             </button>
@@ -2950,44 +3237,115 @@ const Dashboard: React.FC = () => {
       )}
       {showEditProfile && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-md border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
             <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">Edit Profile</h2>
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <label className="block text-gray-600 mb-1">Name</label>
+                <label className={`block ${themeClasses.textSecondary} mb-1`}>Name</label>
                 <input
                   type="text"
                   value={editProfileData.name || userProfile?.name || ""}
                   onChange={(e) =>
                     setEditProfileData({ ...editProfileData, name: e.target.value })
                   }
-                  className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300"
+                  className={`w-full ${themeClasses.input} rounded-2xl px-4 py-2 text-sm border focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300`}
                 />
               </div>
+
+              {/* Profile Picture Upload */}
               <div>
-                <label className="block text-gray-600 mb-1">Avatar URL</label>
-                <input
-                  type="text"
-                  value={editProfileData.avatar || userProfile?.avatar || ""}
-                  onChange={(e) =>
-                    setEditProfileData({ ...editProfileData, avatar: e.target.value })
-                  }
-                  className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300"
-                />
+                <label className={`block ${themeClasses.textSecondary} mb-3`}>Profile Picture</label>
+
+                {/* Current/Preview Image */}
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-20 h-20 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white overflow-hidden">
+                    {previewUrl ? (
+                      <img
+                        src={previewUrl}
+                        className="w-full h-full rounded-full object-cover"
+                        alt="Profile preview"
+                      />
+                    ) : userProfile?.avatar ? (
+                      <img
+                        src={userProfile.avatar}
+                        className="w-full h-full rounded-full object-cover"
+                        alt="Current profile"
+                      />
+                    ) : (
+                      <FaUser size={24} />
+                    )}
+                  </div>
+                  <div>
+                    <div className={`text-sm ${themeClasses.textPrimary} font-medium`}>
+                      {previewUrl ? "New Image Selected" : "Current Profile Picture"}
+                    </div>
+                    <div className={`text-xs ${themeClasses.textSecondary}`}>
+                      {selectedFile ? `${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)` : "No file selected"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* File Upload Input */}
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="profile-picture-upload"
+                  />
+                  <label
+                    htmlFor="profile-picture-upload"
+                    className={`${themeClasses.cardBackground} ${themeClasses.border} border-2 border-dashed rounded-2xl p-6 cursor-pointer hover:border-[#4ECDC4] transition-all duration-300 flex flex-col items-center justify-center text-center`}
+                  >
+                    <div className="text-3xl mb-2">📷</div>
+                    <div className={`text-sm ${themeClasses.textPrimary} font-medium mb-1`}>
+                      Click to upload profile picture
+                    </div>
+                    <div className={`text-xs ${themeClasses.textSecondary}`}>
+                      PNG, JPG, GIF up to 5MB
+                    </div>
+                  </label>
+                </div>
+
+                {/* Remove Image Button */}
+                {(selectedFile || userProfile?.avatar) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setPreviewUrl(null);
+                      setEditProfileData({ ...editProfileData, avatar: "" });
+                    }}
+                    className="mt-3 text-sm text-red-600 hover:text-red-800 transition-colors duration-200"
+                  >
+                    Remove current image
+                  </button>
+                )}
               </div>
             </div>
+
             <div className="flex justify-end space-x-4 mt-6">
               <button
-                onClick={() => setShowEditProfile(false)}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                onClick={() => {
+                  setShowEditProfile(false);
+                  setSelectedFile(null);
+                  setPreviewUrl(null);
+                  setEditProfileData({});
+                }}
+                className={`${themeClasses.hover} ${themeClasses.textPrimary} px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleEditProfile}
-                className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                disabled={!editProfileData.name && !selectedFile}
+                className={`px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300 ${editProfileData.name || selectedFile
+                  ? "bg-[#4ECDC4] hover:bg-[#3abfb2] text-white"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  }`}
               >
-                Save
+                Save Changes
               </button>
             </div>
           </div>
@@ -2995,27 +3353,31 @@ const Dashboard: React.FC = () => {
       )}
       {showSettings && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
-            <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">Settings</h2>
+          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-md border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
+            <h2 className={`text-xl font-bold text-[#4ECDC4] mb-4`}>Settings</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-gray-600 mb-1">Notifications</label>
-                <select className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300">
+                <label className={`block ${themeClasses.textSecondary} mb-1`}>Notifications</label>
+                <select className={`w-full ${themeClasses.input} rounded-2xl px-4 py-2 text-sm border focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300`}>
                   <option>Enabled</option>
                   <option>Disabled</option>
                 </select>
               </div>
               <div>
-                <label className="block text-gray-600 mb-1">Theme</label>
-                <select className="w-full bg-gray-100 rounded-2xl px-4 py-2 text-sm border border-gray-100 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300">
-                  <option>Light</option>
-                  <option>Dark</option>
+                <label className={`block ${themeClasses.textSecondary} mb-1`}>Theme</label>
+                <select
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value as "light" | "dark")}
+                  className={`w-full ${themeClasses.input} rounded-2xl px-4 py-2 text-sm border focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-300`}
+                >
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
                 </select>
               </div>
             </div>
             <button
               onClick={() => setShowSettings(false)}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg mt-6 hover:scale-105 transition-all duration-300"
+              className={`w-full ${themeClasses.hover} ${themeClasses.textPrimary} px-4 py-2 rounded-lg mt-6 hover:scale-105 transition-all duration-300`}
             >
               Close
             </button>
@@ -3024,26 +3386,26 @@ const Dashboard: React.FC = () => {
       )}
       {showLocationView && selectedEmergency && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-md border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
             <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
               Emergency Location
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className={`${themeClasses.textSecondary} mb-4`}>
               {selectedEmergency.emergency_type} reported by {selectedEmergency.name}
             </p>
-            <div className="bg-gray-100 rounded-2xl p-4 mb-4">
+            <div className={`${themeClasses.input} rounded-2xl p-4 mb-4`}>
               <img
                 src={mapImage}
                 alt="Map"
                 className="w-full h-48 object-cover rounded-2xl"
               />
-              <p className="text-sm text-gray-600 mt-2">
+              <p className={`text-sm ${themeClasses.textSecondary} mt-2`}>
                 Lat: {selectedLocation?.lat.toFixed(4)}, Lng: {selectedLocation?.lng.toFixed(4)}
               </p>
             </div>
             <button
               onClick={() => setShowLocationView(false)}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              className={`w-full ${themeClasses.hover} ${themeClasses.textPrimary} px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300`}
             >
               Close
             </button>
@@ -3052,17 +3414,17 @@ const Dashboard: React.FC = () => {
       )}
       {showCallConfirm && selectedEmergencyForAction && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-md border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
             <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
               Confirm Call
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className={`${themeClasses.textSecondary} mb-6`}>
               Call assistance for {selectedEmergencyForAction.emergency_type} reported by {selectedEmergencyForAction.name}?
             </p>
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowCallConfirm(false)}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className={`${themeClasses.buttonSecondary} px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300`}
               >
                 Cancel
               </button>
@@ -3078,17 +3440,17 @@ const Dashboard: React.FC = () => {
       )}
       {showReportConfirm && selectedEmergencyForAction && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-md border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
             <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
               Confirm Report
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className={`${themeClasses.textSecondary} mb-6`}>
               Report {selectedEmergencyForAction.emergency_type} by {selectedEmergencyForAction.name}?
             </p>
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowReportConfirm(false)}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className={`${themeClasses.buttonSecondary} px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300`}
               >
                 Cancel
               </button>
@@ -3102,37 +3464,38 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
+
       {showCrisisModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-md border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
             {selectedCrisisAlert ? (
               <>
                 <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
                   Crisis Details
                 </h2>
-                <p className="text-gray-600 mb-2">
+                <p className={`${themeClasses.textSecondary} mb-2`}>
                   <strong>Type:</strong> {selectedCrisisAlert.type === "Safe" ? originalCrisisType : selectedCrisisAlert.type}
                 </p>
-                <p className="text-gray-600 mb-2">
+                <p className={`${themeClasses.textSecondary} mb-2`}>
                   <strong>Reported by:</strong> {selectedCrisisAlert.reporter}
                 </p>
-                <p className="text-gray-600 mb-2">
+                <p className={`${themeClasses.textSecondary} mb-2`}>
                   <strong>Time:</strong>{" "}
                   {new Date(selectedCrisisAlert.created_at).toLocaleString()}
                 </p>
-                <p className="text-gray-600 mb-2">
+                <p className={`${themeClasses.textSecondary} mb-2`}>
                   <strong>Location:</strong> Lat: {selectedCrisisAlert.location.lat.toFixed(4)}, Lng: {selectedCrisisAlert.location.lng.toFixed(4)}
                 </p>
-                <div className="text-gray-600 mb-4">
+                <div className={`${themeClasses.textSecondary} mb-4`}>
                   <strong>Connections Marked Safe:</strong>
                   {getConnectedSafeUsers(selectedCrisisAlert.marked_safe_users).length > 0 ? (
                     <ul className="list-disc list-inside mt-2">
                       {getConnectedSafeUsers(selectedCrisisAlert.marked_safe_users).map((name, index) => (
-                        <li key={index} className="text-sm text-gray-900">{name}</li>
+                        <li key={index} className={`text-sm ${themeClasses.textPrimary}`}>{name}</li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-gray-600 mt-2">No connections have marked themselves safe.</p>
+                    <p className={`text-sm ${themeClasses.textSecondary} mt-2`}>No connections have marked themselves safe.</p>
                   )}
                 </div>
                 <div className="flex justify-end space-x-4">
@@ -3141,7 +3504,7 @@ const Dashboard: React.FC = () => {
                       setShowCrisisModal(false);
                       setSelectedCrisisAlert(null); // Reset to prevent accidental state retention
                     }}
-                    className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                    className={`${themeClasses.buttonSecondary} px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300`}
                   >
                     Close
                   </button>
@@ -3160,7 +3523,7 @@ const Dashboard: React.FC = () => {
                 <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
                   Confirm Emergency
                 </h2>
-                <p className="text-gray-600 mb-6">
+                <p className={`${themeClasses.textSecondary} mb-6`}>
                   Are you sure you want to trigger a {selectedAlertType} emergency alert at your location (Lat: {userLocation.lat.toFixed(4)}, Lng: {userLocation.lng.toFixed(4)})?
                 </p>
                 <div className="flex justify-end space-x-4">
@@ -3169,7 +3532,7 @@ const Dashboard: React.FC = () => {
                       setShowCrisisModal(false);
                       setSelectedAlertType(null); // Reset to prevent state retention
                     }}
-                    className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                    className={`${themeClasses.buttonSecondary} px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300`}
                   >
                     Cancel
                   </button>
@@ -3193,17 +3556,17 @@ const Dashboard: React.FC = () => {
       )}
       {showAlertConfirm && crisisAlert && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-md border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
             <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
               Emergency Alert Triggered
             </h2>
-            <p className="text-gray-600 mb-2">
+            <p className={`${themeClasses.textSecondary} mb-2`}>
               <strong>Type:</strong> {crisisAlert.type}
             </p>
-            <p className="text-gray-600 mb-2">
+            <p className={`${themeClasses.textSecondary} mb-2`}>
               <strong>Location:</strong> Lat: {crisisAlert.location.lat.toFixed(4)}, Lng: {crisisAlert.location.lng.toFixed(4)}
             </p>
-            <p className="text-gray-600 mb-6">
+            <p className={`${themeClasses.textSecondary} mb-6`}>
               {isSafe
                 ? "You have marked yourself as safe."
                 : "You can mark yourself as safe when the situation is resolved."}
@@ -3211,7 +3574,7 @@ const Dashboard: React.FC = () => {
             <div className="flex justify-end space-x-4">
               <button
                 onClick={resetCrisisAlert}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+                className={`${themeClasses.buttonSecondary} px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300`}
               >
                 Close
               </button>
@@ -3229,12 +3592,12 @@ const Dashboard: React.FC = () => {
       )}
       {showSafetyTipModal && selectedSafetyTip && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-md border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
             <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">{selectedSafetyTip.name}</h2>
-            <p className="text-gray-600 mb-6">{selectedSafetyTip.content}</p>
+            <p className={`${themeClasses.textSecondary} mb-6`}>{selectedSafetyTip.content}</p>
             <button
               onClick={() => setShowSafetyTipModal(false)}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              className={`w-full ${themeClasses.buttonSecondary} px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300`}
             >
               Close
             </button>
@@ -3243,7 +3606,7 @@ const Dashboard: React.FC = () => {
       )}
       {showConnectionOptions && selectedConnection && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-all duration-300 animate-in fade-in zoom-in">
+          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-md border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
             <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
               Connection Options
             </h2>
@@ -3263,7 +3626,7 @@ const Dashboard: React.FC = () => {
             </button>
             <button
               onClick={() => setShowConnectionOptions(false)}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
+              className={`w-full ${themeClasses.buttonSecondary} px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300`}
             >
               Cancel
             </button>
@@ -3272,6 +3635,6 @@ const Dashboard: React.FC = () => {
       )}
     </div>
   );
- }; 
+};
 
 export default Dashboard;

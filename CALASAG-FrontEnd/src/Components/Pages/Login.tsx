@@ -186,6 +186,12 @@ const Login: React.FC = () => {
         throw new Error('User profile not found in users table');
       }
 
+      if (userData.status === 'inactive') {
+        await supabase.auth.signOut();
+        setError('Your account is inactive. Please contact an administrator.');
+        setIsSubmitting(false);
+        return;
+      }
       if (data.user.email_confirmed_at && userData.status === "pending") {
         await supabase
           .from("users")

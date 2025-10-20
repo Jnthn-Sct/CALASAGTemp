@@ -1913,68 +1913,91 @@ const AdminDashboard: React.FC = () => {
                 Incident Reports
               </h2>
             </div>
-            <div className="flex flex-wrap gap-3 mb-4">
+            <div className="flex flex-wrap gap-3 mb-6">
               {/* Sort Field */}
-              <select
-                value={sortField}
-                onChange={(e) => setSortField(e.target.value)}
-                className="px-3 py-2 border rounded-lg"
-              >
-                <option value="created_at">Date</option>
-                <option value="emergency_type">Type</option>
-                <option value="users.name">Reporter</option>
-                <option value="severity">Severity</option>
-                <option value="status">Status</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={sortField}
+                  onChange={(e) => setSortField(e.target.value)}
+                  className="appearance-none px-4 py-2.5 pr-8 bg-white border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-[#4ECDC4] focus:outline-none focus:ring-2 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+                >
+                  <option value="created_at">📅 Sort by Date</option>
+                  <option value="emergency_type">🏷️ Sort by Type</option>
+                  <option value="users.name">👤 Sort by Reporter</option>
+                  <option value="severity">⚠️ Sort by Severity</option>
+                  <option value="status">📊 Sort by Status</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <FaChevronDown size={12} className="text-gray-400" />
+                </div>
+              </div>
 
               {/* Sort Order */}
               <button
                 onClick={() =>
                   setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
                 }
-                className="px-3 py-2 border rounded-lg"
+                className="group relative px-4 py-2.5 bg-gradient-to-r from-[#4ECDC4] to-[#3abfb2] text-white rounded-xl font-medium text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2"
               >
-                {sortOrder === "asc" ? "⬆️ Asc" : "⬇️ Desc"}
+                <span className="transition-transform duration-200 group-hover:scale-110">
+                  {sortOrder === "asc" ? "⬆️" : "⬇️"}
+                </span>
+                <span>{sortOrder === "asc" ? "Ascending" : "Descending"}</span>
               </button>
 
               {/* Filter Type */}
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 border rounded-lg"
-              >
-                <option value="all">All Types</option>
-                <option value="Crime">Crime</option>
-                <option value="Medical">Medical</option>
-                <option value="Fire">Fire</option>
-                <option value="Accident">Accident</option>
-                <option value="Other">Other</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="appearance-none px-4 py-2.5 pr-8 bg-white border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-[#4ECDC4] focus:outline-none focus:ring-2 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+                >
+                  <option value="all">🏷️ All Types</option>
+                  <option value="Crime">🚨 Crime</option>
+                  <option value="Medical">🏥 Medical</option>
+                  <option value="Fire">🔥 Fire</option>
+                  <option value="Accident">🚗 Accident</option>
+                  <option value="General">📋 General</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <FaChevronDown size={12} className="text-gray-400" />
+                </div>
+              </div>
 
               {/* Filter Severity */}
-              <select
-                value={filterSeverity}
-                onChange={(e) => setFilterSeverity(e.target.value)}
-                className="px-3 py-2 border rounded-lg"
-              >
-                <option value="all">All Severities</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={filterSeverity}
+                  onChange={(e) => setFilterSeverity(e.target.value)}
+                  className="appearance-none px-4 py-2.5 pr-8 bg-white border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-[#4ECDC4] focus:outline-none focus:ring-2 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+                >
+                  <option value="all">⚠️ All Severities</option>
+                  <option value="low">🟢 Low</option>
+                  <option value="medium">🟡 Medium</option>
+                  <option value="high">🟠 High</option>
+                  <option value="critical">🔴 Critical</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <FaChevronDown size={12} className="text-gray-400" />
+                </div>
+              </div>
 
               {/* Filter Status */}
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border rounded-lg"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="reviewing">Reviewing</option>
-                <option value="resolved">Resolved</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="appearance-none px-4 py-2.5 pr-8 bg-white border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-[#4ECDC4] focus:outline-none focus:ring-2 focus:ring-[#4ECDC4] focus:border-[#4ECDC4] transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+                >
+                  <option value="all">📊 All Status</option>
+                  <option value="pending">⏳ Pending</option>
+                  <option value="reviewing">👀 Reviewing</option>
+                  <option value="resolved">✅ Resolved</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <FaChevronDown size={12} className="text-gray-400" />
+                </div>
+              </div>
 
               {/* Reset Filters */}
               <button
@@ -1985,9 +2008,10 @@ const AdminDashboard: React.FC = () => {
                   setFilterSeverity("all");
                   setFilterStatus("all");
                 }}
-                className="px-3 py-2 border rounded-lg bg-gray-100 hover:bg-gray-200"
+                className="group relative px-4 py-2.5 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl font-medium text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-2 hover:from-gray-600 hover:to-gray-700"
               >
-                Reset
+                <span className="transition-transform duration-200 group-hover:rotate-180">🔄</span>
+                <span>Reset Filters</span>
               </button>
             </div>
             <div className="overflow-x-auto">
@@ -2150,7 +2174,7 @@ const AdminDashboard: React.FC = () => {
               </h2>
               <button
                 onClick={() => setShowSafetyTipModal(true)}
-                className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#004d20] transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#3abfb2] transition-colors flex items-center gap-2"
               >
                 <FaPlus size={14} />
                 Add New Tip
@@ -2425,19 +2449,19 @@ const AdminDashboard: React.FC = () => {
                     <div className="ml-6 mt-2 space-y-1 animate-in slide-in-from-top-2 duration-300">
                       <button
                         onClick={() => setActiveTab("users")}
-                        className={`group w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-all duration-300 pl-6 transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "users" ? "text-[#2B2B2B] font-medium bg-[#FFD166] shadow-sm" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4] hover:shadow-sm"}`}
+                        className={`group w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-all duration-300 pl-6 transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "users" ? "text-[#2B2B2B] font-medium bg-[#4ECDC4] shadow-sm" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4] hover:shadow-sm"}`}
                       >
                         <span className="transition-all duration-300 group-hover:translate-x-1">Full User Table</span>
                       </button>
                       <button
                         onClick={() => setActiveTab("total-users-list")}
-                        className={`group w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-all duration-300 pl-6 transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "total-users-list" ? "text-[#2B2B2B] font-medium bg-[#FFD166] shadow-sm" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4] hover:shadow-sm"}`}
+                        className={`group w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-all duration-300 pl-6 transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "total-users-list" ? "text-[#2B2B2B] font-medium bg-[#4ECDC4] shadow-sm" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4] hover:shadow-sm"}`}
                       >
                         <span className="transition-all duration-300 group-hover:translate-x-1">Total Users List</span>
                       </button>
                       <button
                         onClick={() => setActiveTab("active-users-list")}
-                        className={`group w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-all duration-300 pl-6 transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "active-users-list" ? "text-[#2B2B2B] font-medium bg-[#FFD166] shadow-sm" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4] hover:shadow-sm"}`}
+                        className={`group w-full text-left px-3 py-2 rounded-l-full rounded-r-lg text-sm transition-all duration-300 pl-6 transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "active-users-list" ? "text-[#2B2B2B] font-medium bg-[#4ECDC4] shadow-sm" : "text-gray-600 hover:text-[#2B2B2B] hover:bg-[#F1FAF4] hover:shadow-sm"}`}
                       >
                         <span className="transition-all duration-300 group-hover:translate-x-1">Active Users List</span>
                       </button>
@@ -2958,7 +2982,7 @@ const AdminDashboard: React.FC = () => {
 
       {/* Safety Tip Details Modal */}
       {showSafetyTipDetails && selectedSafetyTip && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-2xl font-bold text-[#4ECDC4] mb-4">
               Safety Tip Details
@@ -3099,7 +3123,7 @@ const AdminDashboard: React.FC = () => {
               </button>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 bg-[#2B2B2B] text-white rounded-lg hover:bg-[#004015]"
+                className="px-4 py-2 bg-[#E63946] text-white rounded-lg hover:bg-[#D62839]"
               >
                 Logout
               </button>

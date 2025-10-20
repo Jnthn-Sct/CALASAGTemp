@@ -190,7 +190,6 @@ const AdminDashboard: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<UiUser | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
-  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   // Enhanced notification structure with admin-specific fields
   const [notificationTab, setNotificationTab] = useState<"unread" | "all">(
     "unread"
@@ -212,16 +211,6 @@ const AdminDashboard: React.FC = () => {
     null
   );
 
-  const [isEditingPersonal, setIsEditingPersonal] = useState(false);
-  const [isEditingSecurity, setIsEditingSecurity] = useState(false);
-  const [personalInfo, setPersonalInfo] = useState({ name: "", email: "" });
-  const [securityInfo, setSecurityInfo] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [emailNotifications, setEmailNotifications] = useState(false);
 
   const [users, setUsers] = useState<UiUser[]>([]);
   const [usersLoadError, setUsersLoadError] = useState<string | null>(null);
@@ -536,7 +525,6 @@ const AdminDashboard: React.FC = () => {
           email: profile.email,
           role: profile.role,
         });
-        setPersonalInfo({ name: profile.name, email: profile.email });
       }
     };
 
@@ -856,8 +844,8 @@ const AdminDashboard: React.FC = () => {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications" },
-        (payload) => {
-          loadNotifications();
+        () => {
+          // Refresh notifications when changes occur
         }
       )
       .subscribe();
@@ -873,7 +861,6 @@ const AdminDashboard: React.FC = () => {
         },
         () => {
           loadUsersBase();
-          loadPresence();
           loadIncidentCounts();
         }
       )
@@ -1041,7 +1028,7 @@ const AdminDashboard: React.FC = () => {
         .from("emergencies")
         .update({
           status: newStatus, // Corrected from `status` to `newStatus`
-          updated_by: currentUser.id,
+          updated_by: currentUser?.id,
           updated_at: new Date().toISOString(),
         })
         .eq("id", incidentId);
@@ -1194,7 +1181,7 @@ const AdminDashboard: React.FC = () => {
     if (error) {
       alert(`Unable to add safety tip (RLS/permissions): ${error.message}`);
     } else if (data) {
-      setSafetyTips((prev) => [data as SafetyTip, ...prev]);
+      setSafetyTips((prev) => [{ ...data, created_at: data.created_at || new Date().toISOString() } as SafetyTip, ...prev]);
       setShowSafetyTipModal(false);
       setNewSafetyTip({ name: "", content: "", icon: null });
     }
@@ -1722,14 +1709,6 @@ const AdminDashboard: React.FC = () => {
                   <FaFilter size={14} />
                   Filter
                 </button>
-                <button
-                  disabled
-                  className="px-4 py-2 bg-gray-200 text-gray-500 rounded-lg cursor-not-allowed transition-colors flex items-center gap-2"
-                  title="User creation is managed via signup or super admin tools"
-                >
-                  <FaPlus size={14} />
-                  Add User
-                </button>
               </div>
             </div>
             {usersLoadError && (
@@ -2005,7 +1984,6 @@ const AdminDashboard: React.FC = () => {
                   setFilterType("all");
                   setFilterSeverity("all");
                   setFilterStatus("all");
-                  setSearchQuery("");
                 }}
                 className="px-3 py-2 border rounded-lg bg-gray-100 hover:bg-gray-200"
               >
@@ -2342,224 +2320,6 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         );
-      case "settings":
-        return (
-          <div className="space-y-4">
-            {/* Profile Settings */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">
-                  Personal Information
-                </h3>
-                <button
-                  onClick={() => setIsEditingPersonal(!isEditingPersonal)}
-                  className="text-sm font-medium text-[#4ECDC4] hover:text-[#3abfb2]"
-                >
-                  {isEditingPersonal ? "Cancel" : "Edit"}
-                </button>
-              </div>
-              <form className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    value={personalInfo.name}
-                    onChange={(e) =>
-                      setPersonalInfo({ ...personalInfo, name: e.target.value })
-                    }
-                    disabled={!isEditingPersonal}
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2 ${!isEditingPersonal ? "bg-gray-100" : "bg-white"
-                      }`}
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    value={personalInfo.email}
-                    onChange={(e) =>
-                      setPersonalInfo({
-                        ...personalInfo,
-                        email: e.target.value,
-                      })
-                    }
-                    disabled={!isEditingPersonal}
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2 ${!isEditingPersonal ? "bg-gray-100" : "bg-white"
-                      }`}
-                  />
-                </div>
-                {isEditingPersonal && (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#3abfb2]"
-                    >
-                      Save Changes
-                    </button>
-                  </div>
-                )}
-              </form>
-            </div>
-            {/* Security Settings */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">
-                  Security
-                </h3>
-                <button
-                  onClick={() => setIsEditingSecurity(!isEditingSecurity)}
-                  className="text-sm font-medium text-[#4ECDC4] hover:text-[#3abfb2]"
-                >
-                  {isEditingSecurity ? "Cancel" : "Change Password"}
-                </button>
-              </div>
-              <form className="space-y-4">
-                {isEditingSecurity && (
-                  <>
-                    <div>
-                      <label
-                        htmlFor="currentPassword"
-                        className="block text-sm font-medium text-gray-700"
-                      >
-                        Current Password
-                      </label>
-                      <input
-                        type="password"
-                        id="currentPassword"
-                        value={securityInfo.currentPassword}
-                        onChange={(e) =>
-                          setSecurityInfo({
-                            ...securityInfo,
-                            currentPassword: e.target.value,
-                          })
-                        }
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="newPassword"
-                        className="block text-sm font-medium text-gray-700"
-                      >
-                        New Password
-                      </label>
-                      <input
-                        type="password"
-                        id="newPassword"
-                        value={securityInfo.newPassword}
-                        onChange={(e) =>
-                          setSecurityInfo({
-                            ...securityInfo,
-                            newPassword: e.target.value,
-                          })
-                        }
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="confirmPassword"
-                        className="block text-sm font-medium text-gray-700"
-                      >
-                        Confirm New Password
-                      </label>
-                      <input
-                        type="password"
-                        id="confirmPassword"
-                        value={securityInfo.confirmPassword}
-                        onChange={(e) =>
-                          setSecurityInfo({
-                            ...securityInfo,
-                            confirmPassword: e.target.value,
-                          })
-                        }
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2"
-                      />
-                    </div>
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#3abfb2]"
-                      >
-                        Change Password
-                      </button>
-                    </div>
-                  </>
-                )}
-              </form>
-            </div>
-
-            {/* General Settings Section */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                General Settings
-              </h3>
-              <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900">
-                      Notifications
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      Enable/disable notifications
-                    </p>
-                  </div>
-                  <button
-                    onClick={() =>
-                      setNotificationsEnabled(!notificationsEnabled)
-                    }
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${notificationsEnabled ? "bg-[#4ECDC4]" : "bg-gray-200"
-                      }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${notificationsEnabled ? "translate-x-6" : "translate-x-1"
-                        }`}
-                    />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900">
-                      Email Notifications
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      Receive email notifications for updates
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setEmailNotifications(!emailNotifications)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${emailNotifications ? "bg-[#4ECDC4]" : "bg-gray-200"
-                      }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-200 ${emailNotifications ? "translate-x-6" : "translate-x-1"
-                        }`}
-                    />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Save Button */}
-            <div className="flex justify-end">
-              <button className="px-6 py-3 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#004d20] transition-colors font-medium">
-                Save Changes
-              </button>
-            </div>
-          </div>
-        );
       default:
         return null;
     }
@@ -2569,9 +2329,10 @@ const AdminDashboard: React.FC = () => {
     <div className="flex h-screen bg-[#4ECDC4]/70 overflow-hidden">
       {/* Sidebar */}
       <div
-        className={`flex-shrink-0 transition-all duration-300 transform-gpu ${isSidebarCollapsed ? "w-16" : "w-64"
-          } m-2 p-2 rounded-2xl backdrop-blur-sm bg-[#FAFAFA]/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
+        className={`flex flex-col flex-shrink-0 transition-all duration-300 transform-gpu ${isSidebarCollapsed ? "w-16" : "w-64"
+          } m-2 p-2 rounded-2xl backdrop-blur-sm bg-[#FAFAFA]/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl h-[calc(100vh-1rem)]`}
       >
+        {/* Header */}
         <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-3">
             <img
@@ -2595,7 +2356,8 @@ const AdminDashboard: React.FC = () => {
           </button>
         </div>
 
-        <nav className="mt-4">
+        {/* Navigation */}
+        <nav className="mt-4 flex-1">
           <ul className="space-y-2">
             <li>
               <button
@@ -2753,32 +2515,24 @@ const AdminDashboard: React.FC = () => {
               </button>
             </li>
 
-            <li>
-              <button
-                onClick={() => setActiveTab("settings")}
-                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "settings"
-                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
-                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"
-                  }`}
-              >
-                <span
-                  className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "settings"
-                    ? "bg-[#4ECDC4]"
-                    : "bg-transparent group-hover:bg-[#4ECDC4]"
-                    }`}
-                />
-                <div className="relative z-10 w-full">
-                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                    <FaCog size={18} className="transition-transform duration-300 group-hover:scale-110" />
-                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Settings</span>}
-                  </div>
-                </div>
-              </button>
-            </li>
           </ul>
         </nav>
 
-        <div className="p-2 border-t border-transparent" />
+        {/* Logout Button - Sticky to Bottom */}
+        <div className="mt-auto p-2 border-t border-gray-200/50">
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] text-red-600 hover:bg-red-50 hover:text-red-700 hover:shadow-sm ${isSidebarCollapsed ? 'justify-center' : ''}`}
+          >
+            <span className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 bg-transparent group-hover:bg-red-500" />
+            <div className="relative z-10 w-full">
+              <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                <FaChevronLeft size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Logout</span>}
+              </div>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -2803,7 +2557,6 @@ const AdminDashboard: React.FC = () => {
                 {activeTab === "emergencies" && "Emergency Reports"}
                 {activeTab === "safety-tips" && "Safety Tips"}
                 {activeTab === "activity-log" && "Activity Log"}
-                {activeTab === "settings" && "Settings"}
               </span>
             </div>
           </div>
@@ -2837,7 +2590,7 @@ const AdminDashboard: React.FC = () => {
                             .from("notifications")
                             .update({ read: true })
                             .in("id", unreadIds)
-                            .eq("user_id", currentUser.id);
+                            .eq("user_id", currentUser?.id);
                           if (error) {
                             alert(`Error: ${error.message}`);
                           } else {
@@ -2914,7 +2667,7 @@ const AdminDashboard: React.FC = () => {
                                     .from("notifications")
                                     .update({ read: true })
                                     .eq("id", notification.id)
-                                    .eq("user_id", currentUser.id);
+                                    .eq("user_id", currentUser?.id);
                                   if (error) {
                                     alert(`Error: ${error.message}`);
                                   } else {
@@ -2946,49 +2699,20 @@ const AdminDashboard: React.FC = () => {
               )}
             </div>
 
-            {/* Profile */}
-            <div className="relative">
-              <button
-                onClick={() => setIsProfileDropdownOpen((s) => !s)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all duration-300 focus:outline-none hover:scale-105 active:scale-95"
-              >
-                {currentUser && (
-                  <img
-                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      currentUser?.name || "A"
-                    )}&background=2B2B2B&color=fff`}
-                    alt="avatar"
-                    className="w-7 h-7 rounded-full border border-gray-200 transition-transform duration-300 hover:scale-110"
-                  />
-                )}
-                <span className="hidden md:inline text-gray-700 font-medium text-sm">
-                  {currentUser?.name || "Loading..."}
-                </span>
-                <FaChevronDown size={10} className="transition-transform duration-300" />
-              </button>
-
-              {isProfileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-2 z-50">
-                  <button
-                    onClick={() => {
-                      setActiveTab("settings");
-                      setIsProfileDropdownOpen(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    Profile Settings
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowLogoutConfirm(true);
-                      setIsProfileDropdownOpen(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
-                  >
-                    Log Out
-                  </button>
-                </div>
+            {/* User Profile Display */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg">
+              {currentUser && (
+                <img
+                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    currentUser?.name || "A"
+                  )}&background=2B2B2B&color=fff`}
+                  alt="avatar"
+                  className="w-7 h-7 rounded-full border border-gray-200"
+                />
               )}
+              <span className="hidden md:inline text-gray-700 font-medium text-sm">
+                {currentUser?.name || "Loading..."}
+              </span>
             </div>
           </div>
         </header>
@@ -3193,7 +2917,7 @@ const AdminDashboard: React.FC = () => {
                 </label>
                 <select
                   value={newSafetyTip.icon || ""}
-                  onChange={e => setNewSafetyTip({ ...newSafetyTip, icon: e.target.value })}
+                  onChange={e => setNewSafetyTip({ ...newSafetyTip, icon: e.target.value || null })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
                 >
                   <option value="">Select an icon</option>
@@ -3214,7 +2938,7 @@ const AdminDashboard: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setShowSafetyTipModal(false);
-                    setNewSafetyTip({ name: "", content: "" });
+                    setNewSafetyTip({ name: "", content: "", icon: null });
                   }}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800"
                 >
@@ -3328,7 +3052,12 @@ const AdminDashboard: React.FC = () => {
                   <button
                     onClick={() => {
                       // This should not be called for emergencies
-                      setEditedSafetyTip({ ...selectedSafetyTip });
+                      setEditedSafetyTip({
+                        id: selectedSafetyTip.id,
+                        name: selectedSafetyTip.name,
+                        content: selectedSafetyTip.content,
+                        icon: selectedSafetyTip.icon || null
+                      });
                       setIsEditingSafetyTip(true);
                     }}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

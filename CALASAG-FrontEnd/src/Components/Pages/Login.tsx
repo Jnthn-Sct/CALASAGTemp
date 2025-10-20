@@ -374,7 +374,7 @@ const Login: React.FC = () => {
               }}
             >
               <h1 
-                className="text-xl md:text-2xl font-bold text-center mb-1 uppercase tracking-wide text-[#4ECDC4]"
+                className="text-xl md:text-2xl font-bold text-center mb-1 uppercase tracking-wide text-[#FAFAFA]"
                 style={{ 
                   animation: 'glow-pulse 2s ease-in-out infinite',
                   textShadow: '0 0 20px rgba(255, 209, 102, 0.5)'
@@ -517,7 +517,7 @@ const Login: React.FC = () => {
                       type="button"
                       onClick={handleResendCode}
                       disabled={cooldown > 0}
-                      className={`text-sm text-[#4ECDC4] hover:text-white transition-all ${cooldown > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                      className={`text-sm text-[#FAFAFA] hover:text-white transition-all ${cooldown > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
                     >
                       Resend Code {cooldown > 0 && `(${cooldown}s)`}
                     </button>
@@ -528,7 +528,7 @@ const Login: React.FC = () => {
                         setIs2FAStep(false);
                         resetForm();
                       }}
-                      className="text-sm text-[#4ECDC4] hover:text-white transition-all hover:scale-105"
+                      className="text-sm text-[#FAFAFA] hover:text-[#649b95] transition-all hover:scale-105"
                     >
                       Back to Login
                     </button>
@@ -538,7 +538,7 @@ const Login: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full bg-[#4ECDC4] hover:bg-[#F9C835] text-[#2B2B2B] font-bold py-2.5 text-sm rounded-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[#FAFAFA] hover:bg-[#4ECDC4] text-[#2B2B2B] font-bold py-2.5 text-sm rounded-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ 
                   animation: `slide-up 0.6s ease-out ${isRegistering ? '0.7s' : '0.5s'} backwards`,
                   boxShadow: '0 4px 20px rgba(255, 209, 102, 0.4)'
@@ -556,7 +556,7 @@ const Login: React.FC = () => {
                         type="button"
                         onClick={handleResendConfirmation}
                         disabled={cooldown > 0}
-                        className={`text-sm text-[#4ECDC4] hover:text-[#3abfb2] transition-all ${cooldown > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                        className={`text-sm text-[#FAFAFA] hover:text-[#4ECDC4] transition-all ${cooldown > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
                       >
                         Resend Confirmation Email {cooldown > 0 && `(${cooldown}s)`}
                       </button>
@@ -574,7 +574,7 @@ const Login: React.FC = () => {
                         setIsRegistering(!isRegistering);
                         resetForm();
                       }}
-                      className="text-[#4ECDC4] ml-1 hover:text-[#3abfb2] font-semibold transition-all hover:scale-105"
+                      className="text-[#FAFAFA] ml-1 hover:text-[#3abfb2] font-semibold transition-all hover:scale-105"
                     >
                       {isRegistering ? 'Login' : 'Register'}
                     </button>

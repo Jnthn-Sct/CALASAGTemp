@@ -122,18 +122,6 @@ const SuperAdminDashboard: React.FC = () => {
   );
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
-  const [isProfileDropdownOpen, setIsProfileDropdownOpen] =
-    useState<boolean>(false);
-  const [isEditingPersonal, setIsEditingPersonal] = useState<boolean>(false);
-  const [isEditingSecurity, setIsEditingSecurity] = useState<boolean>(false);
-  const [personalInfo, setPersonalInfo] = useState({ name: "", email: "" });
-  const [securityInfo, setSecurityInfo] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [notifications, setNotifications] = useState<boolean>(false);
-  const [emailNotifications, setEmailNotifications] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -157,7 +145,7 @@ const SuperAdminDashboard: React.FC = () => {
   const [isSubmittingReportAction, setIsSubmittingReportAction] =
     useState<boolean>(false);
   const [isAddingDevice, setIsAddingDevice] = useState<boolean>(false);
-    useState<boolean>(false);
+  useState<boolean>(false);
 
   const [systemStatus, setSystemStatus] = useState({
     security: { unresolved: 0, total: 0 },
@@ -263,10 +251,6 @@ const SuperAdminDashboard: React.FC = () => {
           name: profileData.name || "Super Admin",
           email: profileData.email,
           role: profileData.role,
-        });
-        setPersonalInfo({
-          name: profileData.name || "Super Admin",
-          email: profileData.email,
         });
       } catch (err: any) {
         setError(`Failed to load user data: ${err.message}`);
@@ -901,7 +885,7 @@ const SuperAdminDashboard: React.FC = () => {
     }
   };
 
-   // Fetch IoT devices
+  // Fetch IoT devices
   const fetchIotDevices = async () => {
     try {
       const { data, error } = await supabase
@@ -940,53 +924,6 @@ const SuperAdminDashboard: React.FC = () => {
     }
   };
 
-  // Handle personal info update
-  const handlePersonalInfoUpdate = async () => {
-    try {
-      const { error } = await supabase
-        .from("users")
-        .update({ name: personalInfo.name, email: personalInfo.email })
-        .eq("user_id", userProfile?.id);
-
-      if (error) throw error;
-
-      setUserProfile((prev) =>
-        prev
-          ? { ...prev, name: personalInfo.name, email: personalInfo.email }
-          : null
-      );
-      setIsEditingPersonal(false);
-      setSuccessMessage("Personal info updated successfully");
-    } catch (error: any) {
-      setError(`Failed to update personal info: ${error.message}`);
-    }
-  };
-
-  // Handle password update
-  const handlePasswordUpdate = async () => {
-    if (securityInfo.newPassword !== securityInfo.confirmPassword) {
-      setError("New password and confirm password do not match");
-      return;
-    }
-
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: securityInfo.newPassword,
-      });
-
-      if (error) throw error;
-
-      setSecurityInfo({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-      setIsEditingSecurity(false);
-      setSuccessMessage("Password updated successfully");
-    } catch (error: any) {
-      setError(`Failed to update password: ${error.message}`);
-    }
-  };
 
   // Initial data fetch and subscriptions
   useEffect(() => {
@@ -2175,11 +2112,10 @@ const SuperAdminDashboard: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              device.is_activated
-                                ? "bg-green-100 text-green-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${device.is_activated
+                              ? "bg-green-100 text-green-800"
+                              : "bg-yellow-100 text-yellow-800"
+                              }`}
                           >
                             {device.is_activated ? "Activated" : "Inactive"}
                           </span>
@@ -2198,332 +2134,6 @@ const SuperAdminDashboard: React.FC = () => {
             </div>
           </div>
         );
-      case "settings":
-        return (
-          <div className="space-y-4">
-            {/* Profile Header */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm transition-transform duration-300 ease-out transform hover:-translate-y-2 hover:shadow-lg border border-gray-100">
-              <div className="flex items-center space-x-4 mb-6">
-                <div className="w-16 h-16 bg-[#4ECDC4] rounded-full flex items-center justify-center text-white font-bold text-xl">
-                  {userProfile?.name?.charAt(0) || "S"}
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {userProfile?.name || "Super Admin"}
-                  </h2>
-                  <p className="text-sm text-gray-600">{userProfile?.email}</p>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
-                    <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></div>
-                    Super Administrator
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Personal Information */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    Personal Information
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Update your personal details
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsEditingPersonal(!isEditingPersonal)}
-                  className="px-4 py-2 text-sm font-medium text-[#4ECDC4] hover:text-[#004d20] hover:bg-green-50 rounded-lg transition-colors"
-                >
-                  {isEditingPersonal ? "Cancel" : "Edit Profile"}
-                </button>
-              </div>
-              <form className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label
-                      htmlFor="name"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      id="name"
-                      value={personalInfo.name}
-                      onChange={(e) =>
-                        setPersonalInfo({
-                          ...personalInfo,
-                          name: e.target.value,
-                        })
-                      }
-                      disabled={!isEditingPersonal}
-                      className={`w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 transition-colors ${!isEditingPersonal
-                        ? "bg-gray-50 text-gray-500 cursor-not-allowed"
-                        : "bg-white border-gray-300 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
-                        }`}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="email"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      value={personalInfo.email}
-                      onChange={(e) =>
-                        setPersonalInfo({
-                          ...personalInfo,
-                          email: e.target.value,
-                        })
-                      }
-                      disabled={!isEditingPersonal}
-                      className={`w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 transition-colors ${!isEditingPersonal
-                        ? "bg-gray-50 text-gray-500 cursor-not-allowed"
-                        : "bg-white border-gray-300 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
-                        }`}
-                    />
-                  </div>
-                </div>
-                {isEditingPersonal && (
-                  <div className="flex justify-end pt-4 border-t border-gray-200">
-                    <button
-                      type="button"
-                      onClick={handlePersonalInfoUpdate}
-                      className="px-6 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] transition-colors font-medium"
-                    >
-                      Save Changes
-                    </button>
-                  </div>
-                )}
-              </form>
-            </div>
-
-            {/* Security Settings */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    Security Settings
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Manage your account security
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsEditingSecurity(!isEditingSecurity)}
-                  className="px-4 py-2 text-sm font-medium text-[#4ECDC4] hover:text-[#2B2B2B] hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  {isEditingSecurity ? "Cancel" : "Change Password"}
-                </button>
-              </div>
-              <form className="space-y-6">
-                {isEditingSecurity ? (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                        <label
-                          htmlFor="currentPassword"
-                          className="block text-sm font-medium text-gray-700 mb-2"
-                        >
-                          Current Password
-                        </label>
-                        <input
-                          type="password"
-                          id="currentPassword"
-                          value={securityInfo.currentPassword}
-                          onChange={(e) =>
-                            setSecurityInfo({
-                              ...securityInfo,
-                              currentPassword: e.target.value,
-                            })
-                          }
-                          className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
-                          placeholder="Enter current password"
-                        />
-                      </div>
-                      <div>
-                        <label
-                          htmlFor="newPassword"
-                          className="block text-sm font-medium text-gray-700 mb-2"
-                        >
-                          New Password
-                        </label>
-                        <input
-                          type="password"
-                          id="newPassword"
-                          value={securityInfo.newPassword}
-                          onChange={(e) =>
-                            setSecurityInfo({
-                              ...securityInfo,
-                              newPassword: e.target.value,
-                            })
-                          }
-                          className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
-                          placeholder="Enter new password"
-                        />
-                      </div>
-                      <div>
-                        <label
-                          htmlFor="confirmPassword"
-                          className="block text-sm font-medium text-gray-700 mb-2"
-                        >
-                          Confirm Password
-                        </label>
-                        <input
-                          type="password"
-                          id="confirmPassword"
-                          value={securityInfo.confirmPassword}
-                          onChange={(e) =>
-                            setSecurityInfo({
-                              ...securityInfo,
-                              confirmPassword: e.target.value,
-                            })
-                          }
-                          className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
-                          placeholder="Confirm new password"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end pt-4 border-t border-gray-200">
-                      <button
-                        type="button"
-                        onClick={handlePasswordUpdate}
-                        className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-                      >
-                        Update Password
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-900">
-                          Password
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          Last updated: Never
-                        </p>
-                      </div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                    </div>
-                  </div>
-                )}
-              </form>
-            </div>
-
-            {/* Notification Settings */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                Notification Preferences
-              </h3>
-              <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-[#2B2B2B]-100 rounded-lg flex items-center justify-center">
-                      <FaBell className="text-[#2B2B2B]" size={16} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">
-                        Push Notifications
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Receive real-time notifications
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setNotifications(!notifications)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${notifications ? "bg-[#4ECDC4]" : "bg-gray-200"
-                      }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${notifications ? "translate-x-6" : "translate-x-1"
-                        }`}
-                    />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <FaUser className="text-green-600" size={16} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">
-                        Email Notifications
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Receive updates via email
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setEmailNotifications(!emailNotifications)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${emailNotifications ? "bg-[#4ECDC4]" : "bg-gray-200"
-                      }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${emailNotifications ? "translate-x-6" : "translate-x-1"
-                        }`}
-                    />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* System Information */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                System Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-sm font-medium text-gray-600">
-                      Role
-                    </span>
-                    <span className="text-sm text-gray-900">
-                      Super Administrator
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-sm font-medium text-gray-600">
-                      Account Status
-                    </span>
-                    <span className="text-sm text-green-600 font-medium">
-                      Active
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-sm font-medium text-gray-600">
-                      Last Login
-                    </span>
-                    <span className="text-sm text-gray-900">Just now</span>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-sm font-medium text-gray-600">
-                      Session Timeout
-                    </span>
-                    <span className="text-sm text-gray-900">24 hours</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-sm font-medium text-gray-600">
-                      Two-Factor Auth
-                    </span>
-                    <span className="text-sm text-gray-900">Disabled</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
       default:
         return null;
     }
@@ -2533,8 +2143,8 @@ const SuperAdminDashboard: React.FC = () => {
     <div className="flex h-screen bg-[#4ECDC4]/70 overflow-hidden">
       {/* Sidebar */}
       <div
-        className={`flex-shrink-0 transition-all duration-300 transform-gpu ${isSidebarCollapsed ? "w-16" : "w-64"
-          } m-2 p-2 rounded-2xl backdrop-blur-sm bg-[#FAFAFA]/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl`}
+        className={`flex flex-col flex-shrink-0 transition-all duration-300 transform-gpu ${isSidebarCollapsed ? "w-16" : "w-64"
+          } m-2 p-2 rounded-2xl backdrop-blur-sm bg-[#FAFAFA]/75 border border-white/10 shadow-xl hover:-translate-y-1 hover:shadow-2xl h-[calc(100vh-1rem)]`}
       >
         <div className="flex items-center justify-between p-3">
           {!isSidebarCollapsed && (
@@ -2551,7 +2161,7 @@ const SuperAdminDashboard: React.FC = () => {
             )}
           </button>
         </div>
-        <nav className="mt-4">
+        <nav className="mt-4 flex-1">
           <ul className="space-y-2">
             <li>
               <button
@@ -2653,28 +2263,24 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
               </button>
             </li>
-            <li>
-              <button
-                onClick={() => setActiveTab("settings")}
-                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "settings"
-                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
-                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"
-                  }`}
-              >
-                <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "settings"
-                  ? "bg-[#4ECDC4]"
-                  : "bg-transparent group-hover:bg-[#4ECDC4]"
-                  }`} />
-                <div className="relative z-10 w-full">
-                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                    <FaCog size={18} className="transition-transform duration-300 group-hover:scale-110" />
-                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Settings</span>}
-                  </div>
-                </div>
-              </button>
-            </li>
           </ul>
         </nav>
+
+        {/* Logout Button - Sticky to Bottom */}
+        <div className="mt-auto p-2 border-t border-gray-200/50">
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] text-red-600 hover:bg-red-50 hover:text-red-700 hover:shadow-sm ${isSidebarCollapsed ? 'justify-center' : ''}`}
+          >
+            <span className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 bg-transparent group-hover:bg-red-500" />
+            <div className="relative z-10 w-full">
+              <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                <FaChevronLeft size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">Logout</span>}
+              </div>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Top Navbar */}
@@ -2695,7 +2301,7 @@ const SuperAdminDashboard: React.FC = () => {
                 {activeTab === "admin-management" && "Admin Management"}
                 {activeTab === "feature-updates" && "Feature Updates"}
                 {activeTab === "system-reports" && "System Reports"}
-                {activeTab === "settings" && "Settings"}
+                {activeTab === "iot-devices" && "IoT Devices"}
               </span>
             </div>
           </div>
@@ -2709,31 +2315,20 @@ const SuperAdminDashboard: React.FC = () => {
                 <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white/80 animate-pulse"></span>
               )}
             </button>
-            <div className="relative">
-              <button
-                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all duration-300 focus:outline-none hover:scale-105 active:scale-95"
-              >
-                <FaUserCircle size={20} className="transition-transform duration-300 hover:scale-110" />
-                <span className="hidden md:inline text-sm font-medium text-gray-700">{userProfile?.name || 'Super Admin'}</span>
-                <FaChevronDown size={10} className="transition-transform duration-300" />
-              </button>
-              {isProfileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-2 z-50">
-                  <button
-                    onClick={() => setActiveTab("settings")}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    Profile Settings
-                  </button>
-                  <button
-                    onClick={() => setShowLogoutConfirm(true)}
-                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
-                  >
-                    Log Out
-                  </button>
-                </div>
+            {/* User Profile Display */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg">
+              {userProfile && (
+                <img
+                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    userProfile?.name || "S"
+                  )}&background=2B2B2B&color=fff`}
+                  alt="avatar"
+                  className="w-7 h-7 rounded-full border border-gray-200"
+                />
               )}
+              <span className="hidden md:inline text-gray-700 font-medium text-sm">
+                {userProfile?.name || "Loading..."}
+              </span>
             </div>
           </div>
         </div>

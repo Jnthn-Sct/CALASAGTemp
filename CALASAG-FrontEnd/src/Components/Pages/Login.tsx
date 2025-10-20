@@ -8,8 +8,6 @@ type UserRole = 'super_admin' | 'admin' | 'user';
 
 const Login: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState(false);
-  const [is2FAStep, setIs2FAStep] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -18,7 +16,6 @@ const Login: React.FC = () => {
   const [lastName, setLastName] = useState("");
   const [middleInitial, setMiddleInitial] = useState("");
   const [mobileNumber, setMobileNumber] = useState('');
-  const [otpCode, setOtpCode] = useState('');
   const [showResendConfirmation, setShowResendConfirmation] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,11 +24,7 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     console.log('Login component mounted');
-    if (cooldown > 0) {
-      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [cooldown]);
+  }, []);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,7 +40,6 @@ const Login: React.FC = () => {
     setLastName('');
     setMiddleInitial('');
     setMobileNumber('');
-    setOtpCode('');
     setError(null);
     setShowResendConfirmation(false);
     setIsSubmitting(false);
@@ -218,9 +210,8 @@ const Login: React.FC = () => {
       console.log('User role:', userData.role);
       await testSupabaseConnection();
       if (userData.role === 'user') {
-        console.log('Redirecting to 2FA step');
-        setIs2FAStep(true);
-        setCooldown(30);
+        console.log('Redirecting to /dashboard');
+        navigate('/dashboard');
       } else if (userData.role === 'admin') {
         console.log('Redirecting to /admin-dashboard');
         navigate('/admin-dashboard');
@@ -264,7 +255,6 @@ const Login: React.FC = () => {
       }
       setError(null);
       alert('Confirmation email resent! Check your email (including Spam/Promotions).');
-      setCooldown(30);
     } catch (err: unknown) {
       const error = err as AuthError;
       console.error('Resend Error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
@@ -272,47 +262,6 @@ const Login: React.FC = () => {
     }
   };
 
-  const handle2FASubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    console.log('Submitting 2FA with OTP:', otpCode);
-    if (!otpCode.trim()) {
-      setError('Enter the OTP code.');
-      setIsSubmitting(false);
-      return;
-    }
-
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const role = user.role as UserRole;
-    console.log('2FA User Role:', role);
-
-    setError(null);
-    switch (role) {
-      case 'super_admin':
-        console.log('Redirecting to /super-admin-dashboard after 2FA');
-        navigate('/super-admin-dashboard');
-        break;
-      case 'admin':
-        console.log('Redirecting to /admin-dashboard after 2FA');
-        navigate('/admin-dashboard');
-        break;
-      default:
-        console.log('Redirecting to /dashboard after 2FA');
-        navigate('/dashboard');
-    }
-
-    resetForm();
-  };
-
-  const handleResendCode = () => {
-    if (cooldown === 0) {
-      console.log('Resending OTP code');
-      setError(null);
-      alert('Code resent!');
-      setCooldown(30);
-    }
-  };
 
   return (
     <div className="min-h-screen h-screen w-screen flex flex-col lg:flex-row overflow-hidden">
@@ -326,7 +275,7 @@ const Login: React.FC = () => {
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {/* Glowing Orbs */}
-          <div 
+          <div
             className="absolute w-96 h-96 rounded-full blur-3xl opacity-20"
             style={{
               background: 'radial-gradient(circle, #FFD166 0%, transparent 70%)',
@@ -335,7 +284,7 @@ const Login: React.FC = () => {
               animation: 'float-orb 8s ease-in-out infinite'
             }}
           />
-          <div 
+          <div
             className="absolute w-80 h-80 rounded-full blur-3xl opacity-15"
             style={{
               background: 'radial-gradient(circle, #005524 0%, transparent 70%)',
@@ -344,7 +293,7 @@ const Login: React.FC = () => {
               animation: 'float-orb-reverse 10s ease-in-out infinite'
             }}
           />
-          
+
           {/* Animated Particles */}
           <div className="absolute inset-0">
             {[...Array(20)].map((_, i) => (
@@ -367,40 +316,38 @@ const Login: React.FC = () => {
         <div className="relative z-10 w-full max-w-md h-full flex items-center justify-center py-4">
           <div className="w-full max-h-full overflow-y-auto scrollbar-hide">
             <form
-              key={isRegistering ? 'register' : is2FAStep ? '2fa' : 'login'}
+              key={isRegistering ? 'register' : 'login'}
               ref={formRef}
               className="backdrop-blur-xl bg-white/10 p-5 md:p-6 rounded-2xl shadow-2xl w-full border border-white/20 text-white transition-all duration-700 ease-out"
               onSubmit={(e) => {
                 console.log('Form submitted');
-                is2FAStep ? handle2FASubmit(e) : isRegistering ? handleRegisterSubmit(e) : handleLoginSubmit(e);
+                isRegistering ? handleRegisterSubmit(e) : handleLoginSubmit(e);
               }}
               style={{
                 animation: 'scale-fade-in 0.6s ease-out',
                 boxShadow: '0 8px 32px 0 rgba(255, 209, 102, 0.15)'
               }}
             >
-              <h1 
+              <h1
                 className="text-xl md:text-2xl font-bold text-center mb-1 uppercase tracking-wide text-[#FAFAFA]"
-                style={{ 
+                style={{
                   animation: 'glow-pulse 2s ease-in-out infinite',
                   textShadow: '0 0 20px rgba(255, 209, 102, 0.5)'
                 }}
               >
-                {is2FAStep ? 'One Time Password' : isRegistering ? 'Register' : 'Login'}
+                {isRegistering ? 'Register' : 'Login'}
               </h1>
-              <p 
-                className="text-xs text-white/70 text-center mb-4" 
+              <p
+                className="text-xs text-white/70 text-center mb-4"
                 style={{ animation: 'fade-in 0.8s ease-out 0.2s backwards' }}
               >
-                {is2FAStep
-                  ? 'Enter the code sent to your mobile number'
-                  : isRegistering
-                    ? 'Create your CALASAG account'
-                    : 'Secure Access to CALASAG'}
+                {isRegistering
+                  ? 'Create your CALASAG account'
+                  : 'Secure Access to CALASAG'}
               </p>
 
               {error && (
-                <div 
+                <div
                   className="bg-red-500/20 backdrop-blur-sm border border-red-400/50 text-red-200 px-3 py-2 rounded-lg mb-3 text-sm"
                   style={{ animation: 'bounce-in 0.5s ease-out' }}
                 >
@@ -408,185 +355,142 @@ const Login: React.FC = () => {
                 </div>
               )}
 
-              {!is2FAStep ? (
+              <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.3s backwards' }}>
+                <input
+                  className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FAFAFA] focus:outline-none focus:ring-2 focus:ring-[#FAFAFA]/50"
+                  type="email"
+                  placeholder="Email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              {isRegistering && (
                 <>
-                  <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.3s backwards' }}>
+                  <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.35s backwards' }}>
                     <input
-                      className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
-                      type="email"
-                      placeholder="Email"
+                      className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FAFAFA] focus:outline-none focus:ring-2 focus:ring-[#FAFAFA]/50"
+                      type="text"
+                      placeholder="Username"
                       required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
                     />
                   </div>
 
-                  {isRegistering && (
-                    <>
-                      <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.35s backwards' }}>
-                        <input
-                          className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
-                          type="text"
-                          placeholder="Username"
-                          required
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div style={{ animation: 'slide-up 0.6s ease-out 0.4s backwards' }}>
-                          <input
-                            className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
-                            type="text"
-                            placeholder="First Name"
-                            required
-                            value={firstName}
-                            onChange={(e) => setFirstName(e.target.value)}
-                          />
-                        </div>
-
-                        <div style={{ animation: 'slide-up 0.6s ease-out 0.45s backwards' }}>
-                          <input
-                            className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
-                            type="text"
-                            placeholder="Last Name"
-                            required
-                            value={lastName}
-                            onChange={(e) => setLastName(e.target.value)}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.5s backwards' }}>
-                        <input
-                          className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
-                          type="text"
-                          placeholder="Middle Initial"
-                          maxLength={2}
-                          value={middleInitial}
-                          onChange={(e) => setMiddleInitial(e.target.value)}
-                        />
-                      </div>
-
-                      <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.55s backwards' }}>
-                        <input
-                          className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
-                          type="tel"
-                          placeholder="Mobile Number"
-                          required
-                          value={mobileNumber}
-                          onChange={(e) => setMobileNumber(e.target.value)}
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  <div className="mb-3" style={{ animation: `slide-up 0.6s ease-out ${isRegistering ? '0.6s' : '0.4s'} backwards` }}>
-                    <input
-                      className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
-                      type="password"
-                      placeholder="Password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </div>
-
-                  {isRegistering && (
-                    <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.65s backwards' }}>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div style={{ animation: 'slide-up 0.6s ease-out 0.4s backwards' }}>
                       <input
-                        className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50"
-                        type="password"
-                        placeholder="Confirm Password"
+                        className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FAFAFA] focus:outline-none focus:ring-2 focus:ring-[#FAFAFA]/50"
+                        type="text"
+                        placeholder="First Name"
                         required
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
                       />
                     </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.3s backwards' }}>
+
+                    <div style={{ animation: 'slide-up 0.6s ease-out 0.45s backwards' }}>
+                      <input
+                        className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FAFAFA] focus:outline-none focus:ring-2 focus:ring-[#FAFAFA]/50"
+                        type="text"
+                        placeholder="Last Name"
+                        required
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.5s backwards' }}>
                     <input
-                      className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FFD166] focus:outline-none focus:ring-2 focus:ring-[#FFD166]/50 text-center text-lg tracking-widest"
+                      className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FAFAFA] focus:outline-none focus:ring-2 focus:ring-[#FAFAFA]/50"
                       type="text"
-                      placeholder="Enter OTP Code"
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value)}
-                      required
+                      placeholder="Middle Initial"
+                      maxLength={2}
+                      value={middleInitial}
+                      onChange={(e) => setMiddleInitial(e.target.value)}
                     />
                   </div>
-                  <div className="flex justify-between mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.4s backwards' }}>
-                    <button
-                      type="button"
-                      onClick={handleResendCode}
-                      disabled={cooldown > 0}
-                      className={`text-sm text-[#FAFAFA] hover:text-white transition-all ${cooldown > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
-                    >
-                      Resend Code {cooldown > 0 && `(${cooldown}s)`}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        console.log('Returning to login from 2FA');
-                        setIs2FAStep(false);
-                        resetForm();
-                      }}
-                      className="text-sm text-[#FAFAFA] hover:text-[#649b95] transition-all hover:scale-105"
-                    >
-                      Back to Login
-                    </button>
+
+                  <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.55s backwards' }}>
+                    <input
+                      className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FAFAFA] focus:outline-none focus:ring-2 focus:ring-[#FAFAFA]/50"
+                      type="tel"
+                      placeholder="Mobile Number"
+                      required
+                      value={mobileNumber}
+                      onChange={(e) => setMobileNumber(e.target.value)}
+                    />
                   </div>
                 </>
+              )}
+
+              <div className="mb-3" style={{ animation: `slide-up 0.6s ease-out ${isRegistering ? '0.6s' : '0.4s'} backwards` }}>
+                <input
+                  className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FAFAFA] focus:outline-none focus:ring-2 focus:ring-[#FAFAFA]/50"
+                  type="password"
+                  placeholder="Password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+
+              {isRegistering && (
+                <div className="mb-3" style={{ animation: 'slide-up 0.6s ease-out 0.65s backwards' }}>
+                  <input
+                    className="w-full p-2.5 text-sm bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/50 transition-all duration-300 focus:bg-white/20 focus:border-[#FAFAFA] focus:outline-none focus:ring-2 focus:ring-[#FAFAFA]/50"
+                    type="password"
+                    placeholder="Confirm Password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
               )}
 
               <button
                 type="submit"
                 className="w-full bg-[#FAFAFA] hover:bg-[#4ECDC4] text-[#2B2B2B] font-bold py-2.5 text-sm rounded-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ 
+                style={{
                   animation: `slide-up 0.6s ease-out ${isRegistering ? '0.7s' : '0.5s'} backwards`,
                   boxShadow: '0 4px 20px rgba(255, 209, 102, 0.4)'
                 }}
                 disabled={isSubmitting}
               >
-                {is2FAStep ? 'Verify Code' : isRegistering ? 'Register' : 'Login'}
+                {isRegistering ? 'Register' : 'Login'}
               </button>
 
-              {!is2FAStep && (
-                <>
-                  {showResendConfirmation && !isRegistering && (
-                    <div className="mt-3 text-center" style={{ animation: 'fade-in 0.5s ease-out' }}>
-                      <button
-                        type="button"
-                        onClick={handleResendConfirmation}
-                        disabled={cooldown > 0}
-                        className={`text-sm text-[#FAFAFA] hover:text-[#4ECDC4] transition-all ${cooldown > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
-                      >
-                        Resend Confirmation Email {cooldown > 0 && `(${cooldown}s)`}
-                      </button>
-                    </div>
-                  )}
-                  <p 
-                    className="text-sm text-center mt-4 text-white/80" 
-                    style={{ animation: `fade-in 0.6s ease-out ${isRegistering ? '0.75s' : '0.55s'} backwards` }}
+              {showResendConfirmation && !isRegistering && (
+                <div className="mt-3 text-center" style={{ animation: 'fade-in 0.5s ease-out' }}>
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    className="text-sm text-[#FAFAFA] hover:text-[#4ECDC4] transition-all hover:scale-105"
                   >
-                    {isRegistering ? 'Already have an account?' : "Don't have an account?"}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        console.log(isRegistering ? 'Switching to login' : 'Switching to register');
-                        setIsRegistering(!isRegistering);
-                        resetForm();
-                      }}
-                      className="text-[#FAFAFA] ml-1 hover:text-[#3abfb2] font-semibold transition-all hover:scale-105"
-                    >
-                      {isRegistering ? 'Login' : 'Register'}
-                    </button>
-                  </p>
-                </>
+                    Resend Confirmation Email
+                  </button>
+                </div>
               )}
+              <p
+                className="text-sm text-center mt-4 text-white/80"
+                style={{ animation: `fade-in 0.6s ease-out ${isRegistering ? '0.75s' : '0.55s'} backwards` }}
+              >
+                {isRegistering ? 'Already have an account?' : "Don't have an account?"}
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log(isRegistering ? 'Switching to login' : 'Switching to register');
+                    setIsRegistering(!isRegistering);
+                    resetForm();
+                  }}
+                  className="text-[#FAFAFA] ml-1 hover:text-[#3abfb2] font-semibold transition-all hover:scale-105"
+                >
+                  {isRegistering ? 'Login' : 'Register'}
+                </button>
+              </p>
             </form>
           </div>
         </div>

@@ -215,7 +215,7 @@ const Dashboard: React.FC = () => {
       deviceCard: isDark ? "bg-gray-800" : "bg-[#2B2B2B]",
       deviceCardText: isDark ? "text-white" : "text-white",
       connectionCard: isDark ? "bg-gray-800" : "bg-white",
-      welcomeCard: isDark ? "bg-gray-800" : "bg-gradient-to-br from-[#FFD166] to-[#FFD166]",
+      welcomeCard: isDark ? "bg-gray-800" : "bg-gradient-to-br from-[#649b95] to-[#649b95]",
       emergencyCard: isDark ? "bg-gray-800" : "bg-white",
       reportCard: isDark ? "bg-gray-800" : "bg-white",
       messageCard: isDark ? "bg-gray-800" : "bg-white",

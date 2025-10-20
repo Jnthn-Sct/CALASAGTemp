@@ -92,6 +92,14 @@ interface UserProfile {
   role: string;
 }
 
+interface IotDevice {
+  id: string;
+  device_id: string;
+  user_id: string | null;
+  is_activated: boolean;
+  created_at: string;
+}
+
 interface Notification {
   id: number;
   message: string;
@@ -144,7 +152,11 @@ const SuperAdminDashboard: React.FC = () => {
   const [notificationTab, setNotificationTab] = useState<"unread" | "all">(
     "unread"
   );
+  const [iotDevices, setIotDevices] = useState<IotDevice[]>([]);
+  const [newDeviceId, setNewDeviceId] = useState<string>("");
   const [isSubmittingReportAction, setIsSubmittingReportAction] =
+    useState<boolean>(false);
+  const [isAddingDevice, setIsAddingDevice] = useState<boolean>(false);
     useState<boolean>(false);
 
   const [systemStatus, setSystemStatus] = useState({
@@ -202,14 +214,21 @@ const SuperAdminDashboard: React.FC = () => {
 
   // Clear success or error messages after 5 seconds
   useEffect(() => {
+    let timer: NodeJS.Timeout;
     if (successMessage || error) {
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         setSuccessMessage(null);
         setError(null);
       }, 5000);
-      return () => clearTimeout(timer);
     }
+    return () => clearTimeout(timer);
   }, [successMessage, error]);
+
+  const usersById = React.useMemo(() => {
+    const map = new Map<string, Admin>();
+    admins.forEach(admin => map.set(admin.user_id, admin));
+    return map;
+  }, [admins]);
 
   // Fetch user data and verify super_admin role
   useEffect(() => {
@@ -882,6 +901,45 @@ const SuperAdminDashboard: React.FC = () => {
     }
   };
 
+   // Fetch IoT devices
+  const fetchIotDevices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("iot_devices")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setIotDevices(data || []);
+    } catch (error: any) {
+      setError(`Failed to fetch IoT devices: ${error.message}`);
+    }
+  };
+
+  // Handle add IoT device
+  const handleAddDevice = async (e: React.FormEvent<HTMLFormElement>) => {
+    setIsAddingDevice(true);
+    e.preventDefault();
+    if (!newDeviceId.trim()) {
+      setError("Device ID cannot be empty.");
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from("iot_devices")
+        .insert({ device_id: newDeviceId.trim() });
+
+      if (error) throw error;
+
+      setSuccessMessage(`Device "${newDeviceId}" registered successfully.`);
+      setNewDeviceId("");
+      await fetchIotDevices(); // Refresh the list
+    } catch (error: any) {
+      setError(`Failed to register device: ${error.message}`);
+    } finally {
+      setIsAddingDevice(false);
+    }
+  };
+
   // Handle personal info update
   const handlePersonalInfoUpdate = async () => {
     try {
@@ -938,6 +996,7 @@ const SuperAdminDashboard: React.FC = () => {
     fetchReports();
     fetchPerformanceData();
     fetchNotifications();
+    fetchIotDevices();
     fetchSystemStatus();
 
     const featureSubscription = supabase
@@ -1019,11 +1078,29 @@ const SuperAdminDashboard: React.FC = () => {
         }
       });
 
+    const iotDevicesSubscription = supabase
+      .channel(`iot_devices_${Date.now()}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "iot_devices" },
+        () => {
+          fetchIotDevices();
+        }
+      )
+      .subscribe((_status, err) => {
+        if (err) {
+          console.error("IoT Devices subscription error:", err);
+          setError(`IoT Devices subscription error: ${err.message}`);
+        }
+      });
+
     return () => {
       supabase.removeChannel(featureSubscription);
       supabase.removeChannel(reportSubscription);
       supabase.removeChannel(userSubscription);
       supabase.removeChannel(notificationSubscription);
+      supabase.removeChannel(iotDevicesSubscription);
+      supabase.removeChannel(iotDevicesSubscription);
     };
   }, [userProfile?.id]);
 
@@ -2027,6 +2104,100 @@ const SuperAdminDashboard: React.FC = () => {
             </div>
           </div>
         );
+      case "iot-devices":
+        return (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Register New IoT Device
+              </h2>
+              <p className="text-sm text-gray-600 mb-6">
+                Enter the unique Device ID to register a new IoT device in the
+                system.
+              </p>
+              <form onSubmit={handleAddDevice} className="flex items-center gap-4">
+                <div className="flex-grow">
+                  <label htmlFor="deviceId" className="sr-only">
+                    Device ID
+                  </label>
+                  <input
+                    type="text"
+                    id="deviceId"
+                    name="deviceId"
+                    value={newDeviceId}
+                    onChange={(e) => setNewDeviceId(e.target.value)}
+                    placeholder="Enter new Device ID"
+                    className="w-full rounded-lg border-gray-300 shadow-sm text-sm p-3 focus:border-[#4ECDC4] focus:ring-1 focus:ring-[#2B2B2B]"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isAddingDevice}
+                  className="px-6 py-3 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] transition-colors font-medium flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isAddingDevice ? 'Registering...' : (
+                    <><FaPlus size={14} /> Register Device</>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                Registered IoT Devices
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Device ID
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Registered At
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Assigned User
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {iotDevices.map((device) => (
+                      <tr
+                        key={device.id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {device.device_id}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              device.is_activated
+                                ? "bg-green-100 text-green-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {device.is_activated ? "Activated" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(device.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {usersById.get(device.user_id)?.name || device.user_id || "Unassigned"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
       case "settings":
         return (
           <div className="space-y-4">
@@ -2458,6 +2629,26 @@ const SuperAdminDashboard: React.FC = () => {
                   <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
                     <FaFileAlt size={18} className="transition-transform duration-300 group-hover:scale-110" />
                     {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">System Reports</span>}
+                  </div>
+                </div>
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => setActiveTab("iot-devices")}
+                className={`group relative flex items-center w-full text-left px-4 py-3 gap-3 rounded-r-full transition-all duration-300 text-sm font-medium transform hover:scale-[1.02] active:scale-[0.98] ${activeTab === "iot-devices"
+                  ? "bg-[#E7F6EE] text-[#2B2B2B] shadow-md shadow-[#4ECDC4]/20"
+                  : "text-gray-700 hover:bg-[#F1FAF4] hover:text-[#2B2B2B] hover:shadow-sm"
+                  }`}
+              >
+                <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full transition-all duration-300 ${activeTab === "iot-devices"
+                  ? "bg-[#4ECDC4]"
+                  : "bg-transparent group-hover:bg-[#4ECDC4]"
+                  }`} />
+                <div className="relative z-10 w-full">
+                  <div className={`flex items-center gap-3 flex-1 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                    <FaCubes size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                    {!isSidebarCollapsed && <span className="transition-all duration-300 group-hover:translate-x-1">IoT Devices</span>}
                   </div>
                 </div>
               </button>

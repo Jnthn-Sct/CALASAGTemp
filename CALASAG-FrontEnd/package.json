@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",
     "@tailwindcss/vite": "^4.1.14",
+    "crypto-js": "^4.2.0",
     "css": "^3.0.0",
     "firebase": "^12.0.0",
     "pg": "^8.16.3",
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
+    "@types/crypto-js": "^4.2.2",
     "@types/node": "^22.15.17",
     "@types/pg": "^8.15.5",
     "@types/react": "^19.1.3",

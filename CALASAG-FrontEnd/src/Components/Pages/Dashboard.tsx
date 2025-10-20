@@ -30,6 +30,9 @@ import {
 import logoImage from "../Images/nobg-logo.png";
 import mapImage from "../Images/ph-map.png";
 import { supabase } from "../../db";
+import CryptoJS from "crypto-js";
+
+const secretKey = import.meta.env.VITE_ENCRYPTION_KEY;
 import { FaHouseFloodWater } from "react-icons/fa6";
 
 // Interfaces
@@ -1159,17 +1162,24 @@ const Dashboard: React.FC = () => {
         if (messagesError) {
           throw new Error(`Messages fetch error: ${messagesError.message}`);
         }
-        setMessages(
-          messagesData?.map((msg) => ({
-            id: msg.id,
-            sender_id: msg.sender_id,
-            receiver_id: msg.receiver_id,
-            content: msg.content,
-            timestamp: msg.timestamp,
-            sender_name: msg.sender?.name || "Unknown User",
-            receiver_name: msg.receiver?.name || "Unknown User",
-          })) || []
-        );
+
+        const decryptedMessages =
+          messagesData?.map((msg) => {
+            try {
+              const bytes = CryptoJS.AES.decrypt(msg.content, secretKey);
+              const plaintext = bytes.toString(CryptoJS.enc.Utf8);
+              return {
+                ...msg,
+                content: plaintext,
+                sender_name: msg.sender?.name || "Unknown User",
+                receiver_name: msg.receiver?.name || "Unknown User",
+              };
+            } catch (e) {
+              console.error("Failed to decrypt message:", e);
+              return { ...msg, content: "Unable to decrypt message" };
+            }
+          }) || [];
+        setMessages(decryptedMessages);
 
         const { data: crisisAlertData, error: crisisAlertError } = await supabase
           .from("crisis_alerts")
@@ -2159,11 +2169,16 @@ const Dashboard: React.FC = () => {
         .eq("user_id", selectedConnection.connected_user_id)
         .single();
 
+      const encryptedMessage = CryptoJS.AES.encrypt(
+        messageText,
+        secretKey
+      ).toString();
+
       const newMessage = {
         id: Date.now(), // Add missing id field
         sender_id: user.id,
-        receiver_id: selectedConnection.connected_user_id,
-        content: messageText,
+        receiver_id: selectedConnection.connected_user_id, // Send encrypted content
+        content: encryptedMessage,
         timestamp: new Date().toISOString(),
         sender_name: userProfile?.name || "User",
         receiver_name: receiverData?.name || "User",
@@ -2172,11 +2187,14 @@ const Dashboard: React.FC = () => {
       const { error } = await supabase.from("messages").insert({
         sender_id: newMessage.sender_id,
         receiver_id: newMessage.receiver_id,
-        content: newMessage.content,
-        timestamp: newMessage.timestamp,
+        content: newMessage.content, // This is already the encryptedMessage
+        timestamp: newMessage.timestamp
       });
       if (error) throw new Error(`Message send error: ${error.message}`);
-      setMessages([...messages, newMessage]);
+      // Decrypt for local display
+      const bytes = CryptoJS.AES.decrypt(newMessage.content, secretKey);
+      const plaintext = bytes.toString(CryptoJS.enc.Utf8);
+      setMessages([...messages, { ...newMessage, content: plaintext }]);
       setMessageText("");
       setMessageSent(true);
       setTimeout(() => setMessageSent(false), 1500);

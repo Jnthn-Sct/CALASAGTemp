@@ -212,6 +212,25 @@ const SuperAdminDashboard: React.FC = () => {
     return () => clearTimeout(timer);
   }, [successMessage, error]);
 
+  useEffect(() => {
+    const updatePresence = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("users")
+          .update({ last_seen: new Date().toISOString() })
+          .eq("user_id", user.id);
+      }
+    };
+
+    updatePresence(); // initial update
+    const interval = setInterval(updatePresence, 60 * 1000); // every 1 minute
+
+    return () => clearInterval(interval);
+  }, []);
+
   const usersById = React.useMemo(() => {
     const map = new Map<string, Admin>();
     admins.forEach(admin => map.set(admin.user_id, admin));

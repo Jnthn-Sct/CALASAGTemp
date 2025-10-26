@@ -236,6 +236,24 @@ const Dashboard: React.FC = () => {
 
   const themeClasses = getThemeClasses();
 
+  useEffect(() => {
+    const updatePresence = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("users")
+          .update({ last_seen: new Date().toISOString() })
+          .eq("user_id", user.id);
+      }
+    };
+
+    updatePresence(); // initial update
+    const interval = setInterval(updatePresence, 60 * 1000); // every 1 minute
+
+    return () => clearInterval(interval);
+  }, []);
   const iconMap: { [key: string]: React.ElementType | undefined } = {
     FaAmbulance,
     FaInfoCircle,

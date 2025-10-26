@@ -150,6 +150,25 @@ interface IncidentAction {
 }
 
 const AdminDashboard: React.FC = () => {
+  useEffect(() => {
+    const updatePresence = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("users")
+          .update({ last_seen: new Date().toISOString() })
+          .eq("user_id", user.id);
+      }
+    };
+
+    updatePresence(); // initial update
+    const interval = setInterval(updatePresence, 60 * 1000); // every 1 minute
+
+    return () => clearInterval(interval);
+  }, []);
+
   const navigate = useNavigate();
 
   // Get current user data from local storage or authentication
@@ -631,7 +650,7 @@ const AdminDashboard: React.FC = () => {
       setUsersLoadError(null);
       const { data, error } = await supabase
         .from("users")
-        .select("user_id, name, email, role, status, last_login")
+        .select("user_id, name, email, role, status, last_login, last_seen")
         .in("role", ["user", "moderator"]);
 
       if (error) {
@@ -660,7 +679,7 @@ const AdminDashboard: React.FC = () => {
             lastLogin: u.last_login || "",
             reports: 0,
             crisis: 0,
-            onlineStatus: "offline",
+            onlineStatus: computeOnlineStatus(u.last_seen),
           }))
         );
       }
@@ -862,6 +881,24 @@ const AdminDashboard: React.FC = () => {
         () => {
           loadUsersBase();
           loadIncidentCounts();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "users",
+        },
+        (payload) => {
+          const updatedUser = payload.new;
+          setUsers((prevUsers) =>
+            prevUsers.map((user) =>
+              user.id === updatedUser.user_id
+                ? { ...user, onlineStatus: computeOnlineStatus(updatedUser.last_seen) }
+                : user
+            )
+          );
         }
       )
       .subscribe();

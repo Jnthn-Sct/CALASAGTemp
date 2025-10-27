@@ -849,13 +849,13 @@ const Dashboard: React.FC = () => {
       const filePath = `avatars/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('profile-pictures')
+        .from('avatars')
         .upload(filePath, file);
 
       if (uploadError) throw new Error(`Upload error: ${uploadError.message}`);
 
       const { data: { publicUrl } } = supabase.storage
-        .from('profile-pictures')
+        .from('avatars')
         .getPublicUrl(filePath);
 
       return publicUrl;

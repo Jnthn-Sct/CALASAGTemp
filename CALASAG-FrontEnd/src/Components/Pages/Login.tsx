@@ -88,22 +88,23 @@ const Login: React.FC = () => {
 
       console.log('SignUp User:', JSON.stringify(data.user, null, 2));
 
-      console.log('Upserting user profile into public.users');
-      const { error: upsertError } = await supabase.from('users').upsert({
-        user_id: data.user.id,
-        email,
-        first_name: firstName,
-        last_name: lastName,
-        middle_initial: middleInitial,
-        name: fullName,
-        role: 'user',
-        status: data.user.email_confirmed_at ? 'active' : 'pending',
-        device_token: mobileNumber || ''
-      });
+      console.log('Updating user profile in public.users');
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          middle_initial: middleInitial,
+          name: fullName,
+          role: 'user',
+          status: data.user.email_confirmed_at ? 'active' : 'pending',
+          device_token: mobileNumber || '',
+        })
+        .eq('user_id', data.user.id);
 
-      if (upsertError) {
-        console.error('Upsert Error:', JSON.stringify(upsertError, Object.getOwnPropertyNames(upsertError), 2));
-        throw new Error(`Upsert failed: ${upsertError.message || 'Unknown error'}`);
+      if (updateError) {
+        console.error('Update Error:', JSON.stringify(updateError, Object.getOwnPropertyNames(updateError), 2));
+        throw new Error(`Profile update failed: ${updateError.message || 'Unknown error'}`);
       }
 
       setError(null);

@@ -137,9 +137,14 @@ const SuperAdminDashboard: React.FC = () => {
   const [isSubmittingFeature, setIsSubmittingFeature] =
     useState<boolean>(false);
   const [isSubmittingReport, setIsSubmittingReport] = useState<boolean>(false);
+  const [showChangeFeatureStatusModal, setShowChangeFeatureStatusModal] =
+    useState<boolean>(false);
+  const [selectedFeatureUpdateForStatusChange, setSelectedFeatureUpdateForStatusChange] =
+    useState<FeatureUpdate | null>(null);
   const [notificationTab, setNotificationTab] = useState<"unread" | "all">(
     "unread"
   );
+  const [showArchivedReports, setShowArchivedReports] = useState<boolean>(false);
   const [iotDevices, setIotDevices] = useState<IotDevice[]>([]);
   const [newDeviceId, setNewDeviceId] = useState<string>("");
   const [isSubmittingReportAction, setIsSubmittingReportAction] =
@@ -589,6 +594,30 @@ const SuperAdminDashboard: React.FC = () => {
       setSuccessMessage(`Report ${action}ed successfully`);
     } catch (error: any) {
       setError(`Failed to ${action} report: ${error.message}`);
+    } finally {
+      setIsSubmittingReportAction(false);
+    }
+  };
+
+  const handleUnarchiveReport = async (reportId: number) => {
+    setIsSubmittingReportAction(true);
+    try {
+      const { error } = await supabase
+        .from("system_reports")
+        .update({ status: "reviewed", updated_at: new Date().toISOString() })
+        .eq("id", reportId);
+      if (error) throw error;
+
+      setReports((prev) =>
+        prev.map((report) =>
+          report.id === reportId
+            ? { ...report, status: "reviewed" }
+            : report
+        )
+      );
+      setSuccessMessage("Report has been unarchived.");
+    } catch (error: any) {
+      setError(`Failed to unarchive report: ${error.message}`);
     } finally {
       setIsSubmittingReportAction(false);
     }
@@ -1806,11 +1835,16 @@ const SuperAdminDashboard: React.FC = () => {
                                 </button>
                               </div>
                             ) : (
-                              <span className="text-xs text-gray-400">
-                                {update.status === "approved"
-                                  ? "Approved"
-                                  : "Rejected"}
-                              </span>
+                              <button
+                                onClick={() => {
+                                  setSelectedFeatureUpdateForStatusChange(update);
+                                  setShowChangeFeatureStatusModal(true);
+                                }}
+                                className="px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-xs font-medium flex items-center"
+                              >
+                                <FaCog size={10} className="mr-1" />
+                                Change Status
+                              </button>
                             )}
                           </td>
                         </tr>
@@ -1836,12 +1870,20 @@ const SuperAdminDashboard: React.FC = () => {
                     Generate and manage system reports
                   </p>
                 </div>
-                <button
-                  onClick={() => setShowGenerateReportModal(true)}
-                  className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] transition-colors flex items-center gap-2"
-                >
-                  <FaPlus size={14} /> Generate Report
-                </button>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setShowArchivedReports(!showArchivedReports)}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+                  >
+                    {showArchivedReports ? "Hide Archived" : "Show Archived"}
+                  </button>
+                  <button
+                    onClick={() => setShowGenerateReportModal(true)}
+                    className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#2B2B2B] transition-colors flex items-center gap-2"
+                  >
+                    <FaPlus size={14} /> Generate Report
+                  </button>
+                </div>
               </div>
 
               {/* Quick Stats */}
@@ -1943,7 +1985,11 @@ const SuperAdminDashboard: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      reports.map((report) => (
+                      reports
+                        .filter(
+                          (report) => showArchivedReports || report.status !== "archived"
+                        )
+                        .map((report) => (
                         <tr
                           key={report.id}
                           className="hover:bg-gray-50 transition-colors"
@@ -2048,6 +2094,21 @@ const SuperAdminDashboard: React.FC = () => {
                                     Archive
                                   </button>
                                 </>
+                              )}
+                              {report.status === "archived" && (
+                                <button
+                                  onClick={() =>
+                                    handleUnarchiveReport(report.id)
+                                  }
+                                  className={`px-3 py-1.5 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors text-xs font-medium flex items-center ${
+                                    isSubmittingReportAction
+                                      ? "opacity-50 cursor-not-allowed"
+                                      : ""
+                                  }`}
+                                  disabled={isSubmittingReportAction}
+                                >
+                                  Unarchive
+                                </button>
                               )}
                             </div>
                           </td>
@@ -2607,6 +2668,65 @@ const SuperAdminDashboard: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showChangeFeatureStatusModal && selectedFeatureUpdateForStatusChange && (
+        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Change Feature Status
+            </h3>
+            <p className="text-sm text-gray-600 mb-2">
+              Feature:{" "}
+              <span className="font-medium">
+                {selectedFeatureUpdateForStatusChange.name}
+              </span>
+            </p>
+            <p className="text-sm text-gray-600 mb-6">
+              Current Status:{" "}
+              <span className="font-medium">
+                {selectedFeatureUpdateForStatusChange.status}
+              </span>
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowChangeFeatureStatusModal(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              {selectedFeatureUpdateForStatusChange.status !== "approved" && (
+                <button
+                  onClick={() => {
+                    handleFeatureUpdate(
+                      selectedFeatureUpdateForStatusChange.id,
+                      "approved"
+                    );
+                    setShowChangeFeatureStatusModal(false);
+                  }}
+                  className="px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200"
+                >
+                  Change to Approved
+                </button>
+              )}
+              {selectedFeatureUpdateForStatusChange.status !== "rejected" && (
+                <button
+                  onClick={() => {
+                    handleFeatureUpdate(
+                      selectedFeatureUpdateForStatusChange.id,
+                      "rejected"
+                    );
+                    setShowChangeFeatureStatusModal(false);
+                  }}
+                  className="px-4 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200"
+                >
+                  Change to Rejected
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

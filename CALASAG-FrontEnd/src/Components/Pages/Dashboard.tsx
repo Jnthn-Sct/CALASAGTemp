@@ -145,14 +145,14 @@ const Dashboard: React.FC = () => {
   const [showConnectionOptions, setShowConnectionOptions] = useState<boolean>(false);
   const [showConnectionRequestsMenu, setShowConnectionRequestsMenu] = useState<boolean>(false);
   const [showCrisisModal, setShowCrisisModal] = useState<boolean>(false);
+  const [showReportConfirm, setShowReportConfirm] = useState<boolean>(false);
   const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [selectedEmergency, setSelectedEmergency] = useState<Emergency | null>(null);
   const [showCallConfirm, setShowCallConfirm] = useState<boolean>(false);
-  const [showReportConfirm, setShowReportConfirm] = useState<boolean>(false);
   const [showAlertConfirm, setShowAlertConfirm] = useState<boolean>(false);
-  const [selectedAlertType, setSelectedAlertType] = useState<string | null>(null);
   const [selectedEmergencyForAction, setSelectedEmergencyForAction] = useState<Emergency | null>(null);
+  const [selectedAlertType, setSelectedAlertType] = useState<string | null>(null);
   const [selectedCrisisAlert, setSelectedCrisisAlert] = useState<CrisisAlert | null>(null);
   const [originalCrisisType, setOriginalCrisisType] = useState<string>("Emergency");
   const [isSafe, setIsSafe] = useState<boolean>(false);
@@ -187,7 +187,10 @@ const Dashboard: React.FC = () => {
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
   const [selectedSearchProfile, setSelectedSearchProfile] = useState<SearchResult | null>(null);
   const [editProfileData, setEditProfileData] = useState<Partial<UserProfile>>({});
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+  const savedTheme = localStorage.getItem("theme");
+    return (savedTheme === "light" || savedTheme === "dark") ? savedTheme : "light";
+  });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   // Separate page states for different sections
@@ -907,14 +910,6 @@ const Dashboard: React.FC = () => {
       setAutoDismissError(`Failed to update profile: ${error.message}`);
     }
   };
-
-  // Load theme from localStorage on component mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
-  }, []);
 
   // Save theme.Data to localStorage when it changes
   useEffect(() => {
@@ -2136,41 +2131,9 @@ const Dashboard: React.FC = () => {
     setShowCallConfirm(true);
   };
 
-  const handleReport = (emergency: Emergency) => {
-    setSelectedEmergencyForAction(emergency);
-    setShowReportConfirm(true);
-  };
-
   const initiateCall = () => {
     window.open("tel:911", "_blank");
     setShowCallConfirm(false);
-  };
-
-  const submitReport = async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user || !selectedEmergencyForAction)
-        throw new Error("No user or emergency selected");
-
-      const newNotification = {
-        user_id: user.id,
-        type: "report",
-        notification_type: "report",
-        message: `Reported ${selectedEmergencyForAction.emergency_type} by ${selectedEmergencyForAction.name}`,
-        read: false,
-        created_at: new Date().toISOString(),
-      };
-      const { error } = await supabase
-        .from("notifications")
-        .insert(newNotification);
-      if (error) throw new Error(`Report notification error: ${error.message}`);
-      setShowReportConfirm(false);
-    } catch (error: any) {
-      console.error("Error submitting report:", error);
-      setAutoDismissError(`Failed to submit report: ${error.message}`);
-    }
   };
 
   const handleSendMessage = async () => {
@@ -2621,11 +2584,11 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
-                  <span className={`${themeClasses.deviceCardText}/90 font-medium`}>Device ID:</span>
-                  <span className={`${themeClasses.deviceCardText} font-bold`}>01-JD-C24</span>
+                  <span className={`${themeClasses.deviceCardText} text-[#FFFFFF] font-medium`}>Device ID:</span>
+                  <span className={`${themeClasses.deviceCardText} text-[#FFFFFF] font-bold`}>01-JD-C24</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
-                  <span className={`${themeClasses.deviceCardText}/90 font-medium`}>Status:</span>
+                  <span className={`${themeClasses.deviceCardText} text-[#FFFFFF] font-medium`}>Status:</span>
                   <span
                     className={`font-bold px-3 py-1 rounded-full text-sm ${deviceStatus === "Active"
                       ? "bg-green-500 text-white"
@@ -2820,24 +2783,17 @@ const Dashboard: React.FC = () => {
                           <div className="flex space-x-2 sm:space-x-3">
                             <button
                               onClick={() => handleViewLocation(emergency)}
-                              className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                              className="hover:text-[#FFD166] text-[#4ECDC4] px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
                             >
                               <FaMapMarkerAlt className="mr-1 sm:mr-2" />
                               View
                             </button>
                             <button
                               onClick={() => handleCallAssistance(emergency)}
-                              className="bg-[#FFD166] hover:bg-[#d88e00] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                              className="hover:text-green-500 text-[#4ECDC4] px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
                             >
                               <FaPhone className="mr-1 sm:mr-2" />
                               Call
-                            </button>
-                            <button
-                              onClick={() => handleReport(emergency)}
-                              className="bg-[#E63946] hover:bg-[#a33d16] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
-                            >
-                              <FaExclamationTriangle className="mr-1 sm:mr-2" />
-                              Report
                             </button>
                           </div>
                         </div>
@@ -3770,32 +3726,6 @@ const Dashboard: React.FC = () => {
                 className="bg-[#FFD166] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
                 Call
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showReportConfirm && selectedEmergencyForAction && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-md border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
-            <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
-              Confirm Report
-            </h2>
-            <p className={`${themeClasses.textSecondary} mb-6`}>
-              Report {selectedEmergencyForAction.emergency_type} by {selectedEmergencyForAction.name}?
-            </p>
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => setShowReportConfirm(false)}
-                className={`${themeClasses.buttonSecondary} px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitReport}
-                className="bg-[#E63946] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-              >
-                Report
               </button>
             </div>
           </div>

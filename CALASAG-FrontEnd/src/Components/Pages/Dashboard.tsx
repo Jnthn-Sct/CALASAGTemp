@@ -127,6 +127,32 @@ interface SearchResult {
   connectionStatus?: "connected" | "request_sent" | "request_received" | null;
 }
 
+const formatTimestamp = (timestamp: string): string => {
+  const messageDate = new Date(timestamp);
+  const today = new Date();
+
+  const isToday =
+    messageDate.getDate() === today.getDate() &&
+    messageDate.getMonth() === today.getMonth() &&
+    messageDate.getFullYear() === today.getFullYear();
+
+  if (isToday) {
+    return messageDate.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+  return messageDate.toLocaleDateString();
+};
+
+const getInitialTheme = (): "light" | "dark" => {
+  if (typeof window !== "undefined") {
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    if (savedTheme) return savedTheme;
+  }
+  return "light";
+};
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [activeUser, setActiveUser] = useState<string | null>(null);
@@ -185,9 +211,9 @@ const Dashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
-  const [selectedSearchProfile, setSelectedSearchProfile] = useState<SearchResult | null>(null);
+  const [selectedSearchProfile, setSelectedSearchProfile] = useState<SearchResult | UserProfile | null>(null);
   const [editProfileData, setEditProfileData] = useState<Partial<UserProfile>>({});
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">(getInitialTheme);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   // Separate page states for different sections
@@ -235,6 +261,33 @@ const Dashboard: React.FC = () => {
   };
 
   const themeClasses = getThemeClasses();
+
+  const sortedConnections = useMemo(() => {
+    if (!connections.length || !messages.length || !userProfile) {
+      return connections;
+    }
+
+    return [...connections].sort((a, b) => {
+      const lastMessageA = messages
+        .filter(
+          (msg) =>
+            (msg.sender_id === a.connected_user_id && msg.receiver_id === userProfile.id) ||
+            (msg.receiver_id === a.connected_user_id && msg.sender_id === userProfile.id)
+        )
+        .pop();
+      const lastMessageB = messages
+        .filter(
+          (msg) =>
+            (msg.sender_id === b.connected_user_id && msg.receiver_id === userProfile.id) ||
+            (msg.receiver_id === b.connected_user_id && msg.sender_id === userProfile.id)
+        )
+        .pop();
+
+      if (!lastMessageA) return 1;
+      if (!lastMessageB) return -1;
+      return new Date(lastMessageB.timestamp).getTime() - new Date(lastMessageA.timestamp).getTime();
+    });
+  }, [connections, messages, userProfile]);
 
   useEffect(() => {
     const updatePresence = async () => {
@@ -907,14 +960,6 @@ const Dashboard: React.FC = () => {
       setAutoDismissError(`Failed to update profile: ${error.message}`);
     }
   };
-
-  // Load theme from localStorage on component mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
-  }, []);
 
   // Save theme.Data to localStorage when it changes
   useEffect(() => {
@@ -2859,32 +2904,52 @@ const Dashboard: React.FC = () => {
                     {isLoading ? (
                       <p className={themeClasses.textSecondary}>Loading messages...</p>
                     ) : connections.length > 0 ? (
-                      connections.map((connection) => (
-                        <div
-                          key={connection.id}
-                          className={`flex items-center justify-between space-x-4 mb-2 cursor-pointer ${themeClasses.hover} p-2 rounded-2xl hover:scale-105 transition-all duration-300`}
-                          onClick={() => handleSelectConnection(connection)}
-                        >
-                          <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
-                              {connection.avatar ? (
-                                <img
-                                  src={connection.avatar}
-                                  className="w-full h-full rounded-full"
-                                  alt={connection.name}
-                                />
-                              ) : (
-                                <FaUser className="text-white" />
-                              )}
-                            </div>
-                            <span className={`${themeClasses.textPrimary} font-bold`}>{connection.name}</span>
+                  sortedConnections.map((connection) => {
+                    const lastMessage = messages
+                      .filter(
+                        (msg) =>
+                          (msg.sender_id === connection.connected_user_id && msg.receiver_id === userProfile?.id) ||
+                          (msg.receiver_id === connection.connected_user_id && msg.sender_id === userProfile?.id)
+                      )
+                      .pop();
+
+                    return (
+                      <div
+                        key={connection.id}
+                        className={`flex items-center justify-between space-x-4 mb-2 cursor-pointer ${themeClasses.hover} p-2 rounded-2xl hover:scale-105 transition-all duration-300`}
+                        onClick={() => handleSelectConnection(connection)}
+                      >
+                        <div className="flex items-center space-x-4 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex-shrink-0 flex items-center justify-center text-white">
+                            {connection.avatar ? (
+                              <img
+                                src={connection.avatar}
+                                className="w-full h-full rounded-full"
+                                alt={connection.name}
+                              />
+                            ) : (
+                              <FaUser className="text-white" />
+                            )}
                           </div>
-                          <span
-                            className={`h-3 w-3 rounded-full ${connection.is_online ? "bg-green-500" : "bg-gray-400"
-                              }`}
-                          ></span>
+                          <div className="min-w-0">
+                            <span className={`${themeClasses.textPrimary} font-bold`}>{connection.name}</span>
+                            {lastMessage && (
+                              <p className={`text-sm ${themeClasses.textSecondary} truncate`}>
+                                {lastMessage.sender_id === userProfile?.id ? 'You: ' : ''}
+                                {lastMessage.content}
+                              </p>
+                            )}
+                          </div>
+                            </div>
+                        <div className="flex flex-col items-end flex-shrink-0">
+                          {lastMessage && (
+                            <span className={`text-xs ${themeClasses.textTertiary} mb-1`}>{formatTimestamp(lastMessage.timestamp)}</span>
+                          )}
+                          <span className={`h-3 w-3 rounded-full ${connection.is_online ? "bg-green-500" : "bg-gray-400"}`}></span>
                         </div>
-                      ))
+                          </div>
+                    );
+                  })
                     ) : (
                       <p className={themeClasses.textSecondary}>No connections to message.</p>
                     )}

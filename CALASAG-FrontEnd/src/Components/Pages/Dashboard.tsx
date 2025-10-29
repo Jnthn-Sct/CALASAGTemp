@@ -58,6 +58,7 @@ interface Connection {
   avatar: string | null;
   connected_user_id: string;
   is_online?: boolean;
+  lastMessageTimestamp?: string;
 }
 
 interface ConnectionRequest {
@@ -95,6 +96,7 @@ interface Message {
   timestamp: string;
   sender_name: string;
   receiver_name: string;
+  read: boolean;
 }
 
 interface CrisisAlert {
@@ -241,6 +243,63 @@ const Dashboard: React.FC = () => {
 
   const themeClasses = getThemeClasses();
 
+  const formatLastMessageTime = (timestamp: string) => {
+    const messageDate = new Date(timestamp);
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    if (messageDate.toDateString() === now.toDateString()) {
+      // Today: show time
+      return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (messageDate.toDateString() === yesterday.toDateString()) {
+      // Yesterday: show "Yesterday"
+      return 'Yesterday';
+    } else {
+      // Older: show date
+      return messageDate.toLocaleDateString();
+    }
+  };
+  const sortedConnections = useMemo(() => {
+    if (!connections.length || !messages.length || !userProfile) {
+      return connections;
+    }
+
+    const connectionsWithLastMessage = connections.map(connection => {
+      const lastMessage = messages
+        .filter(
+          msg =>
+            (msg.sender_id === userProfile.id && msg.receiver_id === connection.connected_user_id) ||
+            (msg.receiver_id === userProfile.id && msg.sender_id === connection.connected_user_id)
+        )
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+
+      return {
+        ...connection,
+        lastMessageTimestamp: lastMessage ? lastMessage.timestamp : '1970-01-01T00:00:00Z',
+      };
+    });
+
+    return connectionsWithLastMessage.sort(
+      (a, b) => new Date(b.lastMessageTimestamp!).getTime() - new Date(a.lastMessageTimestamp!).getTime()
+    );
+  }, [connections, messages, userProfile]);
+
+  // Calculate total unread messages for the current user
+  const totalUnreadMessages = useMemo(() => {
+    if (!userProfile) return 0;
+    return messages.filter(
+      (msg) => msg.receiver_id === userProfile.id && !msg.read
+    ).length;
+  }, [messages, userProfile]);
+
+  // Calculate unread messages count for a specific connection
+  const getUnreadMessagesCountForConnection = (connectedUserId: string) => {
+    if (!userProfile) return 0;
+    return messages.filter(
+      (msg) => msg.sender_id === connectedUserId && msg.receiver_id === userProfile.id && !msg.read
+    ).length;
+  };
   useEffect(() => {
     const updatePresence = async () => {
       const {
@@ -1073,7 +1132,7 @@ const Dashboard: React.FC = () => {
             .from("users")
             .select("name, avatar")
             .eq("user_id", connectedUserId)
-            .single();
+            .maybeSingle();
           if (userError) {
             console.error(`Error fetching user ${connectedUserId}:`, userError);
             continue;
@@ -2261,18 +2320,43 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleSelectConnection = (connection: Connection) => {
+  const handleSelectConnection = async (connection: Connection) => {
     setSelectedConnection(connection);
     setCurrentChatRecipient(connection.name);
     setShowChatList(false);
     setShowMessages(true);
     setActiveTab("message");
 
+<<<<<<< HEAD
     // Mark messages as read when opening conversation
     setUnreadMessages((prev) => ({
       ...prev,
       [connection.connected_user_id]: 0,
     }));
+=======
+    // Mark messages as read when chat is opened
+    if (userProfile) {
+      const unreadMessagesFromThisConnection = messages.filter(
+        (msg) => msg.sender_id === connection.connected_user_id && msg.receiver_id === userProfile.id && !msg.read
+      );
+
+      if (unreadMessagesFromThisConnection.length > 0) {
+        const messageIdsToMarkRead = unreadMessagesFromThisConnection.map(msg => msg.id);
+        const { error } = await supabase
+          .from("messages")
+          .update({ read: true })
+          .in("id", messageIdsToMarkRead);
+
+        if (error) {
+          console.error("Error marking messages as read:", error);
+          setAutoDismissError(`Failed to mark messages as read: ${error.message}`);
+        } else {
+          // Update local state
+          setMessages(prevMessages => prevMessages.map(msg => messageIdsToMarkRead.includes(msg.id) ? { ...msg, read: true } : msg));
+        }
+      }
+    }
+>>>>>>> b23e1eac0d8c0bafa82d0081fc34933f53b3617d
   };
 
   const handleConnectionAction = (action: string, connection: Connection) => {
@@ -2424,7 +2508,7 @@ const Dashboard: React.FC = () => {
             className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 relative ${activeTab === "message"
               ? "text-[#4ECDC4] border-[#4ECDC4] bg-[#4ECDC4]/10 font-bold "
               : `${themeClasses.textSecondary} border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105`
-              }`}
+              } relative`}
           >
             <div className="relative">
               <FaEnvelope size={20} />
@@ -2435,6 +2519,11 @@ const Dashboard: React.FC = () => {
               )}
             </div>
             <span className="text-xs mt-1">Message</span>
+            {totalUnreadMessages > 0 && (
+              <span className="absolute -top-1 right-0 bg-[#E63946] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold">
+                {totalUnreadMessages}
+              </span>
+            )}
           </button>
           <button
             onClick={() => handleNavigation("report")}
@@ -2949,6 +3038,7 @@ const Dashboard: React.FC = () => {
                       Messages
                     </h2>
                     {isLoading ? (
+<<<<<<< HEAD
                       <div className="flex items-center justify-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4ECDC4]"></div>
                         <p className={`${themeClasses.textSecondary} ml-2`}>Loading...</p>
@@ -3014,6 +3104,47 @@ const Dashboard: React.FC = () => {
                             </div>
                           );
                         })
+=======
+                      <p className={themeClasses.textSecondary}>Loading connections...</p>
+                    ) : sortedConnections.length > 0 ? (
+                      sortedConnections.map((connection) => (
+                        <div
+                          key={connection.id}
+                          className={`flex items-center justify-between space-x-4 mb-2 cursor-pointer ${themeClasses.hover} p-2 rounded-2xl hover:scale-105 transition-all duration-300`}
+                          onClick={() => handleSelectConnection(connection)}
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="relative w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white flex-shrink-0">
+                              {connection.avatar ? (
+                                <>
+                                  <img
+                                    src={connection.avatar}
+                                    className="w-full h-full rounded-full"
+                                    alt={connection.name}
+                                  />
+                                  {getUnreadMessagesCountForConnection(connection.connected_user_id) > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-[#E63946] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold">
+                                      {getUnreadMessagesCountForConnection(connection.connected_user_id)}
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <FaUser className="text-white" />
+                              )}
+                          </div>
+                          <div>
+                            <span className={`${themeClasses.textPrimary} font-bold`}>{connection.name}</span>
+                            {connection.lastMessageTimestamp && connection.lastMessageTimestamp !== '1970-01-01T00:00:00Z' && (
+                              <p className={`text-xs ${themeClasses.textSecondary}`}>{formatLastMessageTime(connection.lastMessageTimestamp)}</p>
+                            )}
+                          </div>
+                          </div>
+                        <span className={`h-3 w-3 rounded-full flex-shrink-0 ${connection.is_online ? "bg-green-500" : "bg-gray-400"
+                              }`}
+                          ></span>
+                        </div>
+                      ))
+>>>>>>> b23e1eac0d8c0bafa82d0081fc34933f53b3617d
                     ) : (
                       <p className={themeClasses.textSecondary}>No connections to message.</p>
                     )}

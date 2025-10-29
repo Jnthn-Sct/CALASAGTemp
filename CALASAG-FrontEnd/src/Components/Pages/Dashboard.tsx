@@ -96,6 +96,7 @@ interface Message {
   timestamp: string;
   sender_name: string;
   receiver_name: string;
+  read: boolean;
 }
 
 interface CrisisAlert {
@@ -282,6 +283,21 @@ const Dashboard: React.FC = () => {
     );
   }, [connections, messages, userProfile]);
 
+  // Calculate total unread messages for the current user
+  const totalUnreadMessages = useMemo(() => {
+    if (!userProfile) return 0;
+    return messages.filter(
+      (msg) => msg.receiver_id === userProfile.id && !msg.read
+    ).length;
+  }, [messages, userProfile]);
+
+  // Calculate unread messages count for a specific connection
+  const getUnreadMessagesCountForConnection = (connectedUserId: string) => {
+    if (!userProfile) return 0;
+    return messages.filter(
+      (msg) => msg.sender_id === connectedUserId && msg.receiver_id === userProfile.id && !msg.read
+    ).length;
+  };
   useEffect(() => {
     const updatePresence = async () => {
       const {
@@ -2228,12 +2244,35 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleSelectConnection = (connection: Connection) => {
+  const handleSelectConnection = async (connection: Connection) => {
     setSelectedConnection(connection);
     setCurrentChatRecipient(connection.name);
     setShowChatList(false);
     setShowMessages(true);
     setActiveTab("message");
+
+    // Mark messages as read when chat is opened
+    if (userProfile) {
+      const unreadMessagesFromThisConnection = messages.filter(
+        (msg) => msg.sender_id === connection.connected_user_id && msg.receiver_id === userProfile.id && !msg.read
+      );
+
+      if (unreadMessagesFromThisConnection.length > 0) {
+        const messageIdsToMarkRead = unreadMessagesFromThisConnection.map(msg => msg.id);
+        const { error } = await supabase
+          .from("messages")
+          .update({ read: true })
+          .in("id", messageIdsToMarkRead);
+
+        if (error) {
+          console.error("Error marking messages as read:", error);
+          setAutoDismissError(`Failed to mark messages as read: ${error.message}`);
+        } else {
+          // Update local state
+          setMessages(prevMessages => prevMessages.map(msg => messageIdsToMarkRead.includes(msg.id) ? { ...msg, read: true } : msg));
+        }
+      }
+    }
   };
 
   const handleConnectionAction = (action: string, connection: Connection) => {
@@ -2349,10 +2388,15 @@ const Dashboard: React.FC = () => {
             className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 ${activeTab === "message"
               ? "text-[#4ECDC4] border-[#4ECDC4] bg-[#4ECDC4]/10 font-bold "
               : `${themeClasses.textSecondary} border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105`
-              }`}
+              } relative`}
           >
             <FaEnvelope size={20} />
             <span className="text-xs mt-1">Message</span>
+            {totalUnreadMessages > 0 && (
+              <span className="absolute -top-1 right-0 bg-[#E63946] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold">
+                {totalUnreadMessages}
+              </span>
+            )}
           </button>
           <button
             onClick={() => handleNavigation("report")}
@@ -2865,13 +2909,20 @@ const Dashboard: React.FC = () => {
                           onClick={() => handleSelectConnection(connection)}
                         >
                           <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
+                            <div className="relative w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white flex-shrink-0">
                               {connection.avatar ? (
-                                <img
-                                  src={connection.avatar}
-                                  className="w-full h-full rounded-full"
-                                  alt={connection.name}
-                                />
+                                <>
+                                  <img
+                                    src={connection.avatar}
+                                    className="w-full h-full rounded-full"
+                                    alt={connection.name}
+                                  />
+                                  {getUnreadMessagesCountForConnection(connection.connected_user_id) > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-[#E63946] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold">
+                                      {getUnreadMessagesCountForConnection(connection.connected_user_id)}
+                                    </span>
+                                  )}
+                                </>
                               ) : (
                                 <FaUser className="text-white" />
                               )}

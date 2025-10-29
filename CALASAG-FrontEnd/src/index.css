@@ -1,10 +1,55 @@
 @import "tailwindcss";
 
+/* Global subtle scrollbar styles for all elements */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}
+
+*::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.08);
+	border-radius: 10px;
+	transition: background 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	background: rgba(0, 0, 0, 0.15);
+}
+
+*::-webkit-scrollbar-corner {
+	background: transparent;
+}
+
+/* Dark theme scrollbar styles */
+.dark * {
+	scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 255, 255, 0.15);
+}
+
 /* Utility to hide native scrollbars while preserving scroll functionality */
 .scrollbar-hidden {
-	-ms-overflow-style: none; /* IE and Edge */
-	scrollbar-width: none; /* Firefox */
+	-ms-overflow-style: none;
+	/* IE and Edge */
+	scrollbar-width: none;
+	/* Firefox */
 }
+
 .scrollbar-hidden::-webkit-scrollbar {
 	width: 0px;
 	height: 0px;
@@ -16,19 +61,64 @@
 .scroll-on-hover {
 	overflow: hidden;
 }
+
 .scroll-on-hover:hover {
 	overflow-y: auto;
 	overflow-x: hidden;
 }
 
-/* Use a subtle thumb for WebKit scrollbars on hover */
+/* Even more subtle scrollbar for hover containers */
 .scroll-on-hover::-webkit-scrollbar {
-	width: 10px;
+	width: 4px;
 }
+
 .scroll-on-hover::-webkit-scrollbar-thumb {
-	background: rgba(0,0,0,0.18);
-	border-radius: 9999px;
+	background: rgba(0, 0, 0, 0.05);
+	border-radius: 10px;
+	transition: background 0.2s ease;
 }
+
+.scroll-on-hover::-webkit-scrollbar-thumb:hover {
+	background: rgba(0, 0, 0, 0.1);
+}
+
 .scroll-on-hover::-webkit-scrollbar-track {
 	background: transparent;
+}
+
+/* Dark theme for hover scrollbars */
+.dark .scroll-on-hover::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.dark .scroll-on-hover::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 255, 255, 0.1);
+}
+
+/* Custom scrollbar for specific containers that need to be more visible */
+.scrollbar-thin {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+	width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.1);
+	border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+/* Dark theme for thin scrollbars */
+.dark .scrollbar-thin {
+	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.1);
 }

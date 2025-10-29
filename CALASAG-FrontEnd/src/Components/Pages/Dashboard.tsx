@@ -58,6 +58,7 @@ interface Connection {
   avatar: string | null;
   connected_user_id: string;
   is_online?: boolean;
+  lastMessageTimestamp?: string;
 }
 
 interface ConnectionRequest {
@@ -238,6 +239,48 @@ const Dashboard: React.FC = () => {
   };
 
   const themeClasses = getThemeClasses();
+
+  const formatLastMessageTime = (timestamp: string) => {
+    const messageDate = new Date(timestamp);
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    if (messageDate.toDateString() === now.toDateString()) {
+      // Today: show time
+      return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (messageDate.toDateString() === yesterday.toDateString()) {
+      // Yesterday: show "Yesterday"
+      return 'Yesterday';
+    } else {
+      // Older: show date
+      return messageDate.toLocaleDateString();
+    }
+  };
+  const sortedConnections = useMemo(() => {
+    if (!connections.length || !messages.length || !userProfile) {
+      return connections;
+    }
+
+    const connectionsWithLastMessage = connections.map(connection => {
+      const lastMessage = messages
+        .filter(
+          msg =>
+            (msg.sender_id === userProfile.id && msg.receiver_id === connection.connected_user_id) ||
+            (msg.receiver_id === userProfile.id && msg.sender_id === connection.connected_user_id)
+        )
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+
+      return {
+        ...connection,
+        lastMessageTimestamp: lastMessage ? lastMessage.timestamp : '1970-01-01T00:00:00Z',
+      };
+    });
+
+    return connectionsWithLastMessage.sort(
+      (a, b) => new Date(b.lastMessageTimestamp!).getTime() - new Date(a.lastMessageTimestamp!).getTime()
+    );
+  }, [connections, messages, userProfile]);
 
   useEffect(() => {
     const updatePresence = async () => {
@@ -2813,9 +2856,9 @@ const Dashboard: React.FC = () => {
                       Messages
                     </h2>
                     {isLoading ? (
-                      <p className={themeClasses.textSecondary}>Loading messages...</p>
-                    ) : connections.length > 0 ? (
-                      connections.map((connection) => (
+                      <p className={themeClasses.textSecondary}>Loading connections...</p>
+                    ) : sortedConnections.length > 0 ? (
+                      sortedConnections.map((connection) => (
                         <div
                           key={connection.id}
                           className={`flex items-center justify-between space-x-4 mb-2 cursor-pointer ${themeClasses.hover} p-2 rounded-2xl hover:scale-105 transition-all duration-300`}
@@ -2832,11 +2875,15 @@ const Dashboard: React.FC = () => {
                               ) : (
                                 <FaUser className="text-white" />
                               )}
-                            </div>
-                            <span className={`${themeClasses.textPrimary} font-bold`}>{connection.name}</span>
                           </div>
-                          <span
-                            className={`h-3 w-3 rounded-full ${connection.is_online ? "bg-green-500" : "bg-gray-400"
+                          <div>
+                            <span className={`${themeClasses.textPrimary} font-bold`}>{connection.name}</span>
+                            {connection.lastMessageTimestamp && connection.lastMessageTimestamp !== '1970-01-01T00:00:00Z' && (
+                              <p className={`text-xs ${themeClasses.textSecondary}`}>{formatLastMessageTime(connection.lastMessageTimestamp)}</p>
+                            )}
+                          </div>
+                          </div>
+                        <span className={`h-3 w-3 rounded-full flex-shrink-0 ${connection.is_online ? "bg-green-500" : "bg-gray-400"
                               }`}
                           ></span>
                         </div>

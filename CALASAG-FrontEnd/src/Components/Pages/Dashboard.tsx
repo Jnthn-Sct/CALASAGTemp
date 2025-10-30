@@ -2041,6 +2041,46 @@ const Dashboard: React.FC = () => {
           .single();
         if (error) throw new Error(`Mark safe error: ${error.message}`);
 
+        // Notify connections that the user is safe
+        const { data: crisisData, error: crisisError } = await supabase
+          .from('crisis_alerts')
+          .select('user_id')
+          .eq('id', crisisId)
+          .single();
+
+        if (crisisError) {
+          console.error('Error fetching crisis reporter:', crisisError);
+        }
+
+        const crisisReporterId = crisisData?.user_id;
+
+        // Create a set of unique IDs to notify, including connections and the original reporter
+        const recipientIds = new Set(connections.map(c => c.connected_user_id));
+        if (crisisReporterId && crisisReporterId !== user.id) {
+          recipientIds.add(crisisReporterId);
+        }
+        const connectionIds = connections.map(c => c.connected_user_id);
+        if (connectionIds.length > 0) {
+          const crisisType = await getCrisisType(crisisId);
+          const notificationMessage = `${userProfile?.name || 'A connection'
+            } has marked themselves as safe for the ${crisisType} crisis.`;
+
+          const notificationsToInsert = connectionIds.map(connectionId => ({
+            user_id: connectionId, // This should be the recipient's ID
+            type: 'connection_safe',
+            notification_type: 'connection_safe',
+            message: notificationMessage,
+            sender_id: user.id,
+          }));
+
+          const { error: notificationError } = await supabase
+            .from('notifications')
+            .insert(notificationsToInsert);
+
+          if (notificationError) {
+            console.error('Failed to create safe notifications for connections:', notificationError);
+          }
+        }
         setUserSafeAlerts((prev) => {
           if (prev.some((alert) => alert.id === insertedAlert.id)) {
             return prev;

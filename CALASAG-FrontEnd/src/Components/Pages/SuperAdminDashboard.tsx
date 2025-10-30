@@ -655,7 +655,7 @@ const SuperAdminDashboard: React.FC = () => {
       if (activeUsersError) throw activeUsersError;
 
       const activeUserPercentage =
-        totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;
+        (totalUsers ?? 0) > 0 ? Math.round(((activeUsers ?? 0) / (totalUsers ?? 1)) * 100) : 0;
 
       // 3. Alert System: Active vs Resolved
       const { data: alerts, error: alertsError } = await supabase
@@ -2204,7 +2204,9 @@ const SuperAdminDashboard: React.FC = () => {
                           {new Date(device.created_at).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {usersById.get(device.user_id)?.name || device.user_id || "Unassigned"}
+                          {device.user_id
+                            ? usersById.get(device.user_id)?.name || "Assigned (Unknown Name)"
+                            : "Unassigned"}
                         </td>
                       </tr>
                     ))}

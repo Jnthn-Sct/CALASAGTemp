@@ -270,7 +270,7 @@ const AdminDashboard: React.FC = () => {
   const [filterSeverity, setFilterSeverity] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  const [newSafetyTip, setNewSafetyTip] = useState({
+  const [newSafetyTip, setNewSafetyTip] = useState<{ name: string; content: string; icon: string | null }>({
     name: "",
     content: "",
     icon: null,
@@ -738,7 +738,7 @@ const AdminDashboard: React.FC = () => {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "safety_tips" },
-        () => {
+        (_payload) => {
           loadSafetyTips();
         }
       )
@@ -834,7 +834,7 @@ const AdminDashboard: React.FC = () => {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "crisis_alerts" },
-        () => {
+        (_payload) => {
           loadCrisis();
           loadCrisisCounts();
         }
@@ -847,7 +847,7 @@ const AdminDashboard: React.FC = () => {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "incident_actions" },
-        (payload) => {
+        (_payload) => {
           // Set indicator for new activity
           setHasNewActivity(true);
 
@@ -863,7 +863,7 @@ const AdminDashboard: React.FC = () => {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications" },
-        () => {
+        (_payload) => {
           // Refresh notifications when changes occur
         }
       )
@@ -878,7 +878,7 @@ const AdminDashboard: React.FC = () => {
           schema: "public",
           table: "users",
         },
-        () => {
+        (_payload) => {
           loadUsersBase();
           loadIncidentCounts();
         }
@@ -1248,7 +1248,9 @@ const AdminDashboard: React.FC = () => {
         // Update local state
         setSafetyTips((prev) =>
           prev.map((tip) =>
-            tip.id === editedSafetyTip.id ? editedSafetyTip : tip
+            tip.id === editedSafetyTip.id
+              ? { ...tip, ...editedSafetyTip }
+              : tip
           )
         );
         setIsEditingSafetyTip(false);

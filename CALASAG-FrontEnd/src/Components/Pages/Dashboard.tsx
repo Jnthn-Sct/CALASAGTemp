@@ -1155,6 +1155,7 @@ const Dashboard: React.FC = () => {
         if (!initialMessagesError && initialMessagesData) {
           const decryptedMessages: Message[] = [];
           const lastTimes: { [userId: string]: string } = {};
+          const initialUnreadCounts: { [userId: string]: number } = {};
 
           for (const msg of initialMessagesData) {
             try {
@@ -1174,6 +1175,11 @@ const Dashboard: React.FC = () => {
 
               decryptedMessages.push(decryptedMessage);
 
+              // Calculate initial unread counts
+              if (msg.receiver_id === user.id && !msg.read) {
+                initialUnreadCounts[msg.sender_id] = (initialUnreadCounts[msg.sender_id] || 0) + 1;
+              }
+
               // Track last message times for sorting (but don't count as unread during initialization)
               const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
               if (!lastTimes[otherUserId] || new Date(msg.timestamp) > new Date(lastTimes[otherUserId])) {
@@ -1186,7 +1192,8 @@ const Dashboard: React.FC = () => {
 
           setMessages(decryptedMessages);
           setLastMessageTimes(lastTimes);
-          // Don't set unread messages during initialization - only track new messages in real-time
+          // Set initial unread messages count
+          setUnreadMessages(initialUnreadCounts);
         }
 
         const { data: requestsData, error: requestsError } = await supabase
@@ -2452,14 +2459,7 @@ const Dashboard: React.FC = () => {
               : `${themeClasses.textSecondary} border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105`
               } relative`}
           >
-            <div className="relative">
-              <FaEnvelope size={20} />
-              {Object.values(unreadMessages).filter(count => count > 0).length > 0 && (
-                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
-                  {Object.values(unreadMessages).filter(count => count > 0).length}
-                </div>
-              )}
-            </div>
+            <FaEnvelope size={20} />
             <span className="text-xs mt-1">Message</span>
             {totalUnreadMessages > 0 && (
               <span className="absolute -top-1 right-0 bg-[#E63946] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold">

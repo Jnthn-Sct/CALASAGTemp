@@ -3040,7 +3040,7 @@ const Dashboard: React.FC = () => {
                                     <div className="flex items-center space-x-2">
                                       {lastMessageTime && (
                                         <span className={`text-xs ${themeClasses.textSecondary}`}>
-                                          {new Date(lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {formatLastMessageTime(lastMessageTime)}
                                         </span>
                                       )}
                                       <span

@@ -2242,7 +2242,7 @@ const Dashboard: React.FC = () => {
       setSelectedSearchProfile({
         id: connection.connected_user_id,
         name: connection.name,
-        email: "N/A",
+        email: connection.connected_user_id,
         avatar: connection.avatar,
       });
       setShowProfile(true);

@@ -33,7 +33,6 @@ import { supabase } from "../../db";
 import CryptoJS from "crypto-js";
 
 const secretKey = import.meta.env.VITE_ENCRYPTION_KEY;
-import { FaHouseFloodWater } from "react-icons/fa6";
 
 // Interfaces
 interface Location {
@@ -58,6 +57,7 @@ interface Connection {
   avatar: string | null;
   connected_user_id: string;
   is_online?: boolean;
+  lastMessageTimestamp?: string;
 }
 
 interface ConnectionRequest {
@@ -95,6 +95,7 @@ interface Message {
   timestamp: string;
   sender_name: string;
   receiver_name: string;
+  read: boolean;
 }
 
 interface CrisisAlert {
@@ -145,14 +146,14 @@ const Dashboard: React.FC = () => {
   const [showConnectionOptions, setShowConnectionOptions] = useState<boolean>(false);
   const [showConnectionRequestsMenu, setShowConnectionRequestsMenu] = useState<boolean>(false);
   const [showCrisisModal, setShowCrisisModal] = useState<boolean>(false);
+  // const [showReportConfirm, setShowReportConfirm] = useState<boolean>(false);
   const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [selectedEmergency, setSelectedEmergency] = useState<Emergency | null>(null);
   const [showCallConfirm, setShowCallConfirm] = useState<boolean>(false);
-  const [showReportConfirm, setShowReportConfirm] = useState<boolean>(false);
   const [showAlertConfirm, setShowAlertConfirm] = useState<boolean>(false);
-  const [selectedAlertType, setSelectedAlertType] = useState<string | null>(null);
   const [selectedEmergencyForAction, setSelectedEmergencyForAction] = useState<Emergency | null>(null);
+  const [selectedAlertType, setSelectedAlertType] = useState<string | null>(null);
   const [selectedCrisisAlert, setSelectedCrisisAlert] = useState<CrisisAlert | null>(null);
   const [originalCrisisType, setOriginalCrisisType] = useState<string>("Emergency");
   const [isSafe, setIsSafe] = useState<boolean>(false);
@@ -163,6 +164,8 @@ const Dashboard: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatRecipient, setCurrentChatRecipient] = useState<string>("");
   const [showChatList, setShowChatList] = useState<boolean>(true);
+  const [unreadMessages, setUnreadMessages] = useState<{ [userId: string]: number }>({});
+  const [lastMessageTimes, setLastMessageTimes] = useState<{ [userId: string]: string }>({});
   const [messageText, setMessageText] = useState("");
   const [messageSent, setMessageSent] = useState(false);
   const [showSafetyTipModal, setShowSafetyTipModal] = useState<boolean>(false);
@@ -177,17 +180,19 @@ const Dashboard: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [errorTimeoutId, setErrorTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [successTimeoutId, setSuccessTimeoutId] = useState<NodeJS.Timeout | null>(null);
-  const [userLocation, setUserLocation] = useState<Location>({
+  const [userLocation] = useState<Location>({
     lat: 14.5995,
     lng: 120.9842,
   });
-  const [emergencyFilter, setEmergencyFilter] = useState<"nearby" | "all">("nearby");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
   const [selectedSearchProfile, setSelectedSearchProfile] = useState<SearchResult | null>(null);
   const [editProfileData, setEditProfileData] = useState<Partial<UserProfile>>({});
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    const savedTheme = localStorage.getItem("theme");
+    return (savedTheme === "light" || savedTheme === "dark") ? savedTheme : "light";
+  });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   // Separate page states for different sections
@@ -198,7 +203,7 @@ const Dashboard: React.FC = () => {
     "unread"
   );
   const alertsPerPage = 4;
-  const emergenciesPerPage = 6;
+  // const emergenciesPerPage = 6;
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Theme utility functions
@@ -236,6 +241,63 @@ const Dashboard: React.FC = () => {
 
   const themeClasses = getThemeClasses();
 
+  const formatLastMessageTime = (timestamp: string) => {
+    const messageDate = new Date(timestamp);
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    if (messageDate.toDateString() === now.toDateString()) {
+      // Today: show time
+      return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (messageDate.toDateString() === yesterday.toDateString()) {
+      // Yesterday: show "Yesterday"
+      return 'Yesterday';
+    } else {
+      // Older: show date
+      return messageDate.toLocaleDateString();
+    }
+  };
+  const sortedConnections = useMemo(() => {
+    if (!connections.length || !messages.length || !userProfile) {
+      return connections;
+    }
+
+    const connectionsWithLastMessage = connections.map(connection => {
+      const lastMessage = messages
+        .filter(
+          msg =>
+            (msg.sender_id === userProfile.id && msg.receiver_id === connection.connected_user_id) ||
+            (msg.receiver_id === userProfile.id && msg.sender_id === connection.connected_user_id)
+        )
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+
+      return {
+        ...connection,
+        lastMessageTimestamp: lastMessage ? lastMessage.timestamp : '1970-01-01T00:00:00Z',
+      };
+    });
+
+    return connectionsWithLastMessage.sort(
+      (a, b) => new Date(b.lastMessageTimestamp!).getTime() - new Date(a.lastMessageTimestamp!).getTime()
+    );
+  }, [connections, messages, userProfile]);
+
+  // Calculate total unread messages for the current user
+  const totalUnreadMessages = useMemo(() => {
+    if (!userProfile) return 0;
+    return messages.filter(
+      (msg) => msg.receiver_id === userProfile.id && !msg.read
+    ).length;
+  }, [messages, userProfile]);
+
+  // Calculate unread messages count for a specific connection
+  const getUnreadMessagesCountForConnection = (connectedUserId: string) => {
+    if (!userProfile) return 0;
+    return messages.filter(
+      (msg) => msg.sender_id === connectedUserId && msg.receiver_id === userProfile.id && !msg.read
+    ).length;
+  };
   useEffect(() => {
     const updatePresence = async () => {
       const {
@@ -908,14 +970,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Load theme from localStorage on component mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
-  }, []);
-
   // Save theme.Data to localStorage when it changes
   useEffect(() => {
     localStorage.setItem("theme", theme);
@@ -1076,7 +1130,7 @@ const Dashboard: React.FC = () => {
             .from("users")
             .select("name, avatar")
             .eq("user_id", connectedUserId)
-            .single();
+            .maybeSingle();
           if (userError) {
             console.error(`Error fetching user ${connectedUserId}:`, userError);
             continue;
@@ -1090,6 +1144,50 @@ const Dashboard: React.FC = () => {
           });
         }
         setConnections(formattedConnections);
+
+        // Initialize unread messages and last message times
+        const { data: initialMessagesData, error: initialMessagesError } = await supabase
+          .from("messages")
+          .select("*")
+          .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+          .order("timestamp", { ascending: false });
+
+        if (!initialMessagesError && initialMessagesData) {
+          const decryptedMessages: Message[] = [];
+          const lastTimes: { [userId: string]: string } = {};
+
+          for (const msg of initialMessagesData) {
+            try {
+              const bytes = CryptoJS.AES.decrypt(msg.content, secretKey);
+              const plaintext = bytes.toString(CryptoJS.enc.Utf8);
+
+              const decryptedMessage = {
+                id: msg.id,
+                sender_id: msg.sender_id,
+                receiver_id: msg.receiver_id,
+                content: plaintext,
+                timestamp: msg.timestamp,
+                sender_name: msg.sender_name || "Unknown User",
+                receiver_name: msg.receiver_name || "Unknown User",
+                read: msg.read || false,
+              };
+
+              decryptedMessages.push(decryptedMessage);
+
+              // Track last message times for sorting (but don't count as unread during initialization)
+              const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+              if (!lastTimes[otherUserId] || new Date(msg.timestamp) > new Date(lastTimes[otherUserId])) {
+                lastTimes[otherUserId] = msg.timestamp;
+              }
+            } catch (error) {
+              console.error("Error decrypting message during initialization:", error);
+            }
+          }
+
+          setMessages(decryptedMessages);
+          setLastMessageTimes(lastTimes);
+          // Don't set unread messages during initialization - only track new messages in real-time
+        }
 
         const { data: requestsData, error: requestsError } = await supabase
           .from("connection_requests")
@@ -1138,18 +1236,7 @@ const Dashboard: React.FC = () => {
             `Emergencies fetch error: ${emergenciesError.message}`
           );
         }
-        const filteredEmergencies =
-          emergencyFilter === "nearby"
-            ? emergenciesData?.filter((emergency) => {
-              const distance =
-                Math.sqrt(
-                  Math.pow(emergency.location.lat - userLocation.lat, 2) +
-                  Math.pow(emergency.location.lng - userLocation.lng, 2)
-                ) * 111;
-              return distance <= 5;
-            }) || []
-            : emergenciesData || [];
-        setEmergencies(filteredEmergencies);
+        setEmergencies(emergenciesData || []);
 
         const { data: tipsData, error: tipsError } = await supabase
           .from("safety_tips")
@@ -1400,7 +1487,7 @@ const Dashboard: React.FC = () => {
               event: "INSERT",
               schema: "public",
               table: "messages",
-              filter: `receiver_id=eq.${user.id}`,
+              filter: `or(sender_id=eq.${user.id},receiver_id=eq.${user.id})`,
             },
             async (payload) => {
               console.log("Raw message payload:", payload);
@@ -1415,18 +1502,43 @@ const Dashboard: React.FC = () => {
                 .select("name")
                 .eq("user_id", newMessage.receiver_id)
                 .single();
-              setMessages((prev) => [
-                {
-                  id: newMessage.id,
-                  sender_id: newMessage.sender_id,
-                  receiver_id: newMessage.receiver_id,
-                  content: newMessage.content,
-                  timestamp: newMessage.timestamp,
-                  sender_name: senderData?.name || "Unknown User",
-                  receiver_name: receiverData?.name || "Unknown User",
-                },
+
+              const decryptedMessage = {
+                id: newMessage.id,
+                sender_id: newMessage.sender_id,
+                receiver_id: newMessage.receiver_id,
+                content: newMessage.content,
+                timestamp: newMessage.timestamp,
+                sender_name: senderData?.name || "Unknown User",
+                receiver_name: receiverData?.name || "Unknown User",
+                read: newMessage.read || false,
+              };
+
+              // Decrypt the message for display
+              try {
+                const bytes = CryptoJS.AES.decrypt(newMessage.content, secretKey);
+                const plaintext = bytes.toString(CryptoJS.enc.Utf8);
+                decryptedMessage.content = plaintext;
+              } catch (error) {
+                console.error("Error decrypting message:", error);
+              }
+
+              setMessages((prev) => [decryptedMessage, ...prev]);
+
+              // Track unread messages - only if the message is for the current user
+              if (newMessage.receiver_id === user.id) {
+                setUnreadMessages((prev) => ({
+                  ...prev,
+                  [newMessage.sender_id]: (prev[newMessage.sender_id] || 0) + 1,
+                }));
+              }
+
+              // Update last message time for sorting (for both sent and received messages)
+              const otherUserId = newMessage.sender_id === user.id ? newMessage.receiver_id : newMessage.sender_id;
+              setLastMessageTimes((prev) => ({
                 ...prev,
-              ]);
+                [otherUserId]: newMessage.timestamp,
+              }));
             }
           )
           .subscribe((status, err) => {
@@ -1697,40 +1809,7 @@ const Dashboard: React.FC = () => {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [navigate, userLocation, emergencyFilter]);
-
-  const refreshFeed = async () => {
-    setIsLoading(true);
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
-
-      const { data, error } = await supabase
-        .from("emergencies")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw new Error(`Refresh emergencies error: ${error.message}`);
-      const filteredEmergencies =
-        emergencyFilter === "nearby"
-          ? data?.filter((emergency) => {
-            const distance =
-              Math.sqrt(
-                Math.pow(emergency.location.lat - userLocation.lat, 2) +
-                Math.pow(emergency.location.lng - userLocation.lng, 2)
-              ) * 111;
-            return distance <= 5;
-          }) || []
-          : data || [];
-      setEmergencies(filteredEmergencies);
-    } catch (error: any) {
-      console.error("Error refreshing emergencies:", error);
-      setAutoDismissError(`Failed to refresh emergencies: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [navigate, userLocation]);
 
   const handleEmergencyAlert = async (type: string) => {
     try {
@@ -1856,19 +1935,8 @@ const Dashboard: React.FC = () => {
       // Add to pending alerts
       setPendingCrisisAlerts((prev) => [insertedAlert, ...prev]);
 
-      // Add to emergencies list if it matches current filter
-      if (
-        emergencyFilter === "all" ||
-        (emergencyFilter === "nearby" &&
-          Math.sqrt(
-            Math.pow(newEmergency.location.lat - userLocation.lat, 2) +
-            Math.pow(newEmergency.location.lng - userLocation.lng, 2)
-          ) *
-          111 <=
-          5)
-      ) {
-        setEmergencies((prev) => [newEmergency, ...prev]);
-      }
+      // Add to emergencies list
+      setEmergencies((prev) => [newEmergency, ...prev]);
 
       setAutoDismissSuccess(`${type} emergency alerted successfully!`);
       console.log("Emergency alert process completed successfully");
@@ -2136,41 +2204,9 @@ const Dashboard: React.FC = () => {
     setShowCallConfirm(true);
   };
 
-  const handleReport = (emergency: Emergency) => {
-    setSelectedEmergencyForAction(emergency);
-    setShowReportConfirm(true);
-  };
-
   const initiateCall = () => {
     window.open("tel:911", "_blank");
     setShowCallConfirm(false);
-  };
-
-  const submitReport = async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user || !selectedEmergencyForAction)
-        throw new Error("No user or emergency selected");
-
-      const newNotification = {
-        user_id: user.id,
-        type: "report",
-        notification_type: "report",
-        message: `Reported ${selectedEmergencyForAction.emergency_type} by ${selectedEmergencyForAction.name}`,
-        read: false,
-        created_at: new Date().toISOString(),
-      };
-      const { error } = await supabase
-        .from("notifications")
-        .insert(newNotification);
-      if (error) throw new Error(`Report notification error: ${error.message}`);
-      setShowReportConfirm(false);
-    } catch (error: any) {
-      console.error("Error submitting report:", error);
-      setAutoDismissError(`Failed to submit report: ${error.message}`);
-    }
   };
 
   const handleSendMessage = async () => {
@@ -2212,7 +2248,14 @@ const Dashboard: React.FC = () => {
       // Decrypt for local display
       const bytes = CryptoJS.AES.decrypt(newMessage.content, secretKey);
       const plaintext = bytes.toString(CryptoJS.enc.Utf8);
-      setMessages([...messages, { ...newMessage, content: plaintext }]);
+      setMessages([...messages, { ...newMessage, content: plaintext, read: false }]);
+
+      // Update last message time for sorting
+      setLastMessageTimes((prev) => ({
+        ...prev,
+        [selectedConnection.connected_user_id]: newMessage.timestamp,
+      }));
+
       setMessageText("");
       setMessageSent(true);
       setTimeout(() => setMessageSent(false), 1500);
@@ -2222,12 +2265,40 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleSelectConnection = (connection: Connection) => {
+  const handleSelectConnection = async (connection: Connection) => {
     setSelectedConnection(connection);
     setCurrentChatRecipient(connection.name);
     setShowChatList(false);
     setShowMessages(true);
     setActiveTab("message");
+
+    // Mark messages as read when chat is opened
+    if (userProfile) {
+      const unreadMessagesFromThisConnection = messages.filter(
+        (msg) => msg.sender_id === connection.connected_user_id && msg.receiver_id === userProfile.id && !msg.read
+      );
+
+      if (unreadMessagesFromThisConnection.length > 0) {
+        const messageIdsToMarkRead = unreadMessagesFromThisConnection.map(msg => msg.id);
+        const { error } = await supabase
+          .from("messages")
+          .update({ read: true })
+          .in("id", messageIdsToMarkRead);
+
+        if (error) {
+          console.error("Error marking messages as read:", error);
+          setAutoDismissError(`Failed to mark messages as read: ${error.message}`);
+        } else {
+          // Update local state
+          setMessages(prevMessages => prevMessages.map(msg => messageIdsToMarkRead.includes(msg.id) ? { ...msg, read: true } : msg));
+          // Also update unread count
+          setUnreadMessages((prev) => ({
+            ...prev,
+            [connection.connected_user_id]: 0,
+          }));
+        }
+      }
+    }
   };
 
   const handleConnectionAction = (action: string, connection: Connection) => {
@@ -2269,6 +2340,42 @@ const Dashboard: React.FC = () => {
     );
   };
 
+  const getSortedConnections = () => {
+    return [...connections].sort((a, b) => {
+      const aUnreadCount = unreadMessages[a.connected_user_id] || 0;
+      const bUnreadCount = unreadMessages[b.connected_user_id] || 0;
+      const aLastMessage = lastMessageTimes[a.connected_user_id];
+      const bLastMessage = lastMessageTimes[b.connected_user_id];
+
+      // First priority: conversations with unread messages
+      if (aUnreadCount > 0 && bUnreadCount === 0) return -1;
+      if (aUnreadCount === 0 && bUnreadCount > 0) return 1;
+
+      // If both have unread messages, sort by unread count (highest first)
+      if (aUnreadCount > 0 && bUnreadCount > 0) {
+        if (aUnreadCount !== bUnreadCount) {
+          return bUnreadCount - aUnreadCount;
+        }
+        // If unread counts are equal, sort by latest message time
+        if (aLastMessage && bLastMessage) {
+          return new Date(bLastMessage).getTime() - new Date(aLastMessage).getTime();
+        }
+      }
+
+      // Second priority: conversations with messages (no unread)
+      if (aLastMessage && bLastMessage) {
+        return new Date(bLastMessage).getTime() - new Date(aLastMessage).getTime();
+      }
+
+      // If only one has messages, prioritize it
+      if (aLastMessage && !bLastMessage) return -1;
+      if (!aLastMessage && bLastMessage) return 1;
+
+      // If neither has messages, sort alphabetically
+      return a.name.localeCompare(b.name);
+    });
+  };
+
   return (
     <div className={`h-screen overflow-hidden ${themeClasses.background} flex flex-col transition-colors duration-300`}>
       {/* Navbar */}
@@ -2287,7 +2394,7 @@ const Dashboard: React.FC = () => {
               />
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#4ECDC4]" size={16} />
               {searchQuery.trim().length >= 2 && (
-                <div className={`absolute top-full left-0 right-0 mt-2 ${themeClasses.searchDropdown} rounded-2xl border-2 ${themeClasses.border} z-50 max-h-60 overflow-y-auto`}>
+                <div className={`absolute top-full left-0 right-0 mt-2 ${themeClasses.searchDropdown} rounded-2xl border-2 ${themeClasses.border} z-50 max-h-60 overflow-y-auto scrollbar-thin`}>
                   <div className="py-2">
                     {searchResults.length > 0 ? (
                       searchResults.map((user) => (
@@ -2300,15 +2407,15 @@ const Dashboard: React.FC = () => {
                             setSearchQuery("");
                           }}
                         >
-                          <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white">
+                          <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#2B2B2B] flex items-center justify-center text-white overflow-hidden">
                             {user.avatar ? (
                               <img
                                 src={user.avatar}
-                                className="w-full h-full rounded-full"
+                                className="w-10 h-10 rounded-full object-cover"
                                 alt={user.name}
                               />
                             ) : (
-                              <FaUser className="text-white" />
+                              <FaUser className="text-white" size={20} />
                             )}
                           </div>
                           <div className="min-w-0 w-full flex flex-col justify-center">
@@ -2340,13 +2447,25 @@ const Dashboard: React.FC = () => {
           </button>
           <button
             onClick={() => handleNavigation("message")}
-            className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 ${activeTab === "message"
+            className={`flex flex-col items-center px-3 py-2 rounded-xl border-b-2 transition-all duration-300 relative ${activeTab === "message"
               ? "text-[#4ECDC4] border-[#4ECDC4] bg-[#4ECDC4]/10 font-bold "
               : `${themeClasses.textSecondary} border-transparent hover:text-[#4ECDC4] hover:border-[#4ECDC4]/50 hover:bg-[#4ECDC4]/5 hover:scale-105`
-              }`}
+              } relative`}
           >
-            <FaEnvelope size={20} />
+            <div className="relative">
+              <FaEnvelope size={20} />
+              {Object.values(unreadMessages).filter(count => count > 0).length > 0 && (
+                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                  {Object.values(unreadMessages).filter(count => count > 0).length}
+                </div>
+              )}
+            </div>
             <span className="text-xs mt-1">Message</span>
+            {totalUnreadMessages > 0 && (
+              <span className="absolute -top-1 right-0 bg-[#E63946] text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold">
+                {totalUnreadMessages}
+              </span>
+            )}
           </button>
           <button
             onClick={() => handleNavigation("report")}
@@ -2383,7 +2502,7 @@ const Dashboard: React.FC = () => {
                     Connection Requests
                   </h3>
                 </div>
-                <div className="max-h-96 overflow-y-auto overflow-x-hidden">
+                <div className="max-h-96 overflow-y-auto overflow-x-hidden scrollbar-thin">
                   {connectionRequests.length > 0 ? (
                     connectionRequests.map((request) => (
                       <div
@@ -2395,11 +2514,11 @@ const Dashboard: React.FC = () => {
                             {request.sender_avatar ? (
                               <img
                                 src={request.sender_avatar}
-                                className="w-full h-full rounded-full object-cover"
+                                className="w-10 h-10 rounded-full object-cover"
                                 alt={request.sender_name}
                               />
                             ) : (
-                              <FaUser className="text-white" />
+                              <FaUser className="text-white" size={20} />
                             )}
                           </div>
                           <p className={`${themeClasses.textPrimary} text-sm truncate`}>
@@ -2490,7 +2609,7 @@ const Dashboard: React.FC = () => {
                     All
                   </button>
                 </div>
-                <div className="max-h-96 overflow-y-auto">
+                <div className="max-h-96 overflow-y-auto scrollbar-thin">
                   {(() => {
                     const filteredNotifications = notificationTab === "unread" ? unreadNotifications : notifications;
 
@@ -2559,7 +2678,7 @@ const Dashboard: React.FC = () => {
                     {userProfile?.avatar ? (
                       <img
                         src={userProfile.avatar}
-                        className="w-full h-full rounded-full object-cover"
+                        className="w-12 h-12 rounded-full border-2 border-white object-cover"
                         alt="Profile"
                       />
                     ) : (
@@ -2621,11 +2740,11 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
-                  <span className={`${themeClasses.deviceCardText}/90 font-medium`}>Device ID:</span>
-                  <span className={`${themeClasses.deviceCardText} font-bold`}>01-JD-C24</span>
+                  <span className={`${themeClasses.deviceCardText} text-[#FFFFFF] font-medium`}>Device ID:</span>
+                  <span className={`${themeClasses.deviceCardText} text-[#FFFFFF] font-bold`}>01-JD-C24</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
-                  <span className={`${themeClasses.deviceCardText}/90 font-medium`}>Status:</span>
+                  <span className={`${themeClasses.deviceCardText} text-[#FFFFFF] font-medium`}>Status:</span>
                   <span
                     className={`font-bold px-3 py-1 rounded-full text-sm ${deviceStatus === "Active"
                       ? "bg-green-500 text-white"
@@ -2653,7 +2772,10 @@ const Dashboard: React.FC = () => {
                 Connections
               </h2>
               {isLoading ? (
-                <p className={themeClasses.textSecondary}>Loading connections...</p>
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4ECDC4]"></div>
+                  <p className={`${themeClasses.textSecondary} ml-2`}>Loading...</p>
+                </div>
               ) : connections.length > 0 ? (
                 connections.map((connection) => (
                   <div
@@ -2662,15 +2784,15 @@ const Dashboard: React.FC = () => {
                     onClick={() => handleSelectConnection(connection)}
                   >
                     <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
+                      <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white overflow-hidden flex-shrink-0">
                         {connection.avatar ? (
                           <img
                             src={connection.avatar}
-                            className="w-full h-full rounded-full"
+                            className="w-10 h-10 rounded-full object-cover"
                             alt={connection.name}
                           />
                         ) : (
-                          <FaUser className="text-white" />
+                          <FaUser className="text-white" size={20} />
                         )}
                       </div>
                       <span className={`${themeClasses.textPrimary} font-bold`}>{connection.name}</span>
@@ -2696,7 +2818,10 @@ const Dashboard: React.FC = () => {
                 Safety Tips
               </h2>
               {isLoading ? (
-                <p className={themeClasses.textSecondary}>Loading safety tips...</p>
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4ECDC4]"></div>
+                  <p className={`${themeClasses.textSecondary} ml-2`}>Loading...</p>
+                </div>
               ) : safetyTips.length > 0 ? (
                 safetyTips.map((tip) => (
                   <div
@@ -2728,26 +2853,28 @@ const Dashboard: React.FC = () => {
         <div className="w-full lg:w-2/4 p-4 sm:p-6 min-h-0">
           {/* Center column: fixed in page layout, inner content scrolls on hover */}
           <div className="h-full scrollbar-hidden scroll-on-hover space-y-4" style={{ maxHeight: 'calc(100vh - 140px)' }}>
-            <div className={`${themeClasses.welcomeCard} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-center transition-all duration-300 hover:border-[#4ECDC4]/50`}>
-              <div className="flex items-center space-x-4">
-                <div className={`w-12 h-14 rounded-full ${theme === "dark" ? "bg-gray-600" : "bg-black/20"} flex items-center justify-center ${theme === "dark" ? "text-white" : "text-black"} text-xl`}>
-                  {userProfile?.avatar ? (
-                    <img
-                      src={userProfile.avatar}
-                      className="w-full h-full rounded-full"
-                      alt="Profile"
-                    />
-                  ) : (
-                    <FaUser className={theme === "dark" ? "text-white" : "text-white"} />
-                  )}
-                </div>
-                <div>
-                  <span className={`${theme === "dark" ? "text-white" : "text-white"} text-lg sm:text-xl font-bold`}>
-                    Welcome, {isLoading ? "..." : (userProfile?.first_name || userProfile?.first_name || "User")}!
-                  </span>
+            {activeTab === "home" && (
+              <div className={`${themeClasses.welcomeCard} ${themeClasses.border} rounded-2xl border-2 p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-center transition-all duration-300 hover:border-[#4ECDC4]/50`}>
+                <div className="flex items-center space-x-4">
+                  <div className={`w-12 h-14 rounded-full ${theme === "dark" ? "bg-gray-600" : "bg-black/20"} flex items-center justify-center ${theme === "dark" ? "text-white" : "text-black"} text-xl`}>
+                    {userProfile?.avatar ? (
+                      <img
+                        src={userProfile.avatar}
+                        className="w-12 h-12 rounded-full border-2 border-white object-cover"
+                        alt="Profile"
+                      />
+                    ) : (
+                      <FaUser className={theme === "dark" ? "text-white" : "text-white"} />
+                    )}
+                  </div>
+                  <div>
+                    <span className={`${theme === "dark" ? "text-white" : "text-white"} text-lg sm:text-xl font-bold`}>
+                      Welcome, {isLoading ? "..." : (userProfile?.first_name || userProfile?.first_name || "User")}!
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             {error && (
               <div className={`${theme === "dark" ? "bg-red-900/50 border-red-600 text-red-300" : "bg-red-100 border-red-400 text-red-700"} border px-4 py-3 rounded-2xl mb-4 sm:mb-6  transition-all duration-300`}>
                 {error}
@@ -2764,35 +2891,12 @@ const Dashboard: React.FC = () => {
                   <h2 className={`text-xl sm:text-2xl font-bold ${themeClasses.textPrimary}`}>
                     Recent Emergencies
                   </h2>
-                  <div className="flex flex-wrap space-x-2 mt-2 sm:mt-0">
-                    <button
-                      onClick={() => setEmergencyFilter("nearby")}
-                      className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${emergencyFilter === "nearby"
-                        ? "bg-[#4ECDC4] hover:bg-[#3abfb2] text-white"
-                        : `${themeClasses.buttonSecondary}`
-                        }`}
-                    >
-                      Nearby (5km)
-                    </button>
-                    <button
-                      onClick={() => setEmergencyFilter("all")}
-                      className={`px-3 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${emergencyFilter === "all"
-                        ? "bg-[#4ECDC4] hover:bg-[#3abfb2] text-white"
-                        : `${themeClasses.buttonSecondary}`
-                        }`}
-                    >
-                      All
-                    </button>
-                    <button
-                      onClick={refreshFeed}
-                      className="bg-[#FFD166] hover:bg-[#d88e00] text-white px-3 py-1 rounded-lg hover:scale-105 transition-all duration-300"
-                    >
-                      Refresh
-                    </button>
-                  </div>
                 </div>
                 {isLoading ? (
-                  <p className={themeClasses.textSecondary}>Loading emergencies...</p>
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4ECDC4]"></div>
+                    <p className={`${themeClasses.textSecondary} ml-2`}>Loading...</p>
+                  </div>
                 ) : emergencies.length > 0 ? (
                   <div>
                     {emergencies.map((emergency) => (
@@ -2820,24 +2924,17 @@ const Dashboard: React.FC = () => {
                           <div className="flex space-x-2 sm:space-x-3">
                             <button
                               onClick={() => handleViewLocation(emergency)}
-                              className="bg-[#4ECDC4] hover:bg-[#3abfb2] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                              className="hover:text-[#FFD166] text-[#4ECDC4] px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
                             >
                               <FaMapMarkerAlt className="mr-1 sm:mr-2" />
                               View
                             </button>
                             <button
                               onClick={() => handleCallAssistance(emergency)}
-                              className="bg-[#FFD166] hover:bg-[#d88e00] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
+                              className="hover:text-green-500 text-[#4ECDC4] px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
                             >
                               <FaPhone className="mr-1 sm:mr-2" />
                               Call
-                            </button>
-                            <button
-                              onClick={() => handleReport(emergency)}
-                              className="bg-[#E63946] hover:bg-[#a33d16] text-white px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm hover:scale-105 transition-all duration-300 flex items-center"
-                            >
-                              <FaExclamationTriangle className="mr-1 sm:mr-2" />
-                              Report
                             </button>
                           </div>
                         </div>
@@ -2857,34 +2954,71 @@ const Dashboard: React.FC = () => {
                       Messages
                     </h2>
                     {isLoading ? (
-                      <p className={themeClasses.textSecondary}>Loading messages...</p>
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4ECDC4]"></div>
+                        <p className={`${themeClasses.textSecondary} ml-2`}>Loading...</p>
+                      </div>
                     ) : connections.length > 0 ? (
-                      connections.map((connection) => (
-                        <div
-                          key={connection.id}
-                          className={`flex items-center justify-between space-x-4 mb-2 cursor-pointer ${themeClasses.hover} p-2 rounded-2xl hover:scale-105 transition-all duration-300`}
-                          onClick={() => handleSelectConnection(connection)}
-                        >
-                          <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white">
-                              {connection.avatar ? (
-                                <img
-                                  src={connection.avatar}
-                                  className="w-full h-full rounded-full"
-                                  alt={connection.name}
-                                />
-                              ) : (
-                                <FaUser className="text-white" />
-                              )}
+                      getSortedConnections()
+                        // Show only conversations that have at least one message
+                        .filter((connection) => !!lastMessageTimes[connection.connected_user_id])
+                        .map((connection) => {
+                          const unreadCount = unreadMessages[connection.connected_user_id] || 0;
+                          const hasUnread = unreadCount > 0;
+                          const lastMessageTime = lastMessageTimes[connection.connected_user_id];
+
+                          return (
+                            <div
+                              key={connection.id}
+                              className={`flex items-center justify-between space-x-4 mb-2 cursor-pointer ${themeClasses.hover} p-2 rounded-2xl hover:scale-105 transition-all duration-300 ${hasUnread ? 'bg-[#4ECDC4]/10 border border-[#4ECDC4]/30' : ''}`}
+                              onClick={() => handleSelectConnection(connection)}
+                            >
+                              <div className="flex items-center space-x-4 flex-1">
+                                <div className="relative">
+                                  <div className="w-10 h-10 rounded-full bg-[#4ECDC4] flex items-center justify-center text-white overflow-hidden flex-shrink-0">
+                                    {connection.avatar ? (
+                                      <img
+                                        src={connection.avatar}
+                                        className="w-10 h-10 rounded-full object-cover"
+                                        alt={connection.name}
+                                      />
+                                    ) : (
+                                      <FaUser className="text-white" size={20} />
+                                    )}
+                                  </div>
+                                  {hasUnread && (
+                                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold">
+                                      {unreadCount > 9 ? '9+' : unreadCount}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <span className={`${themeClasses.textPrimary} font-bold truncate ${hasUnread ? 'font-black' : ''}`}>
+                                      {connection.name}
+                                    </span>
+                                    <div className="flex items-center space-x-2">
+                                      {lastMessageTime && (
+                                        <span className={`text-xs ${themeClasses.textSecondary}`}>
+                                          {new Date(lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                      )}
+                                      <span
+                                        className={`h-3 w-3 rounded-full ${connection.is_online ? "bg-green-500" : "bg-gray-400"
+                                          }`}
+                                      ></span>
+                                    </div>
+                                  </div>
+                                  {hasUnread && (
+                                    <div className="text-xs text-[#4ECDC4] font-semibold">
+                                      {unreadCount} unread message{unreadCount > 1 ? 's' : ''}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <span className={`${themeClasses.textPrimary} font-bold`}>{connection.name}</span>
-                          </div>
-                          <span
-                            className={`h-3 w-3 rounded-full ${connection.is_online ? "bg-green-500" : "bg-gray-400"
-                              }`}
-                          ></span>
-                        </div>
-                      ))
+                          );
+                        })
                     ) : (
                       <p className={themeClasses.textSecondary}>No connections to message.</p>
                     )}
@@ -2907,7 +3041,7 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div
                       ref={chatContainerRef}
-                      className={`h-96 overflow-y-auto ${themeClasses.chatBackground} rounded-2xl p-4 mb-4`}
+                      className={`h-96 overflow-y-auto scrollbar-thin ${themeClasses.chatBackground} rounded-2xl p-4 mb-4`}
                     >
                       {getMessagesForRecipient(selectedConnection?.connected_user_id || "").map(
                         (message, index, messages) => {
@@ -3084,10 +3218,10 @@ const Dashboard: React.FC = () => {
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4ECDC4]"></div>
-                  <p className={`${themeClasses.textSecondary} ml-2`}>Loading alerts...</p>
+                  <p className={`${themeClasses.textSecondary} ml-2`}>Loading...</p>
                 </div>
               ) : allSafeAlerts.length > 0 ? (
-                <div className="safe-alerts-container max-h-64 overflow-y-auto overflow-x-hidden space-y-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                <div className="safe-alerts-container max-h-64 overflow-y-auto overflow-x-hidden space-y-2 scrollbar-thin">
                   {allSafeAlerts.map((alert, index) => (
                     <div
                       key={alert.id}
@@ -3200,11 +3334,11 @@ const Dashboard: React.FC = () => {
               </div>
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
-                  <p className={`${themeClasses.textSecondary} ml-2`}>Loading pending alerts...</p>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4ECDC4]"></div>
+                  <p className={`${themeClasses.textSecondary} ml-2`}>Loading...</p>
                 </div>
               ) : pendingCrisisAlerts.length > 0 ? (
-                <div className="pending-alerts-container max-h-64 overflow-y-auto overflow-x-hidden space-y-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                <div className="pending-alerts-container max-h-64 overflow-y-auto overflow-x-hidden space-y-2 scrollbar-thin">
                   {pendingCrisisAlerts.map((alert, index) => {
                     const AlertIcon = iconMap[alert.type] || FaExclamationTriangle;
                     const alertColors = {
@@ -3605,7 +3739,7 @@ const Dashboard: React.FC = () => {
                     ) : userProfile?.avatar ? (
                       <img
                         src={userProfile.avatar}
-                        className="w-full h-full rounded-full object-cover"
+                        className="w-12 h-12 rounded-full border-2 border-white object-cover"
                         alt="Current profile"
                       />
                     ) : (
@@ -3770,32 +3904,6 @@ const Dashboard: React.FC = () => {
                 className="bg-[#FFD166] hover:bg-[#d88e00] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
               >
                 Call
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showReportConfirm && selectedEmergencyForAction && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className={`${themeClasses.modal} ${themeClasses.border} rounded-2xl p-6 w-full max-w-md border-2 transition-all duration-300 animate-in fade-in zoom-in`}>
-            <h2 className="text-xl font-bold text-[#4ECDC4] mb-4">
-              Confirm Report
-            </h2>
-            <p className={`${themeClasses.textSecondary} mb-6`}>
-              Report {selectedEmergencyForAction.emergency_type} by {selectedEmergencyForAction.name}?
-            </p>
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => setShowReportConfirm(false)}
-                className={`${themeClasses.buttonSecondary} px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitReport}
-                className="bg-[#E63946] hover:bg-[#a33d16] text-white px-4 py-2 rounded-lg hover:scale-105 transition-all duration-300"
-              >
-                Report
               </button>
             </div>
           </div>
